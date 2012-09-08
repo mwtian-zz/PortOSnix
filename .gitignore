@@ -1,0 +1,15 @@
+# Only track specific files
+*/*
+*~
+
+!*/*.h
+*/confi.h
+
+!*/*.S
+!*/*.c
+!*/.gitignore
+!*/Makefile.am
+!*/configure.ac
+!*/HACKING
+!*/README
+!README.md

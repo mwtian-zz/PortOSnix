@@ -75,8 +75,16 @@ queue_append(queue_t queue, void* item) {
  */
 int
 queue_dequeue(queue_t queue, void** item) {
-    if (NULL == queue || NULL == item)
+	if (queue == NULL) {
+		if (item != NULL) {
+			*item = NULL;
+		}
+		return -1;
+	}
+	
+    if (NULL == item)
         return -1;
+		
 	*item = (void*) queue->head;
 	if (NULL == *item)
         return -1;

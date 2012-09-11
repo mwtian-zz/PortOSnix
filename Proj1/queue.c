@@ -150,14 +150,15 @@ queue_delete(queue_t queue, void** item) {
         queue->head = node->next;
     else {
         node->prev->next = node->next;
-        node->prev = NULL;
     }
+	
     if (node->next == NULL)
         queue->tail = node->prev;
     else {
         node->next->prev = node->prev;
-        node->next = NULL;
     }
+	node->prev = node->next = NULL;
+	
     --(queue->length);
 	return 0;
 }

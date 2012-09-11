@@ -105,8 +105,8 @@ queue_iterate(queue_t queue, PFany f, void* item) {
 		return -1;
 	for (current = queue->head; current != NULL; current = next) {
 		next = current->next;
-		if (-1 == f(item, current))
-			flag = -1;
+		/*if (-1 == f(item, current))
+			flag = -1;*/
 	}
 	return flag;
 }

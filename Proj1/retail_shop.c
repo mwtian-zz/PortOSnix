@@ -23,6 +23,7 @@ semaphore_t serial_sem;
 /*Phone queue semphore */
 semaphore_t queue_sem;
 
+semaphore_t available_sem;
 
 phone_t phone_create() {
 	phone_t new_phone = (phone_t) malloc(sizeof(struct phone));
@@ -34,6 +35,8 @@ phone_t phone_create() {
 	semaphore_P(serial_sem);
 	new_phone->serial_num = serial_num++;
 	semaphore_V(serial_sem);
+	
+	return new_phone;
 }
 
 static void employee(int* arg) {
@@ -46,6 +49,7 @@ static void employee(int* arg) {
 			queue_append(phone_queue, new_phone);
 			printf("Employee %d unpacked phone %d\n", *arg, new_phone->serial_num);
 			semaphore_V(queue_sem);
+			semaphore_V(available_sem);
 		}
 	}
 }
@@ -54,8 +58,10 @@ static void customer(int* arg) {
 	phone_t new_phone = NULL;
 	int i;
 	
+	printf("Customer is running\n");
 	for (i = 0; i < customer_num; i++) {
 		while (new_phone == NULL) {
+			semaphore_P(available_sem);
 			semaphore_P(queue_sem);
 			queue_dequeue(phone_queue, (void**)&new_phone);
 			semaphore_V(queue_sem);
@@ -70,7 +76,7 @@ static void start(int* arg) {
 	int i;
 	
 	minithread_fork(customer, NULL);
-	minithread_yield();
+	//minithread_yield();
 	
 	for (i = 0; i < employee_num; i++) {
 		minithread_fork(employee, &i);
@@ -85,8 +91,12 @@ void main(int argc, char** argv) {
 		return;
 	}
 	
+	serial_sem = semaphore_create();
+	queue_sem = semaphore_create();
+	available_sem = semaphore_create();
 	semaphore_initialize(serial_sem, 1);
 	semaphore_initialize(queue_sem, 1);
+	semaphore_initialize(available_sem, 0);
 	
 	minithread_system_initialize(start, NULL);
 }

@@ -8,14 +8,14 @@
 #include "queue_struct.h"
 
 /*
- * Return an empty queue.
+ * Return an empty queue. On error, return NULL.
  */
 queue_t
 queue_new() {
     queue_t q;
-	if ((q = (queue_t) malloc(sizeof(*q))) == NULL) {
+	if ((q = (queue_t) malloc(sizeof(struct queue))) == NULL) {
 		printf("Queue memory allocation failed.\n");
-		exit(-1);
+		return NULL;
 	}
 	q->length = 0;
 	q->head = q->tail = NULL;

@@ -49,7 +49,7 @@ extern int queue_dequeue(queue_t, void**);
  */
 extern int queue_iterate(queue_t, PFany, void*);
 
-/*(single or multiple NetIDs separated by space or comma)
+/*(single or multiple NetIDs separated by space or comma) (what does this mean?)
 
  * Free the queue and return 0 (success) or -1 (failure).
  */

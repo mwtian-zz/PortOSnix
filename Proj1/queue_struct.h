@@ -25,7 +25,7 @@ struct node {
  * pointer. Pointers to other structs including tcb are cast into node_t
  * to be manipulated in the queue, using "poor man's inheritance".
  */
-typedef struct node *node_t;
+typedef struct node* node_t;
 
 /*
  * The queue data structure.

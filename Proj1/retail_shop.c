@@ -1,8 +1,9 @@
 /* Retail shop application and multiple function definitions */
 
-#inlcude <stdio.h>
+#include <stdio.h>
 #include "queue.h"
 #include "synch.h"
+#include "retail_shop.h"
 
 /* Current serial number, starting from 0*/
 int serial_num = 0;
@@ -24,44 +25,44 @@ semaphore_t queue_sem;
 
 
 phone_t phone_create() {
-	phone_t phone = (phone_t) malloc(sizeof(struct phone));
-	if (phone == NULL) {
+	phone_t new_phone = (phone_t) malloc(sizeof(struct phone));
+	if (new_phone == NULL) {
 		printf("Can't unpack a new phone\n");
 		return NULL;
 	}
 	
 	semaphore_P(serial_sem);
-	phone->serial_num = serial_num++;
+	new_phone->serial_num = serial_num++;
 	semaphore_V(serial_sem);
 }
 
 static void employee(int* arg) {
-	phone_t phone = NULL;
+	phone_t new_phone = NULL;
 	
 	while (1) {
-		phone = phone_create();
-		if (phone) {
+		new_phone = phone_create();
+		if (new_phone) {
 			semaphore_P(queue_sem);
-			queue_append(phone_quque, phone);
-			printf("Employee %d unpacked phone %d\n", *arg, phone->serial_num);
+			queue_append(phone_queue, new_phone);
+			printf("Employee %d unpacked phone %d\n", *arg, new_phone->serial_num);
 			semaphore_V(queue_sem);
 		}
 	}
 }
 
 static void customer(int* arg) {
-	phone_t phone = NULL;
+	phone_t new_phone = NULL;
 	int i;
 	
 	for (i = 0; i < customer_num; i++) {
-		while (phone == NULL) {
+		while (new_phone == NULL) {
 			semaphore_P(queue_sem);
-			queue_dequeue(phone_queue, &phone);
+			queue_dequeue(phone_queue, (void**)&new_phone);
 			semaphore_V(queue_sem);
 		}
 
-		printf("Customer %d got phone %d\n", *arg, phone->serial_num);
-		free(phone);
+		printf("Customer %d got phone %d\n", *arg, new_phone->serial_num);
+		free(new_phone);
 	}
 }
 

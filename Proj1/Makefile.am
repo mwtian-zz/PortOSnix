@@ -10,7 +10,8 @@ portos_SOURCES = \
 	$(top_srcdir)/queue.c \
 	$(top_srcdir)/synch.c \
 	$(top_srcdir)/minithread.c \
-	$(top_srcdir)/buffer.c \ # modify this line to compile other tests.
+	$(top_srcdir)/retail_shop.c \ # modify this line to compile other tests.
+	$(top_srcdir)/retail_shop.h \
 	$(top_srcdir)/end.c
 
 portos_CPPFLAGS = \

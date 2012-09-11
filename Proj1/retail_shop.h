@@ -14,10 +14,10 @@ struct phone {
 	struct phone* prev;
 	struct phone* next;
 	struct queue* queue;
-	int serail_num;
+	int serial_num;
 };
 
-typedef phone* phone_t
+typedef struct phone* phone_t;
 
 /* Unpack a new phone */
 phone_t phone_create();

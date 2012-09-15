@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "queue.h"
-#include "queue_struct.h"
+#include "queue_private.h"
 
 /*
  * Return an empty queue. On error, return NULL.

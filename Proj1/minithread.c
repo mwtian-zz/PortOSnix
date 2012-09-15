@@ -13,8 +13,7 @@
 #include "minithread.h"
 #include "queue.h"
 #include "synch.h"
-#include "minithread_struct.h"
-#include "thread_monitor.h"
+#include "minithread_private.h"
 
 /*
  * A minithread should be defined either in this file or in a private
@@ -210,7 +209,6 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     idle_thread->status = RUNNING;
 	thread_monitor.count = 1;
 	thread_monitor.ready = queue_new();
-	thread_monitor.blocked = queue_new();
 	thread_monitor.exited = queue_new();
 	thread_monitor.instack = idle_thread;
 

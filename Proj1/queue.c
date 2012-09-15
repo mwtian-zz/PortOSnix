@@ -13,12 +13,13 @@
 queue_t
 queue_new() {
     queue_t q;
-	if ((q = (queue_t) malloc(sizeof(struct queue))) == NULL) {
+	if ((q = malloc(sizeof(*q))) == NULL) {
 		printf("Queue memory allocation failed.\n");
 		return NULL;
 	}
 	q->length = 0;
-	q->head = q->tail = NULL;
+	q->head = NULL;
+	q->tail = NULL;
 	return q;
 }
 
@@ -31,7 +32,7 @@ queue_new() {
 int
 queue_prepend(queue_t queue, void* item) {
 	node_t node = item;
-	if (queue == NULL)
+	if (NULL == queue || NULL == item)
 		return -1;
 	if (queue->length == 0)
 		queue->tail = node;
@@ -54,7 +55,7 @@ queue_prepend(queue_t queue, void* item) {
 int
 queue_append(queue_t queue, void* item) {
 	node_t node = item;
-	if (queue == NULL)
+    if (NULL == queue || NULL == item)
 		return -1;
 	if (queue->length == 0)
 		queue->head = node;
@@ -75,16 +76,12 @@ queue_append(queue_t queue, void* item) {
  */
 int
 queue_dequeue(queue_t queue, void** item) {
-	if (queue == NULL) {
-		if (item != NULL) {
-			*item = NULL;
-		}
-		return -1;
-	}
-
     if (NULL == item)
         return -1;
-
+	if (queue == NULL) {
+        *item = NULL;
+		return -1;
+	}
 	*item = (void*) queue->head;
 	if (NULL == *item)
         return -1;
@@ -156,8 +153,9 @@ queue_delete(queue_t queue, void** item) {
     else {
         node->next->prev = node->prev;
     }
-	node->prev = node->next = NULL;
 
+	node->prev = NULL;
+	node->next = NULL;
     --(queue->length);
 	return 0;
 }

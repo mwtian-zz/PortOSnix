@@ -43,13 +43,21 @@ static int minithread_exit(arg_t arg);
 minithread_t
 minithread_create(proc_t proc, arg_t arg) {
 	minithread_t t;
-	if ((t = (minithread_t) malloc(sizeof(*t))) == NULL) {
+	/* Allocate memory for TCB and stack. */
+	if ((t = malloc(sizeof(*t))) == NULL) {
 		printf("TCB memory allocation failed.\n");
-		exit(-1);
+		return NULL;
 	}
 	minithread_allocate_stack(&(t->base), &(t->top));
+	if (NULL == t->base || NULL == t->top) {
+	    printf("Stack allocation failed.\n");
+        free(t);
+        return NULL;
+	}
+	/* Initialize TCB and stack. */
 	minithread_initialize_stack(&(t->top), proc, arg, minithread_exit, NULL);
-	t->prev = t->next = NULL;
+	t->prev = NULL;
+	t->next = NULL;
 	t->id = thread_monitor.tidcount;
 	t->status = INITIAL;
 	++(thread_monitor.tidcount);
@@ -61,6 +69,8 @@ minithread_create(proc_t proc, arg_t arg) {
 minithread_t
 minithread_fork(proc_t proc, arg_t arg) {
 	minithread_t t = minithread_create(proc, arg);
+	if (NULL == t)
+        return NULL;
 	minithread_start(t);
 	return t;
 }
@@ -97,12 +107,16 @@ minithread_schedule() {
 	/* Switch to another thread instead of idle_thread when possible. */
 	if (idle_thread == rp_new) {
 		if (0 == queue_length(thread_monitor.ready)) {
-            /* Two cases: rp_old exited or blocked, rp_old is idle-thread. */
+            /*
+             * Two cases: rp_old exited or blocked (do nothing),
+             *            and rp_old is the idle-thread.
+             */
 		    if (idle_thread == rp_old) {
                 rp_old->status = RUNNING;
                 return;
             }
 		} else {
+		    /* There exist other ready threads. */
             queue_append(thread_monitor.ready, rp_new);
 			queue_dequeue(thread_monitor.ready, (void**)&rp_new);
 		}

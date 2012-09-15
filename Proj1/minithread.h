@@ -95,10 +95,5 @@ extern void minithread_unlock_and_stop(tas_lock_t* lock);
  */
 extern void minithread_sleep_with_timeout(int delay);
 
-/*
- * Functions not in the original API
- */
-extern void minithread_block(void* queue);
-
 #endif /*__MINITHREAD_H__*/
 

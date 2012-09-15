@@ -81,10 +81,10 @@ queue_dequeue(queue_t queue, void** item) {
 		}
 		return -1;
 	}
-	
+
     if (NULL == item)
         return -1;
-		
+
 	*item = (void*) queue->head;
 	if (NULL == *item)
         return -1;
@@ -99,16 +99,15 @@ queue_dequeue(queue_t queue, void** item) {
  */
 int
 queue_iterate(queue_t queue, PFany f, void* item) {
-	int flag = 0;
 	node_t current, next;
 	if (NULL == queue || NULL == f)
 		return -1;
 	for (current = queue->head; current != NULL; current = next) {
 		next = current->next;
-		/*if (-1 == f(item, current))
-			flag = -1;*/
+		if (-1 == f(item, current))
+			return -1;
 	}
-	return flag;
+	return 0;
 }
 
 /*
@@ -151,14 +150,14 @@ queue_delete(queue_t queue, void** item) {
     else {
         node->prev->next = node->next;
     }
-	
+
     if (node->next == NULL)
         queue->tail = node->prev;
     else {
         node->next->prev = node->prev;
     }
 	node->prev = node->next = NULL;
-	
+
     --(queue->length);
 	return 0;
 }

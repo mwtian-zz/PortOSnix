@@ -38,6 +38,7 @@ minithread_root:
     callq %rbx    # call main proc
 
     pop %rsi      # get clean up location back
+    sub $0x8,%rsp
     mov %rbp,%rdi
     callq %rsi    # call the clean-up
     ret

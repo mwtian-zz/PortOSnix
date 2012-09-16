@@ -10,9 +10,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-#include "minithread.h"
 #include "queue.h"
 #include "synch.h"
+#include "minithread.h"
 #include "minithread_private.h"
 
 /*
@@ -24,21 +24,21 @@
  */
 
 /*
- * struct minithread is defined in "minithread_struct.h".
+ * struct minithread is defined in the private header "minithread_private.h".
  */
 
-/*
- * Pointer idle_thread and struct thread_monitor have file scope.
- */
+/* File scope pointers */
 static struct minithread idle_thread_;
 static minithread_t const idle_thread = &idle_thread_;
 
 static struct thread_monitor thread_monitor;
 
-/* minithread functions */
-
+/* File scope functions */
 static void minithread_schedule();
 static int minithread_exit(arg_t arg);
+
+
+/* minithread functions */
 
 minithread_t
 minithread_create(proc_t proc, arg_t arg) {
@@ -65,7 +65,6 @@ minithread_create(proc_t proc, arg_t arg) {
 	return t;
 }
 
-
 minithread_t
 minithread_fork(proc_t proc, arg_t arg) {
 	minithread_t t = minithread_create(proc, arg);
@@ -75,18 +74,15 @@ minithread_fork(proc_t proc, arg_t arg) {
 	return t;
 }
 
-
 minithread_t
 minithread_self() {
 	return thread_monitor.instack;
 }
 
-
 int
 minithread_id() {
 	return thread_monitor.instack->id;
 }
-
 
 /*
  * The running thread should be placed on the correct queue
@@ -134,10 +130,7 @@ minithread_schedule() {
 		minithread_switch(&(rp_old->top),&(rp_new->top));
 }
 
-
-/*
- * Add thread t to the tail of the ready queue.
- */
+/* Add thread t to the tail of the ready queue. */
 void
 minithread_start(minithread_t t) {
     if (NULL == t)
@@ -147,10 +140,9 @@ minithread_start(minithread_t t) {
 	minithread_schedule();
 }
 
-
 /*
  * The calling thread should be placed on the appropriate wait queue
- * before this function call.
+ * before calling minithread_stop().
  */
 void
 minithread_stop() {
@@ -158,10 +150,9 @@ minithread_stop() {
 	minithread_schedule();
 }
 
-
 /*
- * Add running thread to the tail of the ready queue.
- * Let the scheduler decide if it needs to be switched out.
+ * Add the running thread to the tail of the ready queue.
+ * Let the scheduler decide if the thread needs to be switched out.
  */
 void
 minithread_yield() {
@@ -169,7 +160,6 @@ minithread_yield() {
 	queue_append(thread_monitor.ready, thread_monitor.instack);
 	minithread_schedule();
 }
-
 
 /*
  * This is the 'final_proc' that helps threads exit properly.
@@ -187,7 +177,6 @@ minithread_exit(arg_t arg) {
 	return 0;
 }
 
-
 /*
  * Release stack of exited threads.
  */
@@ -201,7 +190,6 @@ minithread_cleanup(void* queue, void* minithread) {
 	--(thread_monitor.count);
 	return 0;
 }
-
 
 /*
  * Initialization.

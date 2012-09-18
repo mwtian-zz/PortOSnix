@@ -1,7 +1,8 @@
 /* Retail shop application and multiple function definitions */
-
+#include <stdlib.h>
 #include <stdio.h>
 #include "queue.h"
+#include "minithread.h"
 #include "synch.h"
 #include "retail_shop.h"
 
@@ -12,9 +13,9 @@ int serial_num = 0;
 queue_t phone_queue;
 
 /* Employee number */
-int employee_num = 10;
+int employee_num = 1000;
 /* Customer number */
-int customer_num = 100;
+int customer_num = 10000;
 /* Customer semaphore */
 semaphore_t customer_sem;
 /* Employee semaphore */
@@ -33,7 +34,7 @@ phone_t phone_create() {
 	return new_phone;
 }
 
-static void employee(int* arg) {
+static int employee(int* arg) {
 	phone_t new_phone = NULL;
 	int i = *arg;
 
@@ -57,9 +58,11 @@ static void employee(int* arg) {
 			minithread_yield();
 		}
 	}
+
+	return 0;
 }
 
-static void customer(int* arg) {
+static int customer(int* arg) {
 	phone_t new_phone = NULL;
 	int i = *arg;
 
@@ -74,9 +77,11 @@ static void customer(int* arg) {
 
 	printf("Customer %d got phone %d\n", i, new_phone->serial_num);
 	free(new_phone);
+
+	return 0;
 }
 
-static void start(int* arg) {
+static int start(int* arg) {
 	int i;
 
 	for (i = 0; i < customer_num; i++) {
@@ -91,6 +96,8 @@ static void start(int* arg) {
 		minithread_yield();
 	}
 	*/
+
+	return 0;
 }
 
 void main(int argc, char** argv) {

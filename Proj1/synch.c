@@ -43,7 +43,6 @@ semaphore_destroy(semaphore_t sem) {
 	free(sem);
 }
 
-
 /*
  * semaphore_initialize(semaphore_t sem, int cnt)
  *	initialize the semaphore data structure pointed at by
@@ -62,7 +61,6 @@ semaphore_initialize(semaphore_t sem, int cnt) {
 	sem->wait = q;
 }
 
-
 /*
  * semaphore_P(semaphore_t sem)
  *	P on the sempahore.
@@ -80,7 +78,6 @@ semaphore_P(semaphore_t sem) {
         atomic_clear(&(sem->lock));
     } */
 }
-
 
 /*
  * semaphore_V(semaphore_t sem)

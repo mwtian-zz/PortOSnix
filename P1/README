@@ -2,7 +2,8 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 
 CS4411 Project 1 - Non-Preemptive Multitasking
 
-Our implementations: queue_private.h, queue.c, minithread_private.h, minithread.c, synch.c, retail_shop.c
+We modified files 'queue.c', 'minithread.c' and 'synch.c'. And we created files 'queue_private.h', 
+'minithread_private.h' and 'retail_shop.c'.
 
 -----------------------------------------------------------------------------------------
 Project Description

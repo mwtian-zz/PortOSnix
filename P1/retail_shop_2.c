@@ -27,6 +27,8 @@ static semaphore_t phone_sem;
 static semaphore_t employee_sem;
 /* Binary semaphore, used for mutual exclusion. */
 static semaphore_t binary_sem;
+/* Checkout semaphore, only one customer can checkout at a given time. */
+static semaphore_t checkout_sem;
 
 static int employee(int* arg) {
     int id;
@@ -36,11 +38,12 @@ static int employee(int* arg) {
     semaphore_V(binary_sem);
 
     while (1) {
+        /* Wait if there is no customer */
         semaphore_P(employee_sem);
         printf("Employee %d unpacked phone %d\n", id, unpacked = ++serial_num);
         /* Tell the customer the phone is ready */
         semaphore_V(phone_sem);
-        minithread_yield();
+        //minithread_yield();
     }
 
     return 0;
@@ -53,12 +56,16 @@ static int customer(int* arg) {
     printf("Customer %d arrives at the store.\n", id);
     semaphore_V(binary_sem);
 
-    semaphore_P(binary_sem);
+    /* Only one customer can be in the checkout process */
+    semaphore_P(checkout_sem);
     /* Tell employee there is a customer */
     semaphore_V(employee_sem);
+    /* Wait for unpacked phone */
     semaphore_P(phone_sem);
     printf("Customer %d activated phone %d\n", id, unpacked);
-    semaphore_V(binary_sem);
+    /* Wakes up next customer */
+    semaphore_V(checkout_sem);
+
     return 0;
 }
 
@@ -72,14 +79,16 @@ static int start(int* arg) {
 }
 
 void main(int argc, char** argv) {
-    /* Semaphore creation */
+    /* Semaphore creation and initialization. */
     phone_sem = semaphore_create();
     employee_sem = semaphore_create();
     binary_sem = semaphore_create();
+    checkout_sem = semaphore_create();
     semaphore_initialize(phone_sem, 0);
     semaphore_initialize(employee_sem, 0);
     semaphore_initialize(binary_sem, 1);
-    /* Start main thread */
+    semaphore_initialize(checkout_sem, 1);
+    /* Start main thread. */
     minithread_system_initialize(start, NULL);
 }
 

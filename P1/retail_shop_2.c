@@ -6,8 +6,8 @@
 #include "synch.h"
 #include "retail_shop.h"
 
-#define EMPLOYEE_NUM 7
-#define CUSTOMER_NUM 31
+#define EMPLOYEE_NUM 78
+#define CUSTOMER_NUM 319
 
 /* Current serial number and IDs */
 int serial_num = 0;
@@ -57,11 +57,10 @@ static int customer(int* arg) {
 
 static int start(int* arg) {
 	int i;
-	for (i = 0; i < CUSTOMER_NUM; i++)
-        minithread_fork(customer, NULL);
 	for (i = 0; i < EMPLOYEE_NUM; i++)
 		minithread_fork(employee, NULL);
-
+    for (i = 0; i < CUSTOMER_NUM; i++)
+        minithread_fork(customer, NULL);
 	return 0;
 }
 

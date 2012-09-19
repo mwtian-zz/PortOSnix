@@ -37,6 +37,7 @@ static void minithread_schedule();
 static minithread_t minithread_pickold();
 static minithread_t minithread_picknew();
 static int minithread_exit(arg_t arg);
+static void minithread_cleanup();
 
 /* minithread functions */
 
@@ -105,9 +106,9 @@ minithread_fork(proc_t proc, arg_t arg) {
  */
 void
 minithread_yield() {
-	thread_monitor.instack->status = READY;
-	queue_append(thread_monitor.ready, thread_monitor.instack);
-	minithread_schedule();
+    thread_monitor.instack->status = READY;
+    queue_append(thread_monitor.ready, thread_monitor.instack);
+    minithread_schedule();
 }
 
 /*
@@ -139,10 +140,11 @@ minithread_exit(arg_t arg) {
 /*
  * Release stack of exited threads.
  */
-void
+static void
 minithread_cleanup() {
     minithread_t t;
-    while (0 == queue_dequeue(thread_monitor.exited, (void**)&t) && NULL != t) {
+    while (0 == queue_dequeue(thread_monitor.exited, (void**)&t)
+           && NULL != t) {
         if (NULL != t->base)
             minithread_free_stack(t->base);
         free(t);
@@ -156,44 +158,51 @@ minithread_cleanup() {
  */
 static void
 minithread_schedule() {
-	minithread_t rp_old = thread_monitor.instack;
-	minithread_t rp_new;
-	/* No switching when the thread in stack is running and not idle_thread. */
-	if (idle_thread != rp_old && RUNNING == rp_old->status)
-		return;
-    /* No switching when dequeue fails (no ready thread, etc). */
-	if (-1 == queue_dequeue(thread_monitor.ready, (void**)&rp_new)) {
-	    rp_old->status = RUNNING;
-        return;
-	}
-	/* Switch to another thread instead of idle_thread when possible. */
-	if (idle_thread == rp_new) {
-		if (0 == queue_length(thread_monitor.ready)) {
-            /*
-             * Two cases: rp_old exited or blocked (do nothing),
-             *            and rp_old is the idle-thread.
-             */
-		    if (idle_thread == rp_old) {
-                rp_old->status = RUNNING;
-                return;
-            }
-		} else {
-		    /* There exist other ready threads. */
-            queue_append(thread_monitor.ready, rp_new);
-			queue_dequeue(thread_monitor.ready, (void**)&rp_new);
-		}
-	}
-	/* Switch out idle_thread when there is another ready thread. */
-	if (idle_thread == rp_old && RUNNING == rp_old->status) {
-		rp_old->status = READY;
-		queue_append(thread_monitor.ready, rp_old);
-	}
+	minithread_t rt_old;
+	minithread_t rt_new;
 
+    if (NULL == (rt_old = minithread_pickold()))
+        return;
+    if (NULL == (rt_new = minithread_picknew()))
+        return;
+
+	thread_monitor.instack = rt_new;
+	rt_new->status = RUNNING;
 	/* Switch only when the threads are different. */
-	thread_monitor.instack = rp_new;
-	rp_new->status = RUNNING;
-	if (rp_old != rp_new)
-		minithread_switch(&(rp_old->top),&(rp_new->top));
+	if (rt_old != rt_new)
+		minithread_switch(&(rt_old->top),&(rt_new->top));
+}
+
+/*
+ * Return the pointer to the thread leaving stack.
+ * Return NULL if the thread has to stay in stack.
+ */
+static minithread_t
+minithread_pickold() {
+    minithread_t rt_old = thread_monitor.instack;
+    /* No switching when the thread in stack is running and not idle_thread. */
+	if (RUNNING == rt_old->status)
+        if (idle_thread == rt_old)
+            rt_old->status = READY;
+        else
+            return NULL;
+
+    return rt_old;
+}
+
+/*
+ * Return the pointer to the thread entering stack.
+ * Return idle_thread if there is no other thread to run.
+ */
+static minithread_t
+minithread_picknew() {
+    minithread_t rt_new;
+    /* Switch to idle thread when the ready queue is empty. */
+    if (-1 == queue_dequeue(thread_monitor.ready, (void**)&rt_new)
+        || NULL == rt_new)
+        return idle_thread;
+
+    return rt_new;
 }
 
 /*

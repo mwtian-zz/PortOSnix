@@ -6,11 +6,11 @@
 #include "synch.h"
 #include "retail_shop.h"
 
-#define EMPLOYEE_NUM 1000
-#define CUSTOMER_NUM 10000
+#define EMPLOYEE_NUM 7
+#define CUSTOMER_NUM 31
 
 /* Current serial number and IDs */
-int serial_num = -1;
+int serial_num = 0;
 int customer_id = 0;
 int employee_id = 0;
 
@@ -24,7 +24,7 @@ semaphore_t binary_sem;
 static int employee(int* arg) {
 	int id;
 	semaphore_P(employee_sem);
-	id = employee_id++;
+	id = ++employee_id;
     printf("Employee %d arrives at the store.\n", id);
     semaphore_V(employee_sem);
 
@@ -42,7 +42,7 @@ static int employee(int* arg) {
 static int customer(int* arg) {
 	int id;
 	semaphore_P(binary_sem);
-	id = customer_id++;
+	id = ++customer_id;
 	printf("Customer %d arrives at the store.\n", id);
     semaphore_V(binary_sem);
 

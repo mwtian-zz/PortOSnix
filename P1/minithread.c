@@ -30,16 +30,30 @@
 /* File scope pointers */
 static struct minithread idle_thread_;
 static minithread_t const idle_thread = &idle_thread_;
-
 static struct thread_monitor thread_monitor;
 
 /* File scope functions */
 static void minithread_schedule();
+static minithread_t minithread_pickold();
+static minithread_t minithread_picknew();
 static int minithread_exit(arg_t arg);
-
 
 /* minithread functions */
 
+minithread_t
+minithread_self() {
+	return thread_monitor.instack;
+}
+
+int
+minithread_id() {
+	return thread_monitor.instack->id;
+}
+
+/*
+ * Allocate memory for and initialize a thread.
+ * Return NULL when allocation fails.
+ */
 minithread_t
 minithread_create(proc_t proc, arg_t arg) {
 	minithread_t t;
@@ -65,6 +79,17 @@ minithread_create(proc_t proc, arg_t arg) {
 	return t;
 }
 
+/* Add thread t to the tail of the ready queue. */
+void
+minithread_start(minithread_t t) {
+    if (NULL == t)
+        return;
+	t->status = READY;
+	queue_append(thread_monitor.ready, t);
+	minithread_schedule();
+}
+
+/* Create and start a thread. */
 minithread_t
 minithread_fork(proc_t proc, arg_t arg) {
 	minithread_t t = minithread_create(proc, arg);
@@ -74,14 +99,55 @@ minithread_fork(proc_t proc, arg_t arg) {
 	return t;
 }
 
-minithread_t
-minithread_self() {
-	return thread_monitor.instack;
+/*
+ * Add the running thread to the tail of the ready queue.
+ * Let the scheduler decide if the thread needs to be switched out.
+ */
+void
+minithread_yield() {
+	thread_monitor.instack->status = READY;
+	queue_append(thread_monitor.ready, thread_monitor.instack);
+	minithread_schedule();
 }
 
-int
-minithread_id() {
-	return thread_monitor.instack->id;
+/*
+ * The calling thread should be placed on the appropriate wait queue
+ * before calling minithread_stop().
+ */
+void
+minithread_stop() {
+	thread_monitor.instack->status = BLOCKED;
+	minithread_schedule();
+}
+
+/*
+ * This is the 'final_proc' that helps threads exit properly.
+ */
+static int
+minithread_exit(arg_t arg) {
+	thread_monitor.instack->status = EXITED;
+	queue_append(thread_monitor.exited, thread_monitor.instack);
+	minithread_schedule();
+	/*
+     * The thread is switched out before this step,
+	 * so it is not going to return.
+	 * This is just to make the compiler happy.
+	 */
+	return 0;
+}
+
+/*
+ * Release stack of exited threads.
+ */
+void
+minithread_cleanup() {
+    minithread_t t;
+    while (0 == queue_dequeue(thread_monitor.exited, (void**)&t) && NULL != t) {
+        if (NULL != t->base)
+            minithread_free_stack(t->base);
+        free(t);
+        --(thread_monitor.count);
+    }
 }
 
 /*
@@ -130,67 +196,6 @@ minithread_schedule() {
 		minithread_switch(&(rp_old->top),&(rp_new->top));
 }
 
-/* Add thread t to the tail of the ready queue. */
-void
-minithread_start(minithread_t t) {
-    if (NULL == t)
-        return;
-	t->status = READY;
-	queue_append(thread_monitor.ready, t);
-	minithread_schedule();
-}
-
-/*
- * The calling thread should be placed on the appropriate wait queue
- * before calling minithread_stop().
- */
-void
-minithread_stop() {
-	thread_monitor.instack->status = BLOCKED;
-	minithread_schedule();
-}
-
-/*
- * Add the running thread to the tail of the ready queue.
- * Let the scheduler decide if the thread needs to be switched out.
- */
-void
-minithread_yield() {
-	thread_monitor.instack->status = READY;
-	queue_append(thread_monitor.ready, thread_monitor.instack);
-	minithread_schedule();
-}
-
-/*
- * This is the 'final_proc' that helps threads exit properly.
- */
-static int
-minithread_exit(arg_t arg) {
-	thread_monitor.instack->status = EXITED;
-	queue_append(thread_monitor.exited, thread_monitor.instack);
-	minithread_schedule();
-	/*
-     * The thread is switched out before this step,
-	 * so it is not going to return.
-	 * This is just to make the compiler happy.
-	 */
-	return 0;
-}
-
-/*
- * Release stack of exited threads.
- */
-int
-minithread_cleanup(void* queue, void* minithread) {
-	minithread_t t = minithread;
-	if (-1 == queue_delete((queue_t) queue, &minithread))
-		return -1;
-	minithread_free_stack(t->base);
-	free(t);
-	--(thread_monitor.count);
-	return 0;
-}
-
 /*
  * Initialization.
  *
@@ -222,7 +227,7 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	minithread_start(main);
 
 	while (1) {
-		queue_iterate(thread_monitor.exited, minithread_cleanup, thread_monitor.exited);
+		minithread_cleanup();
 		minithread_yield();
 	}
 

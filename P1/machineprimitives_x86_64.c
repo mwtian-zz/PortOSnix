@@ -6,7 +6,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>     // included for currentTimeMillis
+#include <time.h>     
 #include <sys/timeb.h>
 
 #include "defs.h"

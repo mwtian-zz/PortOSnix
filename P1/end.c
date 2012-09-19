@@ -9,9 +9,6 @@
 #include "defs.h"
 
 unsigned int end(void) {
-  jmp_buf buf;
-  setjmp(buf);
-  /* for amd64 processor PC is in position 15 in jmp_buf (on macs) */
-//  return buf[14]; 
+    return 0;
 }
 

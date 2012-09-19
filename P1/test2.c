@@ -32,6 +32,8 @@ int thread1(int* arg) {
   return 0;
 }
 
+int
 main() {
   minithread_system_initialize(thread1, NULL);
+  return 0;
 }

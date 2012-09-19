@@ -1,11 +1,11 @@
-/*
+/* 
  * This file provides an interface to the basic primitives that
  * support the threads package, scheduler, and semaphore implementations.
  * These primitives include those for allocating and manipulating stacks
  * and for performing atomic operations. These portable interfaces to
  * code written in assembler enable the threads package to be written
  * in a high-level language.
- *
+ * 
  * YOU SHOULD NOT [NEED TO] MODIFY THIS FILE.
  */
 #ifndef __MINITHREAD_PUBLIC_H_
@@ -22,7 +22,7 @@ typedef int (*proc_t)(arg_t); /* generic function pointer */
 /*
  *	Allocate a fresh stack.  Stacks are said to grow "down" (from higher
  *  memory locations towards lower ones) on our version of the x86 and ARM
- *  architectures.
+ *  architectures. 
  *	The bottom of the stack is returned in *stackbase; the top of
  *	the stack is returned in *stacktop.
  *
@@ -62,23 +62,23 @@ extern void minithread_free_stack(stack_pointer_t stackbase);
  *	This procedure changes the value of *stacktop.
  *
  */
-extern void minithread_initialize_stack(stack_pointer_t *stacktop,
+extern void minithread_initialize_stack(stack_pointer_t *stacktop, 
 					proc_t body_proc,
 					arg_t body_arg,
 					proc_t final_proc,
 					arg_t final_arg);
 
-/*
+/* 
  * Context switch primitive.
  *
  * This call will first save the caller's state (i.e. all of its registers)
  * on the stack.
- * It will then save the stack pointer in the location pointed to
- * by old_thread_sp. It will replace the processor's stack pointer
+ * It will then save the stack pointer in the location pointed to 
+ * by old_thread_sp. It will replace the processor's stack pointer 
  * with the value pointed to by the new_thread_sp. Finally, it will
  * reload the rest of the machine registers that were saved on the
  * new thread's stack previously, and thus resume the new thread
- * from where it left off.
+ * from where it left off. 
  */
 extern void minithread_switch(stack_pointer_t *old_thread_sp,
 			      stack_pointer_t *new_thread_sp);
@@ -95,7 +95,7 @@ extern int atomic_test_and_set(tas_lock_t *l);
  */
 extern void atomic_clear(tas_lock_t *l);
 
-/*
+/* 
  * Atomically set the value pointed to be x to be newval, and return
  * the old value of x.
  */

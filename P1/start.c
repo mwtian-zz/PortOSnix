@@ -9,9 +9,5 @@
 #include "defs.h"
 
 unsigned int start(void) {  
-  jmp_buf buf;
-
-  setjmp(buf);
-  /* for x86 processor PC is in position 6 in jmp_buf */
-//  return buf[14];
+    return 0;
 }

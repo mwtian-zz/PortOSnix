@@ -41,7 +41,7 @@ static int employee(int* arg) {
 	if (++created_employee < employee_num) {
 		printf("Employee %d created\n", created_employee);
 		minithread_fork(employee, &created_employee);
-		minithread_yield();
+		/*minithread_yield();*/
 	}
 
 	while (1) {

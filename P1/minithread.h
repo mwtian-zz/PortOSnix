@@ -13,11 +13,13 @@
  *	in the comments.  See minithread.c for prototypes.
  */
 
+
 /*
  * struct minithread:
  *	This is the key data structure for the thread management package.
  *	You must define the thread control block as a struct minithread.
  */
+
 typedef struct minithread *minithread_t;
 
 /*
@@ -26,8 +28,9 @@ typedef struct minithread *minithread_t;
  *	Create and schedule a new thread of control so
  *	that it starts executing inside proc_t with
  *	initial argument arg.
- */
+ */	
 extern minithread_t minithread_fork(proc_t proc, arg_t arg);
+
 
 /*
  * minithread_t
@@ -37,11 +40,14 @@ extern minithread_t minithread_fork(proc_t proc, arg_t arg);
  */
 extern minithread_t minithread_create(proc_t proc, arg_t arg);
 
+
+
 /*
  * minithread_t minithread_self():
  *	Return identity (minithread_t) of caller thread.
  */
 extern minithread_t minithread_self();
+
 
 /*
  * int minithread_id():
@@ -49,6 +55,7 @@ extern minithread_t minithread_self();
  *
  */
 extern int minithread_id();
+
 
 /*
  * minithread_stop()
@@ -94,6 +101,7 @@ extern void minithread_unlock_and_stop(tas_lock_t* lock);
  * sleep with timeout in microseconds
  */
 extern void minithread_sleep_with_timeout(int delay);
+
 
 #endif /*__MINITHREAD_H__*/
 

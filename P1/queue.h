@@ -1,5 +1,5 @@
 /*
- * Generic queue manipulation functions
+ * Generic queue manipulation functions  
  */
 #ifndef __QUEUE_H__
 #define __QUEUE_H__
@@ -13,7 +13,7 @@ typedef int (*PFany)(void*, void*);
 /*
  * queue_t is a pointer to an internally maintained data structure.
  * Clients of this package do not need to know how queues are
- * represented.  They see and manipulate only queue_t's.
+ * represented.  They see and manipulate only queue_t's. 
  */
 typedef struct queue* queue_t;
 
@@ -44,13 +44,12 @@ extern int queue_dequeue(queue_t, void**);
 /*
  * Iterate the function parameter over each element in the queue.  The
  * additional void* argument is passed to the function as its first
- * argument and the queue element is the second.
+ * argument and the queue element is the second.  
  * Return 0 (success) or -1 (failure).
  */
 extern int queue_iterate(queue_t, PFany, void*);
 
-/*(single or multiple NetIDs separated by space or comma) (what does this mean?)
-
+/* 
  * Free the queue and return 0 (success) or -1 (failure).
  */
 extern int queue_free (queue_t);
@@ -60,8 +59,8 @@ extern int queue_free (queue_t);
  */
 extern int queue_length(queue_t queue);
 
-/*
- * Delete the specified item from the given queue.
+/* 
+ * Delete the specified item from the given queue. 
  * Return -1 on error.
  */
 extern int queue_delete(queue_t queue, void** item);

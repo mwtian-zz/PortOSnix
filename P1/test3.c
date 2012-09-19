@@ -37,10 +37,12 @@ int thread1(int* arg) {
   return 0;
 }
 
+int
 main() {
   sem1 = semaphore_create();
   semaphore_initialize(sem1, 0);
   sem2 = semaphore_create();
   semaphore_initialize(sem2, 0);
   minithread_system_initialize(thread1, NULL);
+  return 0;
 }

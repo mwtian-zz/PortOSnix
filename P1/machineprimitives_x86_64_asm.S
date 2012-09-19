@@ -35,12 +35,12 @@ minithread_switch:
 minithread_root: 
     sub $0x38,%rsp
     push %rsi
-    callq %rbx    # call main proc
+    callq *%rbx    # call main proc
 
     pop %rsi      # get clean up location back
     sub $0x8,%rsp
     mov %rbp,%rdi
-    callq %rsi    # call the clean-up
+    callq *%rsi    # call the clean-up
     ret
 
 atomic_test_and_set:

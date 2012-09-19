@@ -1,0 +1,15 @@
+alarm.o: alarm.c interrupts.h defs.h alarm.h minithread.h \
+  machineprimitives.h queue.h
+end.o: end.c defs.h
+machineprimitives.o: machineprimitives.c defs.h minithread.h \
+ machineprimitives.h
+minithread.o: minithread.c minithread.h machineprimitives.h defs.h \
+ queue.h synch.h
+network.o: network.c defs.h network.h interrupts_private.h interrupts.h \
+ minithread.h machineprimitives.h random.h
+pid_random.o: pid_random.c pid_random.h random.h
+queue.o: queue.c queue.h
+random.o: random.c
+start.o: start.c defs.h
+synch.o: synch.c defs.h synch.h queue.h minithread.h \
+ machineprimitives.h

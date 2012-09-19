@@ -2,14 +2,11 @@
 */*
 *~
 
+!README.md
+!.gitignore
 !*/*.h
-*/confi.h
-
 !*/*.S
 !*/*.c
-!*/.gitignore
-!*/Makefile.am
-!*/configure.ac
-!*/HACKING
+!*/Makefile
+!*/Depend
 !*/README
-!README.md

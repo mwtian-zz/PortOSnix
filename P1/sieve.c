@@ -15,7 +15,7 @@
 #include "minithread.h"
 #include "synch.h"
 
-#define MAXPRIME 1000
+#define MAXPRIME 100
 
 typedef struct {
   int value;
@@ -42,7 +42,7 @@ int source(int* arg) {
     semaphore_V(c->consume);
     semaphore_P(c->produce);
   }
-
+  
   c->value = -1;
   semaphore_V(c->consume);
 
@@ -79,29 +79,29 @@ int sink(int* arg) {
   semaphore_initialize(p->consume, 0);
 
   minithread_fork(source, (int *) p);
-
+  
   for (;;) {
     filter_t* f;
 
     semaphore_P(p->consume);
     value = p->value;
     semaphore_V(p->produce);
-
+    
     if (value == -1)
       break;
 
     printf("%d is prime.\n", value);
-
+    
     f = (filter_t *) malloc(sizeof(filter_t));
     f->left = p;
     f->prime = value;
-
+    
     p = (channel_t *) malloc(sizeof(channel_t));
     p->produce = semaphore_create();
     semaphore_initialize(p->produce, 0);
     p->consume = semaphore_create();
     semaphore_initialize(p->consume, 0);
-
+    
     f->right = p;
 
     minithread_fork(filter, (int *) f);
@@ -110,7 +110,8 @@ int sink(int* arg) {
   return 0;
 }
 
-void
+int
 main(void) {
   minithread_system_initialize(sink, NULL);
+  return 0;
 }

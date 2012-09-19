@@ -1,8 +1,0 @@
-Basic Installation
-==================
-Run the command `autoreconf -i` and then `./configure`.  This creates the
-Makefile.  Then run `make` to compile your project.
-
-If you add or move files, you need to edit Makefile.am accordingly.
-
-To clean up old files, run `make clean`.

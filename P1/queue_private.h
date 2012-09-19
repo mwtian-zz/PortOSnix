@@ -14,9 +14,9 @@
  * 'next' pointer as its second field;
  */
 struct node {
-	struct node *prev;
-	struct node *next;
-	struct queue *queue;
+    struct node *prev;
+    struct node *next;
+    struct queue *queue;
 };
 
 /*
@@ -30,9 +30,9 @@ typedef struct node* node_t;
  * The queue data structure.
  */
 typedef struct queue {
-	node_t head;
-	node_t tail;
-	int length;
+    node_t head;
+    node_t tail;
+    int length;
 } queue;
 
 #endif /*__QUEUE_PRIVATE_H__*/

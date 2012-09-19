@@ -12,11 +12,11 @@
  * Define constants for thread status.
  */
 enum status {
-	INITIAL,
-	RUNNING,
-	READY,
-	BLOCKED,
-	EXITED
+    INITIAL,
+    RUNNING,
+    READY,
+    BLOCKED,
+    EXITED
 };
 
 
@@ -31,13 +31,13 @@ enum status {
  * status: current status.
  */
 struct minithread {
-	struct minithread *prev;
-	struct minithread *next;
-	struct queue *queue;
-	int id;
-	stack_pointer_t top;
-	stack_pointer_t base;
-	enum status status;
+    struct minithread *prev;
+    struct minithread *next;
+    struct queue *queue;
+    int id;
+    stack_pointer_t top;
+    stack_pointer_t base;
+    enum status status;
 };
 
 
@@ -45,11 +45,11 @@ struct minithread {
  * Information for thread managing.
  */
 struct thread_monitor {
-	int count;
-	int tidcount;
-	minithread_t instack;
-	queue_t ready;
-	queue_t exited;
+    int count;
+    int tidcount;
+    minithread_t instack;
+    queue_t ready;
+    queue_t exited;
 };
 
 

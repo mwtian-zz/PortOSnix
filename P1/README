@@ -1,8 +1,13 @@
 Hao Li (hl824) , Mingwei Tian (mt643)
 
+CS4411 Project 1 - Non-Preemptive Multitasking
+
+Our implementations: queue_private.h, queue.c, minithread_private.h, minithread.c, synch.c, retail_shop.c
+
+-----------------------------------------------------------------------------------------
 Project Description
-http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project1
+	http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project1
 Frequently Asked Questions
-http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project1/faq.html
+	http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project1/faq.html
 
 

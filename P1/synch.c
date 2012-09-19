@@ -8,45 +8,45 @@
 #include "minithread.h"
 
 /*
- *	You must implement the procedures and types defined in this interface.
+ *    You must implement the procedures and types defined in this interface.
  */
 
 /*
  * Semaphores.
  */
 struct semaphore {
-	int count;
-	/* tas_lock_t lock; */
-	queue_t wait;
+    int count;
+    /* tas_lock_t lock; */
+    queue_t wait;
 };
 
 
 /*
  * semaphore_t semaphore_create()
- *	Allocate a new semaphore.
+ *    Allocate a new semaphore.
  */
 semaphore_t
 semaphore_create() {
-	semaphore_t sem = malloc(sizeof(*sem));
-	return sem;
+    semaphore_t sem = malloc(sizeof(*sem));
+    return sem;
 }
 
 /*
  * semaphore_destroy(semaphore_t sem);
- *	Deallocate a semaphore.
+ *    Deallocate a semaphore.
  */
 void
 semaphore_destroy(semaphore_t sem) {
     if (NULL == sem)
         return;
-	free(sem->wait);
-	free(sem);
+    free(sem->wait);
+    free(sem);
 }
 
 /*
  * semaphore_initialize(semaphore_t sem, int cnt)
- *	initialize the semaphore data structure pointed at by
- *	sem with an initial value cnt.
+ *    initialize the semaphore data structure pointed at by
+ *    sem with an initial value cnt.
  */
 void
 semaphore_initialize(semaphore_t sem, int cnt) {
@@ -56,43 +56,43 @@ semaphore_initialize(semaphore_t sem, int cnt) {
     q = queue_new();
     if (NULL == q)
         return;
-	sem->count = cnt;
-	/* sem->lock = 0; */
-	sem->wait = q;
+    sem->count = cnt;
+    /* sem->lock = 0; */
+    sem->wait = q;
 }
 
 /*
  * semaphore_P(semaphore_t sem)
- *	P on the sempahore.
+ *    P on the sempahore.
  */
 void
 semaphore_P(semaphore_t sem) {
-	/* while (1 == atomic_test_and_set(&(sem->lock)))
-		; */
-	if (0 > --(sem->count)) {
-	    queue_append(sem->wait,(void*)minithread_self());
-	    /* atomic_clear(&(sem->lock)); */
-		minithread_stop();
+    /* while (1 == atomic_test_and_set(&(sem->lock)))
+        ; */
+    if (0 > --(sem->count)) {
+        queue_append(sem->wait,(void*)minithread_self());
+        /* atomic_clear(&(sem->lock)); */
+        minithread_stop();
 
-	} /* else {
+    } /* else {
         atomic_clear(&(sem->lock));
     } */
 }
 
 /*
  * semaphore_V(semaphore_t sem)
- *	V on the sempahore.
+ *    V on the sempahore.
  */
 void
 semaphore_V(semaphore_t sem) {
-	minithread_t t;
-	/* while (1 == atomic_test_and_set(&(sem->lock)))
-		; */
-	if (0 >= ++(sem->count)) {
-		queue_dequeue(sem->wait,(void**)&t);
-		/* atomic_clear(&(sem->lock)); */
-		minithread_start(t);
-	} /* else {
+    minithread_t t;
+    /* while (1 == atomic_test_and_set(&(sem->lock)))
+        ; */
+    if (0 >= ++(sem->count)) {
+        queue_dequeue(sem->wait,(void**)&t);
+        /* atomic_clear(&(sem->lock)); */
+        minithread_start(t);
+    } /* else {
         atomic_clear(&(sem->lock));
     } */
 }

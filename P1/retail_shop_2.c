@@ -4,7 +4,6 @@
 #include "queue.h"
 #include "minithread.h"
 #include "synch.h"
-#include "retail_shop.h"
 
 /* Edit the number of employees (N) and customers (M) here. */
 static const int EMPLOYEE_NUM = 7;
@@ -30,7 +29,8 @@ static semaphore_t binary_sem;
 /* Checkout semaphore, only one customer can checkout at a given time. */
 static semaphore_t checkout_sem;
 
-static int employee(int* arg) {
+static int
+employee(int* arg) {
     int id;
     semaphore_P(binary_sem);
     id = ++employee_id;
@@ -43,13 +43,13 @@ static int employee(int* arg) {
         printf("Employee %d unpacked phone %d\n", id, unpacked = ++serial_num);
         /* Tell the customer the phone is ready */
         semaphore_V(phone_sem);
-        //minithread_yield();
     }
 
     return 0;
 }
 
-static int customer(int* arg) {
+static int
+customer(int* arg) {
     int id;
     semaphore_P(binary_sem);
     id = ++customer_id;
@@ -69,7 +69,8 @@ static int customer(int* arg) {
     return 0;
 }
 
-static int start(int* arg) {
+static int
+start(int* arg) {
     int i;
     for (i = 0; i < EMPLOYEE_NUM; i++)
         minithread_fork(employee, NULL);
@@ -78,7 +79,8 @@ static int start(int* arg) {
     return 0;
 }
 
-void main(int argc, char** argv) {
+int
+main(int argc, char** argv) {
     /* Semaphore creation and initialization. */
     phone_sem = semaphore_create();
     employee_sem = semaphore_create();
@@ -90,5 +92,7 @@ void main(int argc, char** argv) {
     semaphore_initialize(checkout_sem, 1);
     /* Start main thread. */
     minithread_system_initialize(start, NULL);
+
+    return 0;
 }
 

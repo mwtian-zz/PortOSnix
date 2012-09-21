@@ -181,12 +181,12 @@ static minithread_t
 minithread_pickold() {
     minithread_t rt_old = thread_monitor.instack;
     /* No switching when the thread in stack is running and not idle_thread. */
-    if (RUNNING == rt_old->status)
+    if (RUNNING == rt_old->status) {
         if (idle_thread == rt_old)
             rt_old->status = READY;
         else
             return NULL;
-
+    }
     return rt_old;
 }
 
@@ -221,26 +221,24 @@ minithread_picknew() {
  */
 void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
-    minithread_t main;
+    minithread_t mainthd;
     idle_thread->status = RUNNING;
     thread_monitor.count = 1;
     thread_monitor.ready = queue_new();
     thread_monitor.exited = queue_new();
     thread_monitor.instack = idle_thread;
 
-    main = minithread_create(mainproc, mainarg);
-    if (NULL == main) {
+    mainthd = minithread_create(mainproc, mainarg);
+    if (NULL == mainthd) {
         printf("Main thread creation failed.\n");
         exit(-1);
     }
-    minithread_start(main);
+    minithread_start(mainthd);
 
     while (1) {
         minithread_cleanup();
         minithread_yield();
     }
-
-//printf("Main thread finished.\n");
 }
 
 

@@ -100,7 +100,7 @@ static int start(int* arg) {
     return 0;
 }
 
-void main(int argc, char** argv) {
+int main(int argc, char** argv) {
     phone_queue = queue_new();
     if (phone_queue == NULL) {
         printf("Can't create phone queue!\n");
@@ -115,4 +115,6 @@ void main(int argc, char** argv) {
 
     /* Start main thread */
     minithread_system_initialize(start, NULL);
+
+    return 0;
 }

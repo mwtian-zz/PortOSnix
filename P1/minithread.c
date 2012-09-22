@@ -28,8 +28,8 @@
  */
 
 /* File scope pointers */
-static struct minithread idle_thread_;
-static minithread_t const idle_thread = &idle_thread_;
+static struct minithread _idle_thread_;
+static minithread_t const idle_thread = &_idle_thread_;
 static struct thread_monitor thread_monitor;
 
 /* File scope functions */
@@ -41,18 +41,8 @@ static void minithread_cleanup();
 
 /* minithread functions */
 
-minithread_t
-minithread_self() {
-    return thread_monitor.instack;
-}
-
-int
-minithread_id() {
-    return thread_monitor.instack->id;
-}
-
 /*
- * Allocate memory for and initialize a thread.
+ * Allocate memory and initialize a thread.
  * Return NULL when allocation fails.
  */
 minithread_t
@@ -80,6 +70,21 @@ minithread_create(proc_t proc, arg_t arg) {
     return t;
 }
 
+/*
+ * Release memory of exited threads.
+ */
+static void
+minithread_cleanup() {
+    minithread_t t;
+    while (0 == queue_dequeue(thread_monitor.exited, (void**)&t)
+           && NULL != t) {
+        if (NULL != t->base)
+            minithread_free_stack(t->base);
+        free(t);
+        --(thread_monitor.count);
+    }
+}
+
 /* Add thread t to the tail of the ready queue. */
 void
 minithread_start(minithread_t t) {
@@ -87,27 +92,6 @@ minithread_start(minithread_t t) {
         return;
     t->status = READY;
     queue_append(thread_monitor.ready, t);
-    minithread_schedule();
-}
-
-/* Create and start a thread. */
-minithread_t
-minithread_fork(proc_t proc, arg_t arg) {
-    minithread_t t = minithread_create(proc, arg);
-    if (NULL == t)
-        return NULL;
-    minithread_start(t);
-    return t;
-}
-
-/*
- * Add the running thread to the tail of the ready queue.
- * Let the scheduler decide if the thread needs to be switched out.
- */
-void
-minithread_yield() {
-    thread_monitor.instack->status = READY;
-    queue_append(thread_monitor.ready, thread_monitor.instack);
     minithread_schedule();
 }
 
@@ -131,25 +115,34 @@ minithread_exit(arg_t arg) {
     minithread_schedule();
     /*
      * The thread is switched out before this step,
-     * so it is not going to return.
-     * This is just to make the compiler happy.
+     * so this thread is not going to return.
+     * The return statement is just to make the compiler happy.
      */
     return 0;
 }
 
 /*
- * Release stack of exited threads.
+ * Add the running thread to the tail of the ready queue.
+ * Let the scheduler decide if the thread needs to be switched out.
  */
-static void
-minithread_cleanup() {
-    minithread_t t;
-    while (0 == queue_dequeue(thread_monitor.exited, (void**)&t)
-           && NULL != t) {
-        if (NULL != t->base)
-            minithread_free_stack(t->base);
-        free(t);
-        --(thread_monitor.count);
-    }
+void
+minithread_yield() {
+    if (0 == queue_length(thread_monitor.ready))
+        return;
+    thread_monitor.instack->status = READY;
+    if (idle_thread != thread_monitor.instack)
+        queue_append(thread_monitor.ready, thread_monitor.instack);
+    minithread_schedule();
+}
+
+/* Create and start a thread. */
+minithread_t
+minithread_fork(proc_t proc, arg_t arg) {
+    minithread_t t = minithread_create(proc, arg);
+    if (NULL == t)
+        return NULL;
+    minithread_start(t);
+    return t;
 }
 
 /*
@@ -205,6 +198,18 @@ minithread_picknew() {
     return rt_new;
 }
 
+/* Return pointer to the running thread. */
+minithread_t
+minithread_self() {
+    return thread_monitor.instack;
+}
+
+/* Return ID of the running thread. */
+int
+minithread_id() {
+    return thread_monitor.instack->id;
+}
+
 /*
  * Initialization.
  *
@@ -222,7 +227,9 @@ minithread_picknew() {
 void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     minithread_t mainthd;
+
     idle_thread->status = RUNNING;
+
     thread_monitor.count = 1;
     thread_monitor.ready = queue_new();
     thread_monitor.exited = queue_new();

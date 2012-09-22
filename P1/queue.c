@@ -89,46 +89,6 @@ queue_dequeue(queue_t queue, void** item) {
 }
 
 /*
- * Iterate the function parameter over each element in the queue.  The
- * additional void* argument is passed to the function as its first
- * argument and the queue element is the second.  Return 0 (success)
- * or -1 (failure).
- */
-int
-queue_iterate(queue_t queue, PFany f, void* item) {
-    node_t current, next;
-    if (NULL == queue || NULL == f)
-        return -1;
-    for (current = queue->head; current != NULL; current = next) {
-        next = current->next;
-        if (-1 == f(item, current))
-            return -1;
-    }
-    return 0;
-}
-
-/*
- * Free the queue and return 0 (success) or -1 (failure).
- */
-int
-queue_free (queue_t queue) {
-    if (NULL == queue)
-        return -1;
-    free(queue);
-    return 0;
-}
-
-/*
- * Return the number of items in the queue.
- */
-int
-queue_length(queue_t queue) {
-    if (NULL == queue)
-        return -1;
-    return queue->length;
-}
-
-/*
  * Delete the specified item from the given queue.
  * Return -1 on error.
  * '*item' is never modified in this function.
@@ -157,5 +117,45 @@ queue_delete(queue_t queue, void** item) {
     node->prev = NULL;
     node->next = NULL;
     --(queue->length);
+    return 0;
+}
+
+/*
+ * Iterate the function parameter over each element in the queue.  The
+ * additional void* argument is passed to the function as its first
+ * argument and the queue element is the second.  Return 0 (success)
+ * or -1 (failure).
+ */
+int
+queue_iterate(queue_t queue, PFany f, void* item) {
+    node_t current, next;
+    if (NULL == queue || NULL == f)
+        return -1;
+    for (current = queue->head; current != NULL; current = next) {
+        next = current->next;
+        if (-1 == f(item, current))
+            return -1;
+    }
+    return 0;
+}
+
+/*
+ * Return the number of items in the queue.
+ */
+int
+queue_length(queue_t queue) {
+    if (NULL == queue)
+        return -1;
+    return queue->length;
+}
+
+/*
+ * Free the queue and return 0 (success) or -1 (failure).
+ */
+int
+queue_free (queue_t queue) {
+    if (NULL == queue)
+        return -1;
+    free(queue);
     return 0;
 }

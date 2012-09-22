@@ -6,26 +6,26 @@
 #include "synch.h"
 
 /* Edit the number of employees (N) and customers (M) here. */
-#define EMPLOYEE_NUM 787
-#define CUSTOMER_NUM 31564
+#define EMPLOYEE_NUM 75
+#define CUSTOMER_NUM 310
 
-/* Current serial number and IDs, output starts from 1. */
+/* Current serial number and IDs, starts from 1. */
 static int serial_num = 0;
 static int customer_id = 0;
 static int employee_id = 0;
 
-/* Serial numbers of the currently unpacked phones. */
+/* Buffer to store serial numbers of the currently unpacked phones. */
 static int unpacked[EMPLOYEE_NUM + 1];
 static int head, tail;
 
-/* Phone semaphore (full semaphore in producer-consumer problem) */
-static semaphore_t phone_sem;
-/* Employee semaphore (empty semaphore in producer-consumer problem) */
-static semaphore_t employee_sem;
+/* full semaphore in producer-consumer problem */
+static semaphore_t full_sem;
+/* empty semaphore in producer-consumer problem */
+static semaphore_t empty_sem;
 /* Customer semaphore, employees only unpack when there are customers */
 static semaphore_t customer_sem;
 /* Binary semaphore for employees */
-static semaphore_t mutex;
+static semaphore_t employee_mutex;
 /* Binary semaphore for customers */
 static semaphore_t customer_mutex;
 
@@ -33,25 +33,25 @@ static semaphore_t customer_mutex;
 static int
 employee(int* arg) {
     int id;
-    semaphore_P(mutex);
+    semaphore_P(employee_mutex);
     id = ++employee_id;
     printf("Employee %d starts working at the store.\n", id);
-    semaphore_V(mutex);
+    semaphore_V(employee_mutex);
 
     while (1) {
         /* Wait if there is no customer */
         semaphore_P(customer_sem);
         /* Wait for available checkout counter */
-        semaphore_P(employee_sem);
+        semaphore_P(empty_sem);
 
-        semaphore_P(mutex);
+        semaphore_P(employee_mutex);
         head = (head + 1) % (EMPLOYEE_NUM + 1);
         unpacked[head] = ++serial_num;
         printf("Employee %d unpacked phone %d\n", id, unpacked[head]);
-        semaphore_V(mutex);
+        semaphore_V(employee_mutex);
 
         /* Tell the customer the phone is ready */
-        semaphore_V(phone_sem);
+        semaphore_V(full_sem);
 
         minithread_yield();
     }
@@ -70,15 +70,15 @@ customer(int* arg) {
     /* Tell employee there is a customer */
     semaphore_V(customer_sem);
     /* Wait for unpacked phone */
-    semaphore_P(phone_sem);
+    semaphore_P(full_sem);
 
-    semaphore_P(mutex);
+    semaphore_P(customer_mutex);
     tail = (tail + 1) % (EMPLOYEE_NUM + 1);
     printf("Customer %d activated phone %d\n", id, unpacked[tail]);
-    semaphore_V(mutex);
+    semaphore_V(customer_mutex);
 
     /* Employee finishes serving the customer */
-    semaphore_V(employee_sem);
+    semaphore_V(empty_sem);
 
     return 0;
 }
@@ -99,16 +99,16 @@ main(int argc, char** argv) {
     head = 0;
     tail = 0;
     /* Semaphore creation and initialization. */
-    phone_sem = semaphore_create();
-    employee_sem = semaphore_create();
+    full_sem = semaphore_create();
+    empty_sem = semaphore_create();
     customer_sem = semaphore_create();
-    mutex = semaphore_create();
+    employee_mutex = semaphore_create();
     customer_mutex = semaphore_create();
 
-    semaphore_initialize(phone_sem, 0);
-    semaphore_initialize(employee_sem, EMPLOYEE_NUM);
+    semaphore_initialize(full_sem, 0);
+    semaphore_initialize(empty_sem, EMPLOYEE_NUM);
     semaphore_initialize(customer_sem, 0);
-    semaphore_initialize(mutex, 1);
+    semaphore_initialize(employee_mutex, 1);
     semaphore_initialize(customer_mutex, 1);
 
     /* Start main thread. */

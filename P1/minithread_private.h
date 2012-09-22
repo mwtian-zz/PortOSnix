@@ -34,7 +34,7 @@ struct minithread {
     struct minithread *prev;
     struct minithread *next;
     struct queue *queue;
-    int id;
+    unsigned int id;
     stack_pointer_t top;
     stack_pointer_t base;
     enum status status;
@@ -42,11 +42,11 @@ struct minithread {
 
 
 /*
- * Information for thread managing.
+ * Information for thread management.
  */
 struct thread_monitor {
-    int count;
-    int tidcount;
+    unsigned int count;
+    unsigned int tidcount;
     minithread_t instack;
     queue_t ready;
     queue_t exited;

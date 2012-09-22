@@ -9,9 +9,8 @@
 
 /*
  * The node data structure.
- * Any other structures which wish to be manipulated by queue-related
- * functions need to have a 'prev' pointer as its first field, and a
- * 'next' pointer as its second field;
+ * Any other structures which need to be manipulated by queue-related
+ * functions should have first three fields correspond to node.
  */
 struct node {
     struct node *prev;
@@ -20,9 +19,8 @@ struct node {
 };
 
 /*
- * node_t is a pointer to a struct that has its first element a next
- * pointer. Pointers to other structs including tcb are cast into node_t
- * to be manipulated in the queue, using "poor man's inheritance".
+ * node_t is a pointer to a struct that has its first three elements
+ * correspond to node. node_t is used to manipulate the TCB.
  */
 typedef struct node* node_t;
 

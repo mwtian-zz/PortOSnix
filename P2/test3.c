@@ -9,16 +9,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define COUNT 1000000
+#define COUNT 10000
 
 semaphore_t sem1;
 semaphore_t sem2;
-uint64_t x = 0;
+int x = 0;
 
 int thread2(int* arg) {
-
   while (x < COUNT) {
-    //printf("Thread 2, x = %d.\n", x++);
+    printf("Thread 2, x = %d.\n", x++);
     semaphore_V(sem1);
     semaphore_P(sem2);
   }
@@ -28,10 +27,9 @@ int thread2(int* arg) {
 }
 
 int thread1(int* arg) {
-  minithread_t thread = minithread_fork(thread2, NULL);
-
+  minithread_fork(thread2, NULL);
   while (x < COUNT) {
-    //printf("Thread 1, x = %d.\n", x++);
+    printf("Thread 1, x = %d.\n", x++);
     semaphore_P(sem1);
     semaphore_V(sem2);
   }
@@ -40,10 +38,12 @@ int thread1(int* arg) {
   return 0;
 }
 
+int
 main() {
   sem1 = semaphore_create();
   semaphore_initialize(sem1, 0);
   sem2 = semaphore_create();
   semaphore_initialize(sem2, 0);
   minithread_system_initialize(thread1, NULL);
+  return 0;
 }

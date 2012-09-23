@@ -38,6 +38,7 @@ struct minithread {
     stack_pointer_t top;
     stack_pointer_t base;
     enum status status;
+    int quanta;
 };
 
 

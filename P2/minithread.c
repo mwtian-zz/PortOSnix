@@ -39,6 +39,7 @@ static minithread_t minithread_pickold();
 static minithread_t minithread_picknew();
 static int minithread_exit(arg_t arg);
 static void minithread_cleanup();
+static void clock_handler();
 
 /* minithread functions */
 
@@ -49,6 +50,7 @@ static void minithread_cleanup();
 minithread_t
 minithread_create(proc_t proc, arg_t arg) {
     minithread_t t;
+    interrupt_level_t oldlevel;
     /* Allocate memory for TCB and stack. */
     if ((t = malloc(sizeof(*t))) == NULL) {
         printf("TCB memory allocation failed.\n");
@@ -64,10 +66,14 @@ minithread_create(proc_t proc, arg_t arg) {
     minithread_initialize_stack(&(t->top), proc, arg, minithread_exit, NULL);
     t->prev = NULL;
     t->next = NULL;
-    t->id = thread_monitor.tidcount;
     t->status = INITIAL;
+
+    oldlevel = set_interrupt_level(DISABLED);
+    t->id = thread_monitor.tidcount;
     ++(thread_monitor.tidcount);
     ++(thread_monitor.count);
+    set_interrupt_level(oldlevel);
+
     return t;
 }
 
@@ -77,6 +83,7 @@ minithread_create(proc_t proc, arg_t arg) {
 static void
 minithread_cleanup() {
     minithread_t t;
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     while (0 == queue_dequeue(thread_monitor.exited, (void**)&t)
            && NULL != t) {
         if (NULL != t->base)
@@ -84,16 +91,20 @@ minithread_cleanup() {
         free(t);
         --(thread_monitor.count);
     }
+    set_interrupt_level(oldlevel);
 }
 
 /* Add thread t to the tail of the ready queue. */
 void
 minithread_start(minithread_t t) {
+    interrupt_level_t oldlevel;
     if (NULL == t)
         return;
+    oldlevel = set_interrupt_level(DISABLED);
     t->status = READY;
     queue_append(thread_monitor.ready, t);
     minithread_schedule();
+    set_interrupt_level(oldlevel);
 }
 
 /*
@@ -102,8 +113,10 @@ minithread_start(minithread_t t) {
  */
 void
 minithread_stop() {
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     thread_monitor.instack->status = BLOCKED;
     minithread_schedule();
+    set_interrupt_level(oldlevel);
 }
 
 /*
@@ -111,6 +124,7 @@ minithread_stop() {
  */
 static int
 minithread_exit(arg_t arg) {
+    set_interrupt_level(DISABLED);
     thread_monitor.instack->status = EXITED;
     queue_append(thread_monitor.exited, thread_monitor.instack);
     minithread_schedule();
@@ -128,12 +142,15 @@ minithread_exit(arg_t arg) {
  */
 void
 minithread_yield() {
+    interrupt_level_t oldlevel;
     if (0 == queue_length(thread_monitor.ready))
         return;
+    oldlevel = set_interrupt_level(DISABLED);
     thread_monitor.instack->status = READY;
     if (idle_thread != thread_monitor.instack)
         queue_append(thread_monitor.ready, thread_monitor.instack);
     minithread_schedule();
+    set_interrupt_level(oldlevel);
 }
 
 /* Create and start a thread. */
@@ -154,6 +171,7 @@ static void
 minithread_schedule() {
     minithread_t rt_old;
     minithread_t rt_new;
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
 
     if (NULL == (rt_old = minithread_pickold()))
         return;
@@ -162,9 +180,12 @@ minithread_schedule() {
 
     thread_monitor.instack = rt_new;
     rt_new->status = RUNNING;
+    rt_new->quanta = 1;
     /* Switch only when the threads are different. */
     if (rt_old != rt_new)
         minithread_switch(&(rt_old->top),&(rt_new->top));
+
+    set_interrupt_level(oldlevel);
 }
 
 /*
@@ -229,8 +250,8 @@ void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     minithread_t mainthd;
 
+    ticks = 0;
     idle_thread->status = RUNNING;
-
     thread_monitor.count = 1;
     thread_monitor.ready = queue_new();
     thread_monitor.exited = queue_new();
@@ -241,7 +262,11 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
         printf("Main thread creation failed.\n");
         exit(-1);
     }
+
+    set_interrupt_level(DISABLED);
+    minithread_clock_init(clock_handler);
     minithread_start(mainthd);
+    set_interrupt_level(ENABLED);
 
     while (1) {
         minithread_cleanup();
@@ -254,16 +279,17 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
  *	Atomically release the specified test-and-set lock and
  *	block the calling thread.
  */
-void minithread_unlock_and_stop(tas_lock_t* lock)
-{
-
+void minithread_unlock_and_stop(tas_lock_t* lock) {
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+    atomic_clear(lock);
+    minithread_stop();
+    set_interrupt_level(oldlevel);
 }
 
 /*
  * sleep with timeout in milliseconds
  */
-void minithread_sleep_with_timeout(int delay)
-{
+void minithread_sleep_with_timeout(int delay){
 
 }
 
@@ -272,7 +298,10 @@ void minithread_sleep_with_timeout(int delay)
  * You have to call minithread_clock_init with this
  * function as parameter in minithread_system_initialize
  */
-void clock_handler(void* arg)
-{
-
+void clock_handler(void* arg) {
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+    ++ticks;
+    if(0 >= --(thread_monitor.instack->quanta))
+        minithread_yield();
+    set_interrupt_level(oldlevel);
 }

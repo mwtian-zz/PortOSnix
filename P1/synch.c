@@ -39,7 +39,8 @@ void
 semaphore_destroy(semaphore_t sem) {
     if (NULL == sem)
         return;
-    free(sem->wait);
+    if (NULL != sem->wait)
+        free(sem->wait);
     free(sem);
 }
 
@@ -70,7 +71,7 @@ semaphore_P(semaphore_t sem) {
     /* while (1 == atomic_test_and_set(&(sem->lock)))
         ; */
     if (0 > --(sem->count)) {
-        queue_append(sem->wait,(void*)minithread_self());
+        queue_append(sem->wait, (void*) minithread_self());
         /* atomic_clear(&(sem->lock)); */
         minithread_stop();
 
@@ -90,9 +91,7 @@ semaphore_V(semaphore_t sem) {
         ; */
     if (0 >= ++(sem->count)) {
         queue_dequeue(sem->wait,(void**)&t);
-        /* atomic_clear(&(sem->lock)); */
         minithread_start(t);
-    } /* else {
-        atomic_clear(&(sem->lock));
-    } */
+    }
+    /* atomic_clear(&(sem->lock)); */
 }

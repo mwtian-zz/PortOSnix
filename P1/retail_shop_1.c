@@ -13,15 +13,17 @@ int serial_num = 0;
 queue_t phone_queue;
 
 /* Employee number */
-int employee_num = 1000;
+int employee_num = 20;
 /* Customer number */
-int customer_num = 10000;
+int customer_num = 200;
+/* Employee id */
+int employee_id = 0;
+/*Customer id */
+int customer_id = 0;
 /* Customer semaphore */
 semaphore_t customer_sem;
 /* Employee semaphore */
 semaphore_t employee_sem;
-/* Number of employee created */
-int created_employee = 0;
 
 phone_t phone_create() {
     phone_t new_phone = (phone_t) malloc(sizeof(struct phone));
@@ -36,13 +38,7 @@ phone_t phone_create() {
 
 static int employee(int* arg) {
     phone_t new_phone = NULL;
-    int i = *arg;
-
-    if (++created_employee < employee_num) {
-        printf("Employee %d created\n", created_employee);
-        minithread_fork(employee, &created_employee);
-        /*minithread_yield();*/
-    }
+    int id = employee_id++;
 
     while (1) {
         new_phone = phone_create();
@@ -51,10 +47,11 @@ static int employee(int* arg) {
             semaphore_P(customer_sem);
             /* Unpack the phone then */
             queue_append(phone_queue, new_phone);
-            printf("Employee %d unpacked phone %d\n", i, new_phone->serial_num);
+
+            printf("Employee %d unpacked phone %d\n", id, new_phone->serial_num);
             /* Tell the customer the phone is ready */
             semaphore_V(employee_sem);
-            /* Yield to other employee */
+
             minithread_yield();
         }
     }
@@ -64,9 +61,9 @@ static int employee(int* arg) {
 
 static int customer(int* arg) {
     phone_t new_phone = NULL;
-    int i = *arg;
+    int id = customer_id++;
 
-    printf("Customer %d is waiting for a phone\n", *arg);
+    printf("Customer %d is waiting for a phone\n", id);
 
     /* Tell employee there is a customer */
     semaphore_V(customer_sem);
@@ -75,7 +72,7 @@ static int customer(int* arg) {
     /* Get the phone */
     queue_dequeue(phone_queue, (void**)&new_phone);
 
-    printf("Customer %d got phone %d\n", i, new_phone->serial_num);
+    printf("Customer %d got phone %d\n", id, new_phone->serial_num);
     free(new_phone);
 
     return 0;
@@ -84,18 +81,13 @@ static int customer(int* arg) {
 static int start(int* arg) {
     int i;
 
-    for (i = 0; i < customer_num; i++) {
-        minithread_fork(customer, &i);
-        minithread_yield();
+    for (i = 0; i < employee_num; i++) {
+        minithread_fork(employee, NULL);
     }
 
-    minithread_fork(employee, &created_employee);
-    /*
-    for (i = 0; i < employee_num; i++) {
-        minithread_fork(employee, &i);
-        minithread_yield();
+    for (i = 0; i < customer_num; i++) {
+        minithread_fork(customer, NULL);
     }
-    */
 
     return 0;
 }

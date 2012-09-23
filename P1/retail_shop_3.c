@@ -6,8 +6,8 @@
 #include "synch.h"
 
 /* Edit the number of employees (N) and customers (M) here. */
-#define EMPLOYEE_NUM 75
-#define CUSTOMER_NUM 310
+#define EMPLOYEE_NUM 7
+#define CUSTOMER_NUM 31
 
 /* Current serial number and IDs, starts from 1. */
 static int serial_num = 0;

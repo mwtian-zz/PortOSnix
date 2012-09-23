@@ -4,7 +4,7 @@
 #include "queue.h"
 #include "minithread.h"
 #include "synch.h"
-#include "retail_shop.h"
+#include "retail_shop_1.h"
 
 /* Current serial number, starting from 0*/
 int serial_num = 0;

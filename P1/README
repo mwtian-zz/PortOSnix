@@ -4,8 +4,8 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 CS4411 Project 1 - Non-Preemptive Multitasking
 
 In our implementation, we modified files 'queue.c', 'minithread.c' and 
-'synch.c'. And we created files 'queue_private.h', 'minithread_private.h' and 
-'retail_shop.c'.
+'synch.c'. And we created files 'queue_private.h', 'minithread_private.h', 
+'test_queue.c' and 'retail_shop.c'.
 
 
 Queue implementation:

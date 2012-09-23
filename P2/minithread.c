@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include "interrupts.h"
 #include "queue.h"
 #include "synch.h"
 #include "minithread.h"
@@ -248,4 +249,30 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     }
 }
 
+/*
+ * minithread_unlock_and_stop(tas_lock_t* lock)
+ *	Atomically release the specified test-and-set lock and
+ *	block the calling thread.
+ */
+void minithread_unlock_and_stop(tas_lock_t* lock)
+{
 
+}
+
+/*
+ * sleep with timeout in milliseconds
+ */
+void minithread_sleep_with_timeout(int delay)
+{
+
+}
+
+/*
+ * This is the clock interrupt handling routine.
+ * You have to call minithread_clock_init with this
+ * function as parameter in minithread_system_initialize
+ */
+void clock_handler(void* arg)
+{
+
+}

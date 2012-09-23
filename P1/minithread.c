@@ -61,8 +61,8 @@ minithread_create(proc_t proc, arg_t arg) {
     }
     /* Initialize TCB and stack. */
     minithread_initialize_stack(&(t->top), proc, arg, minithread_exit, NULL);
-    t->prev = NULL;
-    t->next = NULL;
+    t->qnode.prev = NULL;
+    t->qnode.next = NULL;
     t->id = thread_monitor.tidcount;
     t->status = INITIAL;
     ++(thread_monitor.tidcount);

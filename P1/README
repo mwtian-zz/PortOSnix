@@ -3,42 +3,43 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 
 CS4411 Project 1 - Non-Preemptive Multitasking
 
-In our implementation, we modified files 'queue.c', 'minithread.c' and 
-'synch.c'. And we created files 'queue_private.h', 'minithread_private.h', 
+In our implementation, we modified files 'queue.c', 'minithread.c' and
+'synch.c'. And we created files 'queue_private.h', 'minithread_private.h',
 'test_queue.c' and 'retail_shop.c'.
 
 
 Queue implementation:
 
-'queue_private.h' contains the structure definitions of node and queue. A doubly 
-linked-list is used so 'queue_delete' can be O(1). A pointer to queue is 
-included as a field of node, so in 'queue_delete(queue_t queue, void** item)', 
+'queue_private.h' contains the structure definitions of node and queue. A doubly
+linked-list is used so 'queue_delete' can be O(1). A pointer to queue is
+included as a field of node, so in 'queue_delete(queue_t queue, void** item)',
 '*item' can be check to see if it is in 'queue'.
 
-Queue-related function calls take in 'pointers to nodes' and 'pointers to 
+Queue-related function calls take in 'pointers to nodes' and 'pointers to
 pointers to nodes' as arguments. No node memory management is done in 'queue.c'.
-This is chosen because 'queue.c' is used to handle TCBs, and TCBs are enqueued 
-and dequeued much more frequently than they are created and destroyed. Passing 
-in the node structure results in less 'malloc()' function calls. 
+This is chosen because 'queue.c' is used to handle TCBs, and TCBs are enqueued
+and dequeued much more frequently than they are created and destroyed. Passing
+in the node structure results in less 'malloc()' function calls.
 
 
 Minithread implementation:
 
-'minithread_private.h' contains the minithread structure definition, and a 
-structure definition call 'thread_monitor'. An instance of 'thread_monitor' is 
+'minithread_private.h' contains the minithread structure definition, and a
+structure definition call 'thread_monitor'. An instance of 'thread_monitor' is
 used to keep track of number of threads, pointers to the ready and exited queue,
-and the running thread. As mentioned before, 'minithread' contains the field of 
-node, so it can manipulated by the functions in 'queue.c'. 
+and the running thread. As mentioned in comments, the first field in struct
+minithread is a struct node, so struct minithread can manipulated by functions
+in 'queue.c'.
 
 The functions in 'minithread.c' can be divided into groups.
 
 minithread_create and minithread_cleanup manage the memory of minithreads.
 
-minithread_start, minithread_stop, minithread_exit and minithread_yield change 
-the status of threads and place them into the appropriate queues. 
+minithread_start, minithread_stop, minithread_exit and minithread_yield change
+the status of threads and place them into the appropriate queues.
 minithread_fork combines minithread_create and minithread_start.
 
-minithread_schedule implements the scheduling mechanism. minithread_pickold and 
+minithread_schedule implements the scheduling mechanism. minithread_pickold and
 minithread_picknew have the scheduling policy.
 
 minithread_self and minithread_id return information on the running thread.
@@ -48,30 +49,30 @@ And minithread_system_initialize is the entry point to the system.
 
 Semaphore implementation:
 
-The structure of semaphore and the related functions are implemented in 
+The structure of semaphore and the related functions are implemented in
 'synch.c'. As mentioned in lectures, TAS lock is not necessary for this project.
 
 
 Testing:
 
-Our code has been tested with the provided testing programs. Also we wrote 
+Our code has been tested with the provided testing programs. Also we wrote
 'test_queue.c' to test the queue implementation.
 
 
 'Retail store' implementation:
 
-Our implementation is modeled on the solution to the multiple-produce 
-multiple-consumer problem presented in class. An integer array is used as a 
-buffer to store serial numbers of unpacked phones. Two semaphores are used to 
-indicate buffer is full/empty. 'employee_mutex' is used to make sure only one 
-employee can modify the buffer, increment 'head' or 'id' at a given time. 
-Similarly, 'customer_mutex' makes sure only one customer can increase 'head' or 
-'id' at a given time. Because of the full and empty semaphores, employe and 
-customer can never modify the same element in the buffer. An extra customer 
-semaphore is used so employee only unpacks when there are waiting customers. 
-Because there is no preemption, each employee thread yields after they finishes 
-unpacking a phone. Although in this project the binary semaphores are 
-unnecessary, they protect the shared data so the solution has a reasonable 
+Our implementation is modeled on the solution to the multiple-produce
+multiple-consumer problem presented in class. An integer array is used as a
+buffer to store serial numbers of unpacked phones. Two semaphores are used to
+indicate buffer is full/empty. 'employee_mutex' is used to make sure only one
+employee can modify the buffer, increment 'head' or 'id' at a given time.
+Similarly, 'customer_mutex' makes sure only one customer can increase 'head' or
+'id' at a given time. Because of the full and empty semaphores, employe and
+customer can never modify the same element in the buffer. An extra customer
+semaphore is used so employee only unpacks when there are waiting customers.
+Because there is no preemption, each employee thread yields after they finishes
+unpacking a phone. Although in this project the binary semaphores are
+unnecessary, they protect the shared data so the solution has a reasonable
 chance of working when preemption is added.
 
 

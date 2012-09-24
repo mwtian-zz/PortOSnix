@@ -3,8 +3,8 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 
 CS4411 Project 1 - Non-Preemptive Multitasking
 
-For this project, we programmed in the Linux enviroment. In our implementation, 
-we modified files 'queue.c', 'minithread.c' and 'synch.c'. And we created files 
+For this project, we programmed in the Linux enviroment. In our implementation,
+we modified files 'queue.c', 'minithread.c' and 'synch.c'. And we created files
 'queue_private.h', 'minithread_private.h', 'test_queue.c' and 'retail_shop.c'.
 
 
@@ -61,19 +61,17 @@ Our code has been tested with the provided testing programs. Also we wrote
 
 'Retail store' implementation:
 
-Our implementation is modeled on the solution to the multiple-produce
-multiple-consumer problem presented in class. An integer array is used as a
+Our implementation is modeled on the solution to the multiple-producer
+multiple-consumer problem presented in class. A FIFO queue is used as a
 buffer to store serial numbers of unpacked phones. Two semaphores are used to
-indicate buffer is full/empty. 'employee_mutex' is used to make sure only one
-employee can modify the buffer, increment 'head' or 'id' at a given time.
-Similarly, 'customer_mutex' makes sure only one customer can increase 'head' or
-'id' at a given time. Because of the full and empty semaphores, employe and
-customer can never modify the same element in the buffer. An extra customer
-semaphore is used so employee only unpacks when there are waiting customers.
-Because there is no preemption, each employee thread yields after they finishes
-unpacking a phone. Although in this project the binary semaphores are
-unnecessary, they protect the shared data so the solution has a reasonable
-chance of working when preemption is added.
+indicate the buffer is full/empty. An extra customer semaphore is used so
+employee only unpacks when there are customers waiting. The size of the buffer
+is determined by the initialized value of empty_sem, which is adjustable.
+
+Although operations modifying the serial number count, id count and the buffer
+should be protected in a critical section when preemption is enabled, the use
+of mutex is unnecessary for this project. Because there is no preemption, each
+employee thread needs to yield after they finishes unpacking a phone.
 
 
 --------------------------------------------------------------------------------

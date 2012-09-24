@@ -13,9 +13,9 @@ int serial_num = 0;
 queue_t phone_queue;
 
 /* Employee number */
-int employee_num = 888;
+int employee_num = 8887;
 /* Customer number */
-int customer_num = 209;
+int customer_num = 20980;
 /* Employee id */
 int employee_id = 0;
 /*Customer id */
@@ -58,7 +58,7 @@ employee(int* arg) {
         /* Signal a phone is ready */
         semaphore_V(full_sem);
 
-        minithread_yield();
+        /* minithread_yield(); */
     }
 
     return 0;

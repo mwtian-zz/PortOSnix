@@ -38,7 +38,6 @@ struct minithread {
     stack_pointer_t top;
     stack_pointer_t base;
     enum status status;
-    int quanta;
 };
 
 
@@ -48,6 +47,7 @@ struct minithread {
 struct thread_monitor {
     unsigned int count;
     unsigned int tidcount;
+    int quanta;
     minithread_t instack;
     queue_t ready;
     queue_t exited;

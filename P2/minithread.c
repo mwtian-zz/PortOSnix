@@ -178,8 +178,8 @@ minithread_schedule() {
         return;
 
     thread_monitor.instack = rt_new;
+    thread_monitor.quanta = 1;
     rt_new->status = RUNNING;
-    rt_new->quanta = 1;
     /* Switch only when the threads are different. */
     if (rt_old != rt_new)
         minithread_switch(&(rt_old->top),&(rt_new->top));
@@ -298,7 +298,7 @@ void minithread_sleep_with_timeout(int delay){
 void clock_handler(void* arg) {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     ++ticks;
-    if(0 >= --(thread_monitor.instack->quanta))
+    if(0 >= --thread_monitor.quanta)
         minithread_yield();
     set_interrupt_level(oldlevel);
 }

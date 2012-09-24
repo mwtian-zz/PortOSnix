@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = test3
+MAIN = retail_shop_1
 
 OBJ = \
 	random.o \

@@ -171,7 +171,6 @@ static void
 minithread_schedule() {
     minithread_t rt_old;
     minithread_t rt_new;
-    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
 
     if (NULL == (rt_old = minithread_pickold()))
         return;
@@ -184,8 +183,6 @@ minithread_schedule() {
     /* Switch only when the threads are different. */
     if (rt_old != rt_new)
         minithread_switch(&(rt_old->top),&(rt_new->top));
-
-    set_interrupt_level(oldlevel);
 }
 
 /*

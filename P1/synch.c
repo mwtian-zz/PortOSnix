@@ -71,7 +71,7 @@ semaphore_P(semaphore_t sem) {
     /* while (1 == atomic_test_and_set(&(sem->lock)))
         ; */
     if (0 > --(sem->count)) {
-        queue_append(sem->wait, (void*) minithread_self());
+        queue_append(sem->wait, minithread_self());
         /* atomic_clear(&(sem->lock)); */
         minithread_stop();
 

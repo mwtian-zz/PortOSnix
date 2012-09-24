@@ -82,7 +82,7 @@ queue_dequeue(queue_t queue, void** item) {
         *item = NULL;
         return -1;
     }
-    *item = (void*) queue->head;
+    *item = queue->head;
     if (NULL == *item)
         return -1;
     return queue_delete(queue, item);

@@ -10,7 +10,7 @@
 /*
  * The node data structure.
  * Any other structures which need to be manipulated by queue-related
- * functions should have first three fields correspond to node.
+ * functions should include a struct node as the first field.
  */
 struct node {
     struct node *prev;

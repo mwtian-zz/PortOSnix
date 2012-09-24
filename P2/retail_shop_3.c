@@ -6,8 +6,8 @@
 #include "synch.h"
 
 /* Edit the number of employees (N) and customers (M) here. */
-#define EMPLOYEE_NUM 7894
-#define CUSTOMER_NUM 31780
+#define EMPLOYEE_NUM 7
+#define CUSTOMER_NUM 31
 
 /* Current serial number and IDs, starts from 1. */
 static int serial_num = 0;
@@ -52,6 +52,8 @@ employee(int* arg) {
 
         /* Tell the customer the phone is ready */
         semaphore_V(full_sem);
+
+        minithread_yield();
     }
 
     return 0;

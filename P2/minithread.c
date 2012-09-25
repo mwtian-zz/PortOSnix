@@ -176,14 +176,11 @@ minithread_fork(proc_t proc, arg_t arg)
 static void
 minithread_schedule()
 {
-    minithread_t rt_old = minithread_pickold();
-    minithread_t rt_new = minithread_picknew();
-    if (NULL == rt_old || NULL == rt_new)
+    minithread_t rt_old;
+    minithread_t rt_new;
+    if (NULL == (rt_old = minithread_pickold())
+        || NULL == (rt_new = minithread_picknew()))
         return;
-    thread_monitor.instack = rt_new;
-    thread_monitor.expire =
-    ticks + thread_monitor.quanta_lim[rt_new->priority];
-    rt_new->status = RUNNING;
     /* Switch only when the threads are different. */
     if (rt_old != rt_new)
         minithread_switch(&(rt_old->top),&(rt_new->top));
@@ -191,7 +188,7 @@ minithread_schedule()
 
 /*
  * Return the pointer to the thread leaving stack.
- * Place the thread in the appropriate queue.
+ * Place leaving thread in the appropriate queue and adjust its priority.
  */
 static minithread_t
 minithread_pickold()
@@ -211,6 +208,7 @@ minithread_pickold()
 /*
  * Return the pointer to the thread entering stack.
  * Return idle_thread if there is no other thread to run.
+ * Set up the new thread with its expiration time, status and instack pointer.
  */
 static minithread_t
 minithread_picknew()
@@ -227,14 +225,17 @@ minithread_picknew()
         p = 2;
     else
         p = 3;
+    thread_monitor.expire = ticks + thread_monitor.quanta_lim[p];
     /* Switch to idle thread when the ready queue is empty. */
     for (i = 0; i <= MAX_PRIORITY; ++i) {
         if (0 == multilevel_queue_dequeue(thread_monitor.ready,
                                           (p + i) % (MAX_PRIORITY + 1),
-                                          (void**) &t))
+                                          (void**) &t)) {
+            thread_monitor.instack = t;
+            t->status = RUNNING;
             return t;
+        }
     }
-
     return idle_thread;
 }
 

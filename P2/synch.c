@@ -73,10 +73,8 @@ semaphore_initialize(semaphore_t sem, int cnt)
 void
 semaphore_P(semaphore_t sem)
 {
-    interrupt_level_t oldlevel;
     while (1 == atomic_test_and_set(&(sem->lock)))
         ;
-    oldlevel = set_interrupt_level(DISABLED);
     if (0 > --(sem->count)) {
 
         queue_append(sem->wait, (void*) minithread_self());
@@ -84,7 +82,6 @@ semaphore_P(semaphore_t sem)
     } else {
         atomic_clear(&(sem->lock));
     }
-    set_interrupt_level(oldlevel);
 }
 
 /*
@@ -95,14 +92,11 @@ void
 semaphore_V(semaphore_t sem)
 {
     minithread_t t;
-    interrupt_level_t oldlevel;
     while (1 == atomic_test_and_set(&(sem->lock)))
         ;
-    oldlevel = set_interrupt_level(DISABLED);
     if (0 >= ++(sem->count)) {
         if (0 == queue_dequeue(sem->wait, (void**) &t))
             minithread_start(t);
     }
     atomic_clear(&(sem->lock));
-    set_interrupt_level(oldlevel);
 }

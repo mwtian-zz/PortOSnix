@@ -5,6 +5,7 @@ machineprimitives.o: machineprimitives.c defs.h minithread.h \
  machineprimitives.h
 minithread.o: minithread.c minithread.h machineprimitives.h defs.h \
  queue.h synch.h
+multilevel_queue.o: multilevel_queue.c multilevel_queue.h
 network.o: network.c defs.h network.h interrupts_private.h interrupts.h \
  minithread.h machineprimitives.h random.h
 pid_random.o: pid_random.c pid_random.h random.h

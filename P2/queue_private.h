@@ -27,10 +27,10 @@ typedef struct node* node_t;
 /*
  * The queue data structure.
  */
-typedef struct queue {
+struct queue {
     node_t head;
     node_t tail;
     int length;
-} queue;
+};
 
 #endif /*__QUEUE_PRIVATE_H__*/

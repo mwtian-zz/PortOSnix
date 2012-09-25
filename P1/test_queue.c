@@ -1,8 +1,3 @@
-/* test_queue.c
-
-   Spawn a single thread.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "queue.h"
@@ -14,13 +9,14 @@ typedef struct item {
     int data;
 } item;
 
-int print_item(void* item1, void* item2) {
+int
+print_item(void* item1, void* item2) {
     printf("%d ",((item*)item2)->data);
     return 0;
 }
 
-void
-main(void) {
+int
+main() {
     int i;
     item num[100];
     item* it;
@@ -29,8 +25,8 @@ main(void) {
     printf("Append 1 to 10:\n");
     for (i = 1; i <= 10; ++i) {
         num[i-1].data = i;
-        if (queue_append(q, num+i-1))
-            printf("queue_append failed on i = %d",i);
+        if (-1 == queue_append(q, num+i-1))
+            printf("queue_append failed on i = %d\n",i);
     }
     i = queue_iterate(q, print_item, NULL);
     printf("\n");
@@ -40,7 +36,7 @@ main(void) {
     printf("Prepend 11 to 20:\n");
     for (i = 11; i <= 20; ++i) {
         num[i-1].data = i;
-        if (queue_prepend(q, num+i-1))
+        if (-1 == queue_prepend(q, num+i-1))
             printf("queue_prepend failed on i = %d",i);
     }
     i = queue_iterate(q, print_item, NULL);
@@ -93,5 +89,5 @@ main(void) {
     queue_free (q);
 
     printf("\n");
-    exit(0);
+    return 0;
 }

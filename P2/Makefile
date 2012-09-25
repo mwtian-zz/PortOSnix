@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = retail_shop_1
+MAIN = test_multiqueue
 
 OBJ = \
 	random.o \
@@ -23,6 +23,7 @@ OBJ = \
 	machineprimitives_x86_64_asm.o \
 	machineprimitives_x86_64.o \
 	machineprimitives.o \
+	multilevel_queue.o \
 	alarm.o \
 	queue.o \
 	$(MAIN).o \

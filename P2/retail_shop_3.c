@@ -6,8 +6,8 @@
 #include "synch.h"
 
 /* Edit the number of employees (N) and customers (M) here. */
-#define EMPLOYEE_NUM 7
-#define CUSTOMER_NUM 31
+#define EMPLOYEE_NUM 789
+#define CUSTOMER_NUM 3178
 
 /* Current serial number and IDs, starts from 1. */
 static int serial_num = 0;
@@ -31,7 +31,8 @@ static semaphore_t customer_mutex;
 
 
 static int
-employee(int* arg) {
+employee(int* arg)
+{
     int id;
     semaphore_P(employee_mutex);
     id = ++employee_id;
@@ -52,15 +53,14 @@ employee(int* arg) {
 
         /* Tell the customer the phone is ready */
         semaphore_V(full_sem);
-
-        minithread_yield();
     }
 
     return 0;
 }
 
 static int
-customer(int* arg) {
+customer(int* arg)
+{
     int id;
     semaphore_P(customer_mutex);
     id = ++customer_id;
@@ -84,7 +84,8 @@ customer(int* arg) {
 }
 
 static int
-start(int* arg) {
+start(int* arg)
+{
     int i;
     for (i = 0; i < EMPLOYEE_NUM; i++)
         minithread_fork(employee, NULL);
@@ -94,7 +95,8 @@ start(int* arg) {
 }
 
 int
-main(int argc, char** argv) {
+main(int argc, char** argv)
+{
     /* Initialize the unpacked phone buffer */
     head = 0;
     tail = 0;

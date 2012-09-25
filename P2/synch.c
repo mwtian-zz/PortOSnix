@@ -27,7 +27,8 @@ struct semaphore {
  *    Allocate a new semaphore.
  */
 semaphore_t
-semaphore_create() {
+semaphore_create()
+{
     semaphore_t sem = malloc(sizeof(*sem));
     return sem;
 }
@@ -37,7 +38,8 @@ semaphore_create() {
  *    Deallocate a semaphore.
  */
 void
-semaphore_destroy(semaphore_t sem) {
+semaphore_destroy(semaphore_t sem)
+{
     if (NULL == sem)
         return;
     if (NULL != sem->wait)
@@ -51,7 +53,8 @@ semaphore_destroy(semaphore_t sem) {
  *    sem with an initial value cnt.
  */
 void
-semaphore_initialize(semaphore_t sem, int cnt) {
+semaphore_initialize(semaphore_t sem, int cnt)
+{
     queue_t q;
     if (NULL == sem)
         return;
@@ -68,18 +71,20 @@ semaphore_initialize(semaphore_t sem, int cnt) {
  *    P on the sempahore.
  */
 void
-semaphore_P(semaphore_t sem) {
+semaphore_P(semaphore_t sem)
+{
     interrupt_level_t oldlevel;
     while (1 == atomic_test_and_set(&(sem->lock)))
         ;
+    oldlevel = set_interrupt_level(DISABLED);
     if (0 > --(sem->count)) {
-        oldlevel = set_interrupt_level(DISABLED);
+
         queue_append(sem->wait, (void*) minithread_self());
         minithread_unlock_and_stop(&(sem->lock));
-        set_interrupt_level(oldlevel);
     } else {
         atomic_clear(&(sem->lock));
     }
+    set_interrupt_level(oldlevel);
 }
 
 /*
@@ -87,16 +92,17 @@ semaphore_P(semaphore_t sem) {
  *    V on the sempahore.
  */
 void
-semaphore_V(semaphore_t sem) {
+semaphore_V(semaphore_t sem)
+{
     minithread_t t;
     interrupt_level_t oldlevel;
     while (1 == atomic_test_and_set(&(sem->lock)))
         ;
+    oldlevel = set_interrupt_level(DISABLED);
     if (0 >= ++(sem->count)) {
-        oldlevel = set_interrupt_level(DISABLED);
-        queue_dequeue(sem->wait,(void**)&t);
-        minithread_start(t);
-        set_interrupt_level(oldlevel);
+        if (0 == queue_dequeue(sem->wait, (void**) &t))
+            minithread_start(t);
     }
     atomic_clear(&(sem->lock));
+    set_interrupt_level(oldlevel);
 }

@@ -11,7 +11,8 @@
  * Return an empty queue. On error, return NULL.
  */
 queue_t
-queue_new() {
+queue_new()
+{
     queue_t q;
     if ((q = malloc(sizeof(*q))) == NULL) {
         printf("Queue memory allocation failed.\n");
@@ -30,7 +31,8 @@ queue_new() {
  * Prepended item is first to be dequeued.
  */
 int
-queue_prepend(queue_t queue, void* item) {
+queue_prepend(queue_t queue, void* item)
+{
     node_t node = item;
     if (NULL == queue || NULL == item)
         return -1;
@@ -53,7 +55,8 @@ queue_prepend(queue_t queue, void* item) {
  * Appended item is last to be dequeued.
  */
 int
-queue_append(queue_t queue, void* item) {
+queue_append(queue_t queue, void* item)
+{
     node_t node = item;
     if (NULL == queue || NULL == item)
         return -1;
@@ -75,7 +78,8 @@ queue_append(queue_t queue, void* item) {
  * 'item' is removed from the head of the structure.
  */
 int
-queue_dequeue(queue_t queue, void** item) {
+queue_dequeue(queue_t queue, void** item)
+{
     if (NULL == item)
         return -1;
     if (queue == NULL) {
@@ -94,7 +98,8 @@ queue_dequeue(queue_t queue, void** item) {
  * '*item' is never modified in this function.
  */
 int
-queue_delete(queue_t queue, void** item) {
+queue_delete(queue_t queue, void** item)
+{
     node_t node;
     if (NULL == queue || NULL == item)
         return -1;
@@ -127,7 +132,8 @@ queue_delete(queue_t queue, void** item) {
  * or -1 (failure).
  */
 int
-queue_iterate(queue_t queue, PFany f, void* item) {
+queue_iterate(queue_t queue, PFany f, void* item)
+{
     node_t current, next;
     if (NULL == queue || NULL == f)
         return -1;
@@ -143,7 +149,8 @@ queue_iterate(queue_t queue, PFany f, void* item) {
  * Return the number of items in the queue.
  */
 int
-queue_length(queue_t queue) {
+queue_length(queue_t queue)
+{
     if (NULL == queue)
         return -1;
     return queue->length;
@@ -153,7 +160,8 @@ queue_length(queue_t queue) {
  * Free the queue and return 0 (success) or -1 (failure).
  */
 int
-queue_free (queue_t queue) {
+queue_free (queue_t queue)
+{
     if (NULL == queue)
         return -1;
     free(queue);

@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = test_multiqueue
+MAIN = test2
 
 OBJ = \
 	random.o \

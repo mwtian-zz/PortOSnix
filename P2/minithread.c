@@ -28,7 +28,7 @@
  * struct minithread is defined in the private header "minithread_private.h".
  */
 
-/* File scope pointers */
+/* File scope variables */
 static struct minithread _idle_thread_;
 static minithread_t const idle_thread = &_idle_thread_;
 static struct thread_monitor thread_monitor;
@@ -39,6 +39,9 @@ static minithread_t minithread_pickold();
 static minithread_t minithread_picknew();
 static int minithread_exit(arg_t arg);
 static void minithread_cleanup();
+static int minithread_initialize_thread_monitor();
+static int minithread_initialize_idle();
+static int minithread_initialize_clock();
 static void clock_handler();
 
 /* minithread functions */
@@ -48,7 +51,8 @@ static void clock_handler();
  * Return NULL when allocation fails.
  */
 minithread_t
-minithread_create(proc_t proc, arg_t arg) {
+minithread_create(proc_t proc, arg_t arg)
+{
     minithread_t t;
     interrupt_level_t oldlevel;
     /* Allocate memory for TCB and stack. */
@@ -62,11 +66,12 @@ minithread_create(proc_t proc, arg_t arg) {
         free(t);
         return NULL;
     }
-    /* Initialize TCB and stack. */
+    /* Initialize TCB and thread stack. */
     minithread_initialize_stack(&(t->top), proc, arg, minithread_exit, NULL);
-    t->prev = NULL;
-    t->next = NULL;
+    t->qnode.prev = NULL;
+    t->qnode.next = NULL;
     t->status = INITIAL;
+    t->priority = 0;
 
     oldlevel = set_interrupt_level(DISABLED);
     t->id = thread_monitor.tidcount;
@@ -81,11 +86,12 @@ minithread_create(proc_t proc, arg_t arg) {
  * Release memory of exited threads.
  */
 static void
-minithread_cleanup() {
+minithread_cleanup()
+{
     minithread_t t;
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     while (0 == queue_dequeue(thread_monitor.exited, (void**)&t)
-           && NULL != t) {
+            && NULL != t) {
         if (NULL != t->base)
             minithread_free_stack(t->base);
         free(t);
@@ -94,16 +100,16 @@ minithread_cleanup() {
     set_interrupt_level(oldlevel);
 }
 
-/* Add thread t to the tail of the ready queue. */
+/* Add thread t to the end of the appropriate ready queue. */
 void
-minithread_start(minithread_t t) {
+minithread_start(minithread_t t)
+{
     interrupt_level_t oldlevel;
     if (NULL == t)
         return;
     oldlevel = set_interrupt_level(DISABLED);
     t->status = READY;
-    queue_append(thread_monitor.ready, t);
-    minithread_schedule();
+    multilevel_queue_enqueue(thread_monitor.ready, t->priority, t);
     set_interrupt_level(oldlevel);
 }
 
@@ -112,7 +118,8 @@ minithread_start(minithread_t t) {
  * before calling minithread_stop().
  */
 void
-minithread_stop() {
+minithread_stop()
+{
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     thread_monitor.instack->status = BLOCKED;
     minithread_schedule();
@@ -123,7 +130,8 @@ minithread_stop() {
  * This is the 'final_proc' that helps threads exit properly.
  */
 static int
-minithread_exit(arg_t arg) {
+minithread_exit(arg_t arg)
+{
     set_interrupt_level(DISABLED);
     thread_monitor.instack->status = EXITED;
     queue_append(thread_monitor.exited, thread_monitor.instack);
@@ -137,25 +145,23 @@ minithread_exit(arg_t arg) {
 }
 
 /*
- * Add the running thread to the tail of the ready queue.
- * Let the scheduler decide if the thread needs to be switched out.
+ * Add the running thread to the tail of the appropriate ready queue.
+ * Then schedule for next thread.
  */
 void
-minithread_yield() {
-    interrupt_level_t oldlevel;
-    if (0 == queue_length(thread_monitor.ready))
-        return;
-    oldlevel = set_interrupt_level(DISABLED);
-    thread_monitor.instack->status = READY;
-    if (idle_thread != thread_monitor.instack)
-        queue_append(thread_monitor.ready, thread_monitor.instack);
+minithread_yield()
+{
+    minithread_t t = thread_monitor.instack;
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+    t->status = READY;
     minithread_schedule();
     set_interrupt_level(oldlevel);
 }
 
 /* Create and start a thread. */
 minithread_t
-minithread_fork(proc_t proc, arg_t arg) {
+minithread_fork(proc_t proc, arg_t arg)
+{
     minithread_t t = minithread_create(proc, arg);
     if (NULL == t)
         return NULL;
@@ -168,17 +174,15 @@ minithread_fork(proc_t proc, arg_t arg) {
  * before calling the scheduler.
  */
 static void
-minithread_schedule() {
-    minithread_t rt_old;
-    minithread_t rt_new;
-
-    if (NULL == (rt_old = minithread_pickold()))
+minithread_schedule()
+{
+    minithread_t rt_old = minithread_pickold();
+    minithread_t rt_new = minithread_picknew();
+    if (NULL == rt_old || NULL == rt_new)
         return;
-    if (NULL == (rt_new = minithread_picknew()))
-        return;
-
     thread_monitor.instack = rt_new;
-    thread_monitor.quanta = 1;
+    thread_monitor.expire =
+    ticks + thread_monitor.quanta_lim[rt_new->priority];
     rt_new->status = RUNNING;
     /* Switch only when the threads are different. */
     if (rt_old != rt_new)
@@ -187,45 +191,64 @@ minithread_schedule() {
 
 /*
  * Return the pointer to the thread leaving stack.
- * Return NULL if the thread has to stay in stack.
+ * Place the thread in the appropriate queue.
  */
 static minithread_t
-minithread_pickold() {
-    minithread_t rt_old = thread_monitor.instack;
-    /* No switching when the thread in stack is running and not idle_thread. */
-    if (RUNNING == rt_old->status) {
-        if (idle_thread == rt_old)
-            rt_old->status = READY;
-        else
+minithread_pickold()
+{
+    minithread_t t = thread_monitor.instack;
+    /* Reduce privilige if runs out of quanta */
+    if (ticks == thread_monitor.expire)
+        if (t->priority < MAX_PRIORITY)
+            ++t->priority;
+    if (t != idle_thread && t->status == READY)
+        if (-1 == multilevel_queue_enqueue(thread_monitor.ready, t->priority, t))
             return NULL;
-    }
-    return rt_old;
+    return t;
 }
+
 
 /*
  * Return the pointer to the thread entering stack.
  * Return idle_thread if there is no other thread to run.
  */
 static minithread_t
-minithread_picknew() {
-    minithread_t rt_new;
+minithread_picknew()
+{
+    minithread_t t;
+    int i;
+    int p;
+    int r = ticks % 160;
+    if (r < 80)
+        p = 0;
+    else if (r < 120)
+        p = 1;
+    else if (r < 144)
+        p = 2;
+    else
+        p = 3;
     /* Switch to idle thread when the ready queue is empty. */
-    if (-1 == queue_dequeue(thread_monitor.ready, (void**)&rt_new)
-        || NULL == rt_new)
-        return idle_thread;
+    for (i = 0; i <= MAX_PRIORITY; ++i) {
+        if (0 == multilevel_queue_dequeue(thread_monitor.ready,
+                                          (p + i) % (MAX_PRIORITY + 1),
+                                          (void**) &t))
+            return t;
+    }
 
-    return rt_new;
+    return idle_thread;
 }
 
 /* Return pointer to the running thread. */
 minithread_t
-minithread_self() {
+minithread_self()
+{
     return thread_monitor.instack;
 }
 
 /* Return ID of the running thread. */
 int
-minithread_id() {
+minithread_id()
+{
     return thread_monitor.instack->id;
 }
 
@@ -244,26 +267,24 @@ minithread_id() {
  *
  */
 void
-minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
-    minithread_t mainthd;
-
-    ticks = 0;
-    idle_thread->status = RUNNING;
-    thread_monitor.count = 1;
-    thread_monitor.ready = queue_new();
-    thread_monitor.exited = queue_new();
-    thread_monitor.instack = idle_thread;
-
-    mainthd = minithread_create(mainproc, mainarg);
-    if (NULL == mainthd) {
-        printf("Main thread creation failed.\n");
+minithread_system_initialize(proc_t mainproc, arg_t mainarg)
+{
+    if (-1 == minithread_initialize_thread_monitor()) {
+        printf("Schedule/Exit queue creation failed.\n");
         exit(-1);
     }
-
-    set_interrupt_level(DISABLED);
-    minithread_clock_init(clock_handler);
-    minithread_start(mainthd);
-    set_interrupt_level(ENABLED);
+    if (-1 == minithread_initialize_idle()) {
+        printf("Idle thread initialization failed.\n");
+        exit(-1);
+    }
+    if (NULL == minithread_fork(mainproc, mainarg)) {
+        printf("Main thread initialization failed.\n");
+        exit(-1);
+    }
+    if (-1 == minithread_initialize_clock()) {
+        printf("Clock initialization failed.\n");
+        exit(-1);
+    }
 
     while (1) {
         minithread_cleanup();
@@ -271,12 +292,48 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     }
 }
 
+static int
+minithread_initialize_thread_monitor()
+{
+    int i;
+    thread_monitor.count = 1;
+    thread_monitor.quanta_lim[0] = 1;
+    for (i = 1; i <= MAX_PRIORITY; ++i)
+        thread_monitor.quanta_lim[i] = 2 * thread_monitor.quanta_lim[i - 1];
+    thread_monitor.instack = idle_thread;
+    thread_monitor.ready = multilevel_queue_new(MAX_PRIORITY + 1);
+    thread_monitor.exited = queue_new();
+    if (NULL == thread_monitor.ready || NULL == thread_monitor.exited)
+        return -1;
+    return 0;
+}
+
+static int
+minithread_initialize_idle()
+{
+    if (NULL == idle_thread)
+        return -1;
+    idle_thread->status = RUNNING;
+    idle_thread->priority = MAX_PRIORITY;
+    return 0;
+}
+
+static int
+minithread_initialize_clock()
+{
+    ticks = 0;
+    set_interrupt_level(ENABLED);
+    minithread_clock_init(clock_handler);
+    return 0;
+}
 /*
  * minithread_unlock_and_stop(tas_lock_t* lock)
  *	Atomically release the specified test-and-set lock and
  *	block the calling thread.
  */
-void minithread_unlock_and_stop(tas_lock_t* lock) {
+void
+minithread_unlock_and_stop(tas_lock_t* lock)
+{
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     atomic_clear(lock);
     minithread_stop();
@@ -286,7 +343,9 @@ void minithread_unlock_and_stop(tas_lock_t* lock) {
 /*
  * sleep with timeout in milliseconds
  */
-void minithread_sleep_with_timeout(int delay){
+void
+minithread_sleep_with_timeout(int delay)
+{
 
 }
 
@@ -295,10 +354,11 @@ void minithread_sleep_with_timeout(int delay){
  * You have to call minithread_clock_init with this
  * function as parameter in minithread_system_initialize
  */
-void clock_handler(void* arg) {
+void
+clock_handler(void* arg)
+{
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    ++ticks;
-    if(0 >= --thread_monitor.quanta)
+    if (++ticks >= thread_monitor.expire)
         minithread_yield();
     set_interrupt_level(oldlevel);
 }

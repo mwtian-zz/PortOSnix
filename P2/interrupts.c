@@ -141,6 +141,8 @@ handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
 {
     uint64_t eip = ucontext->uc_mcontext.gregs[RIP];
     unsigned long *gr;
+	
+	printf("here");
 
     /*
      * This allows us to check the interrupt level

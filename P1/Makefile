@@ -2,18 +2,19 @@
 
 # You probably only need to modify the MAIN variable to build the desired file
 
-CC = gcc
+CC = gcc 
 
 CFLAGS = -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
+LFLAGS = -lrt 
 
-OUTPUT = minithread
+OUTPUT = minithread 
 
-# change this to the name of the file you want to link with minithreads,
+# change this to the name of the file you want to link with minithreads, 
 # dropping the ".c": so to use "sieve.c", change to "MAIN = sieve".
 #
 # Note that you must write your own test programs.
 
-MAIN = retail_shop
+MAIN = sieve
 
 OBJ = \
 	random.o \
@@ -25,7 +26,7 @@ OBJ = \
 	$(MAIN).o \
 	synch.o \
 
-all: portos
+all: portos 
 
 .c.obj:
 	$(CC) $(CFLAGS) $<
@@ -40,7 +41,7 @@ clean:
 	rm -f *.o
 	rm -f $(OUTPUT)
 
-#depend:
+#depend: 
 #	gcc -MM *.c 2>/dev/null | sed -e "s/\.o/.obj/" > depend
 
 

@@ -219,7 +219,9 @@ minithread_id() {
 void
 clock_handler(void* arg)
 {
+	interrupt_level_t old_level = set_interrupt_level(DISABLED);
 	printf("I'm in interrupt handler...");
+	set_interrupt_level(old_level);
 }
 
 /*

@@ -39,7 +39,7 @@ extern interrupt_level_t interrupt_level;
 #define ENABLED 1
 
 
-typedef void(*interrupt_handler_t)();
+typedef void(*interrupt_handler_t)(void*);
 /*
  * Set the interrupt level to newlevel, return the old interrupt level
  * 

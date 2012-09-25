@@ -26,6 +26,7 @@ OBJ = \
 	multilevel_queue.o \
 	alarm.o \
 	queue.o \
+	alarm_queue.o \
 	$(MAIN).o \
 	synch.o \
 

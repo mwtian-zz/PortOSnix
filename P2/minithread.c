@@ -36,7 +36,8 @@ static multilevel_queue_t ready;
 static queue_t exited;
 static long expire;
 static int quanta_lim[MAX_PRIORITY + 1];
-static semaphore_t thread_monitor_sem; /* thread monitor semaphore */
+extern semaphore_t thread_monitor_sem; /* thread monitor semaphore */
+extern semaphore_t alarm_id_sem;       /* alarm id semaphore */
 static semaphore_t exit_count;
 static semaphore_t exit_muxtex;
 static struct minithread _idle_thread_;

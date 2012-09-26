@@ -21,6 +21,4 @@ struct alarm_queue {
 
 extern int next_alarm_id;
 
-semaphore_t alarm_id_sem;
-
 #endif /* __ALARM_PRIVATE_H__ */

@@ -17,7 +17,9 @@ long wakeup;
 extern long ticks;
 
 /* Thread monitor semaphore */
-extern semaphore_t thread_monitor_sem;
+semaphore_t thread_monitor_sem;
+/* Alarm id semaphore */
+semaphore_t alarm_id_sem;
 
 /*
  * insert alarm event into the alarm queue

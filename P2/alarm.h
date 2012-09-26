@@ -9,6 +9,9 @@
  */
 extern int next_alarm_id;
 
+/* Nearest alarm ticks to fire */
+extern long wakeup;
+
 /* register an alarm to go off in "delay" milliseconds, call func(arg) */
 int register_alarm(int delay, void (*func)(void*), void *arg);
 
@@ -17,4 +20,4 @@ void deregister_alarm(int alarmid);
 /* Create an alarm */
 extern alarm_t create_alarm(int, void (*func)(void*), void*);
 
-#endif
+#endif /* __ALARM_H_ */

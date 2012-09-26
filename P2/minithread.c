@@ -10,11 +10,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+
 #include "interrupts.h"
 #include "queue.h"
 #include "synch.h"
 #include "minithread.h"
 #include "minithread_private.h"
+#include "alarm.h"
 
 /*
  * A minithread should be defined either in this file or in a private
@@ -25,13 +27,24 @@
  */
 
 /*
- * struct minithread is defined in the private header "minithread_private.h".
+ * Information for thread management.
  */
-
-/* File scope variables */
+static unsigned int count;
+static unsigned int tidcount;
+static minithread_t instack;
+static multilevel_queue_t ready;
+static queue_t exited;
+static long expire;
+static int quanta_lim[MAX_PRIORITY + 1];
+static semaphore_t thread_monitor_sem; /* thread monitor semaphore */
+static semaphore_t exit_count;
+static semaphore_t exit_muxtex;
 static struct minithread _idle_thread_;
 static minithread_t const idle_thread = &_idle_thread_;
-struct thread_monitor thread_monitor;
+
+/*
+ * struct minithread is defined in the private header "minithread_private.h".
+ */
 
 /* File scope functions */
 static void minithread_schedule();
@@ -44,11 +57,6 @@ static int minithread_initialize_systhreads();
 static int minithread_initialize_clock();
 static int minithread_initialize_sem();
 static void clock_handler();
-
-/* Alarm id semaphore */
-semaphore_t alarm_id_sem;
-/* thread monitor semaphore */
-semaphore_t thread_monitor_sem;
 
 /* minithread functions */
 
@@ -80,9 +88,9 @@ minithread_create(proc_t proc, arg_t arg)
     t->priority = 0;
 
     oldlevel = set_interrupt_level(DISABLED);
-    t->id = thread_monitor.tidcount;
-    ++(thread_monitor.tidcount);
-    ++(thread_monitor.count);
+    t->id = tidcount;
+    ++tidcount;
+    ++count;
     set_interrupt_level(oldlevel);
 
     return t;
@@ -96,18 +104,18 @@ minithread_cleanup(arg_t arg)
 {
     minithread_t t;
     while (1) {
-        semaphore_P(thread_monitor.exit_count);
-        semaphore_P(thread_monitor.exit_muxtex);
-        queue_dequeue(thread_monitor.exited, (void**) &t);
-        semaphore_V(thread_monitor.exit_muxtex);
+        semaphore_P(exit_count);
+        semaphore_P(exit_muxtex);
+        queue_dequeue(exited, (void**) &t);
+        semaphore_V(exit_muxtex);
         if (NULL != t) {
             if (NULL != t->base)
                 minithread_free_stack(t->base);
 
             free(t);
         }
-        --(thread_monitor.count);
-        printf("%d\n", thread_monitor.count);
+        --(count);
+        printf("%d\n", count);
     }
     return 0;
 }
@@ -121,7 +129,7 @@ minithread_start(minithread_t t)
         return;
     oldlevel = set_interrupt_level(DISABLED);
     t->status = READY;
-    multilevel_queue_enqueue(thread_monitor.ready, t->priority, t);
+    multilevel_queue_enqueue(ready, t->priority, t);
     set_interrupt_level(oldlevel);
 }
 
@@ -133,7 +141,7 @@ void
 minithread_stop()
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    thread_monitor.instack->status = BLOCKED;
+    instack->status = BLOCKED;
     minithread_schedule();
     set_interrupt_level(oldlevel);
 }
@@ -144,11 +152,11 @@ minithread_stop()
 static int
 minithread_exit(arg_t arg)
 {
-    semaphore_P(thread_monitor.exit_muxtex);
-    thread_monitor.instack->status = EXITED;
-    queue_append(thread_monitor.exited, thread_monitor.instack);
-    semaphore_V(thread_monitor.exit_muxtex);
-    semaphore_V(thread_monitor.exit_count);
+    semaphore_P(exit_muxtex);
+    instack->status = EXITED;
+    queue_append(exited, instack);
+    semaphore_V(exit_muxtex);
+    semaphore_V(exit_count);
     minithread_schedule();
     /*
      * The thread is switched out before this step,
@@ -165,7 +173,7 @@ minithread_exit(arg_t arg)
 void
 minithread_yield()
 {
-    minithread_t t = thread_monitor.instack;
+    minithread_t t = instack;
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     t->status = READY;
     minithread_schedule();
@@ -207,13 +215,13 @@ minithread_schedule()
 static minithread_t
 minithread_pickold()
 {
-    minithread_t t = thread_monitor.instack;
+    minithread_t t = instack;
     /* Reduce privilige if runs out of quanta */
-    if (ticks == thread_monitor.expire)
+    if (ticks == expire)
         if (t->priority < MAX_PRIORITY)
             ++t->priority;
     if (t != idle_thread && t->status == READY)
-        if (-1 == multilevel_queue_enqueue(thread_monitor.ready, t->priority, t))
+        if (-1 == multilevel_queue_enqueue(ready, t->priority, t))
             return NULL;
     return t;
 }
@@ -239,13 +247,13 @@ minithread_picknew()
         p = 2;
     else
         p = 3;
-    thread_monitor.expire = ticks + thread_monitor.quanta_lim[p];
+    expire = ticks + quanta_lim[p];
     /* Switch to idle thread when the ready queue is empty. */
     for (i = 0; i <= MAX_PRIORITY; ++i) {
-        if (0 == multilevel_queue_dequeue(thread_monitor.ready,
+        if (0 == multilevel_queue_dequeue(ready,
                                           (p + i) % (MAX_PRIORITY + 1),
                                           (void**) &t)) {
-            thread_monitor.instack = t;
+            instack = t;
             t->status = RUNNING;
             return t;
         }
@@ -257,14 +265,14 @@ minithread_picknew()
 minithread_t
 minithread_self()
 {
-    return thread_monitor.instack;
+    return instack;
 }
 
 /* Return ID of the running thread. */
 int
 minithread_id()
 {
-    return thread_monitor.instack->id;
+    return instack->id;
 }
 
 /*
@@ -315,14 +323,14 @@ static int
 minithread_initialize_thread_monitor()
 {
     int i;
-    thread_monitor.count = 1;
-    thread_monitor.quanta_lim[0] = 1;
+    count = 1;
+    quanta_lim[0] = 1;
     for (i = 1; i <= MAX_PRIORITY; ++i)
-        thread_monitor.quanta_lim[i] = 2 * thread_monitor.quanta_lim[i - 1];
-    thread_monitor.instack = idle_thread;
-    thread_monitor.ready = multilevel_queue_new(MAX_PRIORITY + 1);
-    thread_monitor.exited = queue_new();
-    if (NULL == thread_monitor.ready || NULL == thread_monitor.exited)
+        quanta_lim[i] = 2 * quanta_lim[i - 1];
+    instack = idle_thread;
+    ready = multilevel_queue_new(MAX_PRIORITY + 1);
+    exited = queue_new();
+    if (NULL == ready || NULL == exited)
         return -1;
     return 0;
 }
@@ -356,10 +364,10 @@ minithread_initialize_sem() {
 	semaphore_initialize(alarm_id_sem, 1);
 	thread_monitor_sem = semaphore_create();
 	semaphore_initialize(thread_monitor_sem, 1);
-	thread_monitor.exit_count = semaphore_create();
-	semaphore_initialize(thread_monitor.exit_count, 0);
-    thread_monitor.exit_muxtex = semaphore_create();
-    semaphore_initialize(thread_monitor.exit_muxtex, 1);
+	exit_count = semaphore_create();
+	semaphore_initialize(exit_count, 0);
+    exit_muxtex = semaphore_create();
+    semaphore_initialize(exit_muxtex, 1);
 	return 0;
 }
 
@@ -396,7 +404,7 @@ void
 clock_handler(void* arg)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    if (++ticks >= thread_monitor.expire)
+    if (++ticks >= expire)
         minithread_yield();
     set_interrupt_level(oldlevel);
 }

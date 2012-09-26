@@ -40,20 +40,4 @@ struct minithread {
     int priority;
 };
 
-/*
- * Information for thread management.
- */
-struct thread_monitor {
-    unsigned int count;
-    unsigned int tidcount;
-    minithread_t instack;
-    multilevel_queue_t ready;
-    queue_t exited;
-    long expire;
-    int quanta_lim[MAX_PRIORITY + 1];
-    long alarm;  /* Nearest alarm ticks to fire? - Yes. We can talk about it. There may be other ways. */
-    semaphore_t exit_count;
-    semaphore_t exit_muxtex;
-};
-
 #endif /*__MINITHREAD_PRIVATE_H__*/

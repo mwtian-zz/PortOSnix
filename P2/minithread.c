@@ -31,7 +31,7 @@
 /* File scope variables */
 static struct minithread _idle_thread_;
 static minithread_t const idle_thread = &_idle_thread_;
-static struct thread_monitor thread_monitor;
+struct thread_monitor thread_monitor;
 
 /* File scope functions */
 static void minithread_schedule();
@@ -42,7 +42,13 @@ static void minithread_cleanup();
 static int minithread_initialize_thread_monitor();
 static int minithread_initialize_idle();
 static int minithread_initialize_clock();
+static int minithread_initialize_sem();
 static void clock_handler();
+
+/* Alarm id semaphore */
+semaphore_t alarm_id_sem;
+/* thread monitor semaphore */
+semaphore_t thread_monitor_sem;
 
 /* minithread functions */
 
@@ -286,7 +292,12 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
         printf("Clock initialization failed.\n");
         exit(-1);
     }
-
+	
+	if (minithread_initialize_sem() == -1) {
+		fprintf(stderr, "Semaphore initialization failed.\n");
+		exit(-1);
+	}
+	
     while (1) {
         minithread_cleanup();
         minithread_yield();
@@ -327,6 +338,18 @@ minithread_initialize_clock()
     minithread_clock_init(clock_handler);
     return 0;
 }
+
+/* Initialize semaphores */
+static int
+minithread_initialize_sem() {
+	alarm_id_sem = semaphore_create();
+	semaphore_initialize(alarm_id_sem, 1);
+	thread_monitor_sem = semaphore_create();
+	semaphore_initialize(thread_monitor_sem, 1);
+	return 0;
+}
+
+
 /*
  * minithread_unlock_and_stop(tas_lock_t* lock)
  *	Atomically release the specified test-and-set lock and

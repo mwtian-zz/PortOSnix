@@ -51,7 +51,7 @@ struct thread_monitor {
     queue_t exited;
     long expire;
     int quanta_lim[MAX_PRIORITY + 1];
-    long alarm;
+    long alarm;  /* Nearest alarm ticks to fire? */
 };
 
 #endif /*__MINITHREAD_PRIVATE_H__*/

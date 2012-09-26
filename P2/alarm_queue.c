@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int next_alarm_id = 0;
-
 /* 
  * Create a new alarm_queue 
  * Return NULL on failure, pointer to queue on success
@@ -97,7 +95,7 @@ alarm_queue_dequeue(alarm_queue_t alarm_queue, void **data) {
 		return -1;
 	}
 	
-	alarm_queue_delete(alarm_queue, data);
+	return alarm_queue_delete(alarm_queue, data);
 }
 
 /*
@@ -175,5 +173,21 @@ alarm_queue_length(alarm_queue_t alarm_queue) {
  */
 int 
 alarm_queue_free(alarm_queue_t alarm_queue) {
-	return -1;
+	if (alarm_queue == NULL) {
+		return -1;
+	}
+	free(alarm_queue);
+	return 0;
+}
+
+/*
+ * Print alarm queue content for debugging
+ */
+void 
+alarm_queue_print(alarm_queue_t alarm_queue) {
+	alarm_t head;
+	
+	for (head = alarm_queue->head; head != NULL; head = head->next) {
+		printf("Alarm id is %d, fire time is %ld\n", head->alarm_id, head->time_to_fire);
+	}
 }

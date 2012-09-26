@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = buffer
+MAIN = alarm_queue_test
 
 OBJ = \
 	random.o \

@@ -38,9 +38,9 @@ static void minithread_schedule();
 static minithread_t minithread_pickold();
 static minithread_t minithread_picknew();
 static int minithread_exit(arg_t arg);
-static void minithread_cleanup();
+static int minithread_cleanup();
 static int minithread_initialize_thread_monitor();
-static int minithread_initialize_idle();
+static int minithread_initialize_systhreads();
 static int minithread_initialize_clock();
 static int minithread_initialize_sem();
 static void clock_handler();
@@ -91,19 +91,25 @@ minithread_create(proc_t proc, arg_t arg)
 /*
  * Release memory of exited threads.
  */
-static void
-minithread_cleanup()
+static int
+minithread_cleanup(arg_t arg)
 {
     minithread_t t;
-    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    while (0 == queue_dequeue(thread_monitor.exited, (void**)&t)
-            && NULL != t) {
-        if (NULL != t->base)
-            minithread_free_stack(t->base);
-        free(t);
+    while (1) {
+        semaphore_P(thread_monitor.exit_count);
+        semaphore_P(thread_monitor.exit_muxtex);
+        queue_dequeue(thread_monitor.exited, (void**) &t);
+        semaphore_V(thread_monitor.exit_muxtex);
+        if (NULL != t) {
+            if (NULL != t->base)
+                minithread_free_stack(t->base);
+
+            free(t);
+        }
         --(thread_monitor.count);
+        printf("%d\n", thread_monitor.count);
     }
-    set_interrupt_level(oldlevel);
+    return 0;
 }
 
 /* Add thread t to the end of the appropriate ready queue. */
@@ -138,9 +144,11 @@ minithread_stop()
 static int
 minithread_exit(arg_t arg)
 {
-    set_interrupt_level(DISABLED);
+    semaphore_P(thread_monitor.exit_muxtex);
     thread_monitor.instack->status = EXITED;
     queue_append(thread_monitor.exited, thread_monitor.instack);
+    semaphore_V(thread_monitor.exit_muxtex);
+    semaphore_V(thread_monitor.exit_count);
     minithread_schedule();
     /*
      * The thread is switched out before this step,
@@ -280,8 +288,8 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
         printf("Schedule/Exit queue creation failed.\n");
         exit(-1);
     }
-    if (-1 == minithread_initialize_idle()) {
-        printf("Idle thread initialization failed.\n");
+    if (-1 == minithread_initialize_systhreads()) {
+        printf("System threads initialization failed.\n");
         exit(-1);
     }
     if (NULL == minithread_fork(mainproc, mainarg)) {
@@ -292,14 +300,13 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
         printf("Clock initialization failed.\n");
         exit(-1);
     }
-	
+
 	if (minithread_initialize_sem() == -1) {
 		fprintf(stderr, "Semaphore initialization failed.\n");
 		exit(-1);
 	}
-	
+
     while (1) {
-        minithread_cleanup();
         minithread_yield();
     }
 }
@@ -321,12 +328,15 @@ minithread_initialize_thread_monitor()
 }
 
 static int
-minithread_initialize_idle()
+minithread_initialize_systhreads()
 {
+    if (NULL == minithread_fork(minithread_cleanup, NULL))
+        return -1;
     if (NULL == idle_thread)
         return -1;
     idle_thread->status = RUNNING;
     idle_thread->priority = MAX_PRIORITY;
+
     return 0;
 }
 
@@ -346,6 +356,10 @@ minithread_initialize_sem() {
 	semaphore_initialize(alarm_id_sem, 1);
 	thread_monitor_sem = semaphore_create();
 	semaphore_initialize(thread_monitor_sem, 1);
+	thread_monitor.exit_count = semaphore_create();
+	semaphore_initialize(thread_monitor.exit_count, 0);
+    thread_monitor.exit_muxtex = semaphore_create();
+    semaphore_initialize(thread_monitor.exit_muxtex, 1);
 	return 0;
 }
 

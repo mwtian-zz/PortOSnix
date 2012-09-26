@@ -51,9 +51,9 @@ create_alarm(int delay, void (*func)(void*), void *arg) {
 		return NULL;
 	}
 	
-	/*semaphore_P(alarm_id_sem);*/
+	semaphore_P(alarm_id_sem);
 	alarm->alarm_id = next_alarm_id++;
-	/*semaphore_V(alarm_id_sem);*/
+	semaphore_V(alarm_id_sem);
 	
 	printf("Ticks is %ld\n", ticks);
 	alarm->func = func;
@@ -63,11 +63,11 @@ create_alarm(int delay, void (*func)(void*), void *arg) {
 	alarm->prev = NULL;
 	
 	/* Update nearest alarm to fire */
-	/*semaphore_P(thread_monitor_sem);*/
+	semaphore_P(thread_monitor_sem);
 	if (alarm->time_to_fire < thread_monitor.alarm) {
 		thread_monitor.alarm = alarm->time_to_fire;
 	}
-	/*semaphore_V(thread_monitor_sem);*/
+	semaphore_V(thread_monitor_sem);
 	
 	return alarm;
 }

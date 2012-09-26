@@ -18,6 +18,10 @@ void main() {
 	alarm_queue_insert(alarm_queue, a2);
 	alarm_queue_insert(alarm_queue, a3);
 	alarm_queue_print(alarm_queue);
+	alarm_queue_delete_by_id(alarm_queue, 0, &a6);
+	printf("%ld\n", a6->time_to_fire);
+	alarm_queue_delete_by_id(alarm_queue, 1, &a6);
+	printf("%ld\n", a6->time_to_fire);
 	alarm_queue_delete(alarm_queue, &a2);
 	alarm_queue_print(alarm_queue);
 	alarm_queue_dequeue(alarm_queue, &a6);

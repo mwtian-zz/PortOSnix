@@ -187,7 +187,9 @@ void
 alarm_queue_print(alarm_queue_t alarm_queue) {
 	alarm_t head;
 	
+	printf("Alarm queue starts\n");
 	for (head = alarm_queue->head; head != NULL; head = head->next) {
 		printf("Alarm id is %d, fire time is %ld\n", head->alarm_id, head->time_to_fire);
 	}
+	printf("Alarm queue ends\n");
 }

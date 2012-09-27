@@ -19,6 +19,4 @@ struct alarm_queue {
 	int length;
 };
 
-extern int next_alarm_id;
-
 #endif /* __ALARM_PRIVATE_H__ */

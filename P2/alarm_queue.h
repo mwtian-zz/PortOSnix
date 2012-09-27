@@ -6,8 +6,6 @@
 
 typedef struct alarm_queue* alarm_queue_t;
 
-extern int next_alarm_id;
-
 /* 
  * Create a new alarm_queue 
  * Return NULL on failure, pointer to queue on success

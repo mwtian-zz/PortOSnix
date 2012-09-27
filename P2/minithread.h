@@ -2,6 +2,7 @@
 #define __MINITHREAD_H__
 
 #include "machineprimitives.h"
+#include "alarm_queue.h"
 
 /*
  * minithread.h:
@@ -13,6 +14,12 @@
  *	in the comments.  See minithread.c for prototypes.
  */
 
+/* Alarm queue */
+extern alarm_queue_t alarm_queue;
+/* thread monitor semaphore */
+extern semaphore_t wakeup_sem; 
+/* alarm id semaphore */
+extern semaphore_t alarm_id_sem;       
 
 /*
  * struct minithread:

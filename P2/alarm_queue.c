@@ -1,8 +1,10 @@
 /* Function implementation in alarm_queue.h */
 
 #include "alarm_queue.h"
+#include "alarm.h"
 #include <stdio.h>
 #include <stdlib.h>
+
 
 /* 
  * Create a new alarm_queue 

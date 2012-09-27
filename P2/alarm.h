@@ -8,7 +8,6 @@
  * prototypes, though you may have to modify some other files to do so.
  */
 extern int next_alarm_id;
-
 /* Nearest alarm ticks to fire */
 extern long wakeup;
 

@@ -16,6 +16,7 @@
 #include "synch.h"
 #include "minithread.h"
 #include "minithread_private.h"
+#include "alarm_queue.h"
 #include "alarm.h"
 
 /*
@@ -36,12 +37,17 @@ static multilevel_queue_t ready;
 static queue_t exited;
 static long expire;
 static int quanta_lim[MAX_PRIORITY + 1];
-extern semaphore_t thread_monitor_sem; /* thread monitor semaphore */
-extern semaphore_t alarm_id_sem;       /* alarm id semaphore */
 static semaphore_t exit_count;
 static semaphore_t exit_muxtex;
 static struct minithread _idle_thread_;
 static minithread_t const idle_thread = &_idle_thread_;
+
+/*
+ * Exported global variables
+ */
+alarm_queue_t alarm_queue;        /* Alarm queue */
+semaphore_t wakeup_sem;           /* Semaphore protecting wakeup */
+semaphore_t alarm_id_sem;         /* Semaphore protecting alarm id */
 
 /*
  * struct minithread is defined in the private header "minithread_private.h".
@@ -331,7 +337,8 @@ minithread_initialize_thread_monitor()
     instack = idle_thread;
     ready = multilevel_queue_new(MAX_PRIORITY + 1);
     exited = queue_new();
-    if (NULL == ready || NULL == exited)
+	alarm_queue = alarm_queue_new();
+    if (NULL == ready || NULL == exited || NULL == alarm_queue)
         return -1;
     return 0;
 }
@@ -363,8 +370,8 @@ static int
 minithread_initialize_sem() {
 	alarm_id_sem = semaphore_create();
 	semaphore_initialize(alarm_id_sem, 1);
-	thread_monitor_sem = semaphore_create();
-	semaphore_initialize(thread_monitor_sem, 1);
+	wakeup_sem = semaphore_create();
+	semaphore_initialize(wakeup_sem, 1);
 	exit_count = semaphore_create();
 	semaphore_initialize(exit_count, 0);
     exit_muxtex = semaphore_create();
@@ -388,12 +395,20 @@ minithread_unlock_and_stop(tas_lock_t* lock)
 }
 
 /*
+ * Called when an alarm fires
+ */
+static void
+fire_alarm(void *tcb) {
+	
+}
+
+/*
  * sleep with timeout in milliseconds
  */
 void
 minithread_sleep_with_timeout(int delay)
 {
-
+	register_alarm(delay, &fire_alarm, minithread_self());
 }
 
 /*

@@ -6,20 +6,14 @@
 #include "alarm_private.h"
 #include "synch.h"
 #include "minithread_private.h"
+#include "interrupts.h"
+#include "minithread.h"
+#include "alarm_queue.h"
 
 /* Next alarm id */
 int next_alarm_id = 0;
-
 /* Nearest alarm ticks to fire */
 long wakeup;
-
-/* Current ticks */
-extern long ticks;
-
-/* Thread monitor semaphore */
-semaphore_t thread_monitor_sem;
-/* Alarm id semaphore */
-semaphore_t alarm_id_sem;
 
 /*
  * insert alarm event into the alarm queue
@@ -29,8 +23,17 @@ semaphore_t alarm_id_sem;
 int
 register_alarm(int delay, void (*func)(void*), void *arg)
 {
-
-	return -1;
+	alarm_t alarm;
+	alarm = create_alarm(delay, func, arg);
+	if (alarm == NULL) {
+		return -1;
+	}
+	
+	/* Should disable interrupt or use semaphore here */
+	/* TO BE DONE */
+	alarm_queue_insert(alarm_queue, (void*) alarm);
+	
+	return alarm->alarm_id;
 }
 
 /*
@@ -40,7 +43,8 @@ register_alarm(int delay, void (*func)(void*), void *arg)
 void
 deregister_alarm(int alarmid)
 {
-
+	alarm_t alarm;
+	alarm_queue_delete_by_id(alarm_queue, alarmid, (void**) &alarm);
 }
 
 /* Create an alarm */
@@ -64,11 +68,11 @@ create_alarm(int delay, void (*func)(void*), void *arg) {
 	alarm->prev = NULL;
 
 	/* Update nearest alarm to fire */
-	semaphore_P(thread_monitor_sem);
+	semaphore_P(wakeup_sem);
 	if (alarm->time_to_fire < wakeup) {
 		wakeup = alarm->time_to_fire;
 	}
-	semaphore_V(thread_monitor_sem);
+	semaphore_V(wakeup_sem);
 
 	return alarm;
 }

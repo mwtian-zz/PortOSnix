@@ -15,11 +15,7 @@
  */
 
 /* Alarm queue */
-extern alarm_queue_t alarm_queue;
-/* thread monitor semaphore */
-extern semaphore_t wakeup_sem; 
-/* alarm id semaphore */
-extern semaphore_t alarm_id_sem;       
+extern alarm_queue_t alarm_queue;  
 
 /*
  * struct minithread:

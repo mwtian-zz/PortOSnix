@@ -46,8 +46,6 @@ static minithread_t const idle_thread = &_idle_thread_;
  * Exported global variables
  */
 alarm_queue_t alarm_queue;        /* Alarm queue */
-semaphore_t wakeup_sem;           /* Semaphore protecting wakeup */
-semaphore_t alarm_id_sem;         /* Semaphore protecting alarm id */
 
 /*
  * struct minithread is defined in the private header "minithread_private.h".
@@ -368,10 +366,6 @@ minithread_initialize_clock()
 /* Initialize semaphores */
 static int
 minithread_initialize_sem() {
-	alarm_id_sem = semaphore_create();
-	semaphore_initialize(alarm_id_sem, 1);
-	wakeup_sem = semaphore_create();
-	semaphore_initialize(wakeup_sem, 1);
 	exit_count = semaphore_create();
 	semaphore_initialize(exit_count, 0);
     exit_muxtex = semaphore_create();

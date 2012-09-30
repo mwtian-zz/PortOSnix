@@ -400,9 +400,7 @@ minithread_unlock_and_stop(tas_lock_t* lock)
 static void
 fire_alarm(void *sleepsem) {
 	semaphore_t sleep_sem = (semaphore_t) sleepsem;
-	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
 	semaphore_V(sleep_sem);
-	set_interrupt_level(oldlevel);
 	semaphore_destroy(sleep_sem);
 }
 
@@ -416,9 +414,12 @@ minithread_sleep_with_timeout(int delay)
 	semaphore_t sleep_sem = semaphore_create();
 	semaphore_initialize(sleep_sem, 0);
 	
-	register_alarm(delay, &fire_alarm, sleep_sem);
-	
+	/* 
+	 * Make sure that if ticks >= wakeup, the alarm is in the queue
+	 * and sleep_sem is already Ped
+	 */
 	oldlevel = set_interrupt_level(DISABLED);
+	register_alarm(delay, &fire_alarm, sleep_sem);
 	semaphore_P(sleep_sem);
 	set_interrupt_level(oldlevel);
 }
@@ -432,7 +433,34 @@ void
 clock_handler(void* arg)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    if (++ticks >= expire)
+	alarm_t alarm = NULL;
+	long fire_time;
+	
+	ticks++;
+	/* Check if alarms can be fired */
+	if (ticks >= wakeup) {
+		while (1) {
+			fire_time = get_latest_time(alarm_queue);
+			if (fire_time == -1) {
+				break;
+			} else {
+				/* Can be fired */
+				if (fire_time <= ticks) {
+					alarm_queue_dequeue(alarm_queue, (void**) &alarm);
+					if (alarm) {
+						/* Fire alarm */
+						alarm->func(alarm->arg);
+						free(alarm);
+					}
+				} else {
+					/* Not yet to fire, update next wakeup time */
+					wakeup = fire_time;
+				}
+			}
+		}
+	}
+	
+    if (ticks >= expire)
         minithread_yield();
     set_interrupt_level(oldlevel);
 }

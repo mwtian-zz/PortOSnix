@@ -159,6 +159,18 @@ alarm_queue_delete_by_id(alarm_queue_t alarm_queue, int alarm_id, void **data) {
 }
 
 /*
+ * Return lastest wake up time
+ * Return -1 if queue is empty
+ */
+long get_latest_time(alarm_queue_t alarm_queue) {
+	if (alarm_queue->head != NULL) {
+		return alarm_queue->head->time_to_fire;
+	}
+	return -1;
+}
+
+
+/*
  * Return the queue length
  * Return -1 if the queue is NULL
  */

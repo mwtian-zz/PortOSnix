@@ -24,17 +24,12 @@ int
 register_alarm(int delay, void (*func)(void*), void *arg)
 {
 	alarm_t alarm;
-	interrupt_level_t oldlevel;
 	
 	alarm = create_alarm(delay, func, arg);
 	if (alarm == NULL) {
 		return -1;
 	}
-	
-	/* Should disable interrupt and then enqueue alarm */
-	oldlevel = set_interrupt_level(DISABLED);
 	alarm_queue_insert(alarm_queue, (void*) alarm);
-	set_interrupt_level(oldlevel);
 	
 	return alarm->alarm_id;
 }
@@ -47,7 +42,9 @@ void
 deregister_alarm(int alarmid)
 {
 	alarm_t alarm;
+	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
 	alarm_queue_delete_by_id(alarm_queue, alarmid, (void**) &alarm);
+	set_interrupt_level(oldlevel);
 }
 
 /* Create an alarm */
@@ -59,9 +56,7 @@ create_alarm(int delay, void (*func)(void*), void *arg) {
 		return NULL;
 	}
 
-	semaphore_P(alarm_id_sem);
 	alarm->alarm_id = next_alarm_id++;
-	semaphore_V(alarm_id_sem);
 
 	/* printf("Ticks is %ld\n", ticks); */
 	
@@ -72,11 +67,9 @@ create_alarm(int delay, void (*func)(void*), void *arg) {
 	alarm->prev = NULL;
 
 	/* Update nearest alarm to fire */
-	semaphore_P(wakeup_sem);
 	if (alarm->time_to_fire < wakeup) {
 		wakeup = alarm->time_to_fire;
 	}
-	semaphore_V(wakeup_sem);
 
 	return alarm;
 }

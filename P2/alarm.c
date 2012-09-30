@@ -29,9 +29,10 @@ register_alarm(int delay, void (*func)(void*), void *arg)
 		return -1;
 	}
 	
-	/* Should disable interrupt or use semaphore here */
-	/* TO BE DONE */
+	/* Should disable interrupt and then enqueue alarm */
+	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
 	alarm_queue_insert(alarm_queue, (void*) alarm);
+	set_interrupt_level(oldlevel);
 	
 	return alarm->alarm_id;
 }
@@ -60,7 +61,8 @@ create_alarm(int delay, void (*func)(void*), void *arg) {
 	alarm->alarm_id = next_alarm_id++;
 	semaphore_V(alarm_id_sem);
 
-	printf("Ticks is %ld\n", ticks);
+	/* printf("Ticks is %ld\n", ticks); */
+	
 	alarm->func = func;
 	alarm->time_to_fire = ticks + (delay * MILLISEC / PERIOD);
 	alarm->arg = arg;

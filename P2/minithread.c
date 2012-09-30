@@ -398,8 +398,12 @@ minithread_unlock_and_stop(tas_lock_t* lock)
  * Called when an alarm fires
  */
 static void
-fire_alarm(void *tcb) {
-	
+fire_alarm(void *sleepsem) {
+	semaphore_t sleep_sem = (semaphore_t) sleepsem;
+	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+	semaphore_V(sleep_sem);
+	set_interrupt_level(oldlevel);
+	semaphore_destroy(sleep_sem);
 }
 
 /*
@@ -408,7 +412,14 @@ fire_alarm(void *tcb) {
 void
 minithread_sleep_with_timeout(int delay)
 {
-	register_alarm(delay, &fire_alarm, minithread_self());
+	semaphore_t sleep_sem = semaphore_create();
+	semaphore_initialize(sleep_sem, 0);
+	
+	register_alarm(delay, &fire_alarm, sleep_sem);
+	
+	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+	semaphore_P(sleep_sem);
+	set_interrupt_level(oldlevel);
 }
 
 /*

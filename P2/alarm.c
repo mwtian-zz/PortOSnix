@@ -24,13 +24,15 @@ int
 register_alarm(int delay, void (*func)(void*), void *arg)
 {
 	alarm_t alarm;
+	interrupt_level_t oldlevel;
+	
 	alarm = create_alarm(delay, func, arg);
 	if (alarm == NULL) {
 		return -1;
 	}
 	
 	/* Should disable interrupt and then enqueue alarm */
-	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+	oldlevel = set_interrupt_level(DISABLED);
 	alarm_queue_insert(alarm_queue, (void*) alarm);
 	set_interrupt_level(oldlevel);
 	

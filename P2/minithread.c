@@ -412,12 +412,13 @@ fire_alarm(void *sleepsem) {
 void
 minithread_sleep_with_timeout(int delay)
 {
+	interrupt_level_t oldlevel;
 	semaphore_t sleep_sem = semaphore_create();
 	semaphore_initialize(sleep_sem, 0);
 	
 	register_alarm(delay, &fire_alarm, sleep_sem);
 	
-	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+	oldlevel = set_interrupt_level(DISABLED);
 	semaphore_P(sleep_sem);
 	set_interrupt_level(oldlevel);
 }

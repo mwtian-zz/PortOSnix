@@ -407,8 +407,8 @@ minithread_sleep_with_timeout(int delay)
 	interrupt_level_t oldlevel;
 	semaphore_t sleep_sem = semaphore_create();
 	semaphore_initialize(sleep_sem, 0);
-	
-	/* 
+
+	/*
 	 * Make sure that if ticks >= wakeup, the alarm is in the queue
 	 * and sleep_sem is already Ped
 	 */
@@ -429,7 +429,7 @@ clock_handler(void* arg)
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
 	alarm_t alarm = NULL;
 	long fire_time;
-	
+
 	ticks++;
 	/* Check if alarms can be fired */
 	if (ticks >= wakeup) {
@@ -453,7 +453,7 @@ clock_handler(void* arg)
 			}
 		}
 	}
-	
+
     if (ticks >= expire)
         minithread_yield();
     set_interrupt_level(oldlevel);

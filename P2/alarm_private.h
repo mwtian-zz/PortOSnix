@@ -1,7 +1,7 @@
 /* alarm_private.h: holding alarm structure and alarm queue structure */
 #ifndef __ALARM_PRIVATE_H__
 #define __ALARM_PRIVATE_H__
-#include "synch.h"
+
 struct alarm {
 	struct alarm *prev;
 	struct alarm *next;

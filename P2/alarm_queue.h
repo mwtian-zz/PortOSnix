@@ -2,12 +2,10 @@
 #ifndef __ALARM_QUEUE_H__
 #define __ALARM_QUEUE_H__
 
-#include "alarm_private.h"
-
 typedef struct alarm_queue* alarm_queue_t;
 
-/* 
- * Create a new alarm_queue 
+/*
+ * Create a new alarm_queue
  * Return NULL on failure, pointer to queue on success
  */
 extern alarm_queue_t alarm_queue_new();
@@ -57,6 +55,6 @@ extern int alarm_queue_free(alarm_queue_t);
 /*
  * Print queue content for debugging
  */
- extern void alarm_queue_print(alarm_queue_t);
- 
+extern void alarm_queue_print(alarm_queue_t);
+
 #endif /* __ALARM_QUEUE_H__ */

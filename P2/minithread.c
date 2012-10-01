@@ -121,7 +121,7 @@ minithread_cleanup(arg_t arg)
             free(t);
         }
         --(count);
-        printf("%d\n", count);
+        /* printf("%d\n", count); */
     }
     return 0;
 }
@@ -223,7 +223,7 @@ minithread_pickold()
 {
     minithread_t t = instack;
     /* Reduce privilige if runs out of quanta */
-    if (ticks == expire)
+    if (ticks >= expire)
         if (t->priority < MAX_PRIORITY)
             ++t->priority;
     if (t != idle_thread && t->status == READY)
@@ -321,7 +321,7 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
 	}
 
     while (1) {
-        minithread_yield();
+        /*minithread_yield();*/
     }
 }
 
@@ -448,6 +448,7 @@ clock_handler(void* arg)
 				} else {
 					/* Not yet to fire, update next wakeup time */
 					wakeup = fire_time;
+					break;
 				}
 			}
 		}

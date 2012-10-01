@@ -38,7 +38,6 @@ static queue_t exited;
 static long expire;
 static int quanta_lim[MAX_PRIORITY + 1];
 static semaphore_t exit_count;
-static semaphore_t exit_muxtex;
 static struct minithread _idle_thread_;
 static minithread_t const idle_thread = &_idle_thread_;
 
@@ -108,11 +107,13 @@ static int
 minithread_cleanup(arg_t arg)
 {
     minithread_t t;
+	interrupt_level_t oldlevel;
+	
     while (1) {
         semaphore_P(exit_count);
-        semaphore_P(exit_muxtex);
+		oldlevel = set_interrupt_level(DISABLED);
         queue_dequeue(exited, (void**) &t);
-        semaphore_V(exit_muxtex);
+		set_interrupt_level(oldlevel);
         if (NULL != t) {
             if (NULL != t->base)
                 minithread_free_stack(t->base);
@@ -157,12 +158,12 @@ minithread_stop()
 static int
 minithread_exit(arg_t arg)
 {
-    semaphore_P(exit_muxtex);
+	interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     instack->status = EXITED;
     queue_append(exited, instack);
-    semaphore_V(exit_muxtex);
     semaphore_V(exit_count);
     minithread_schedule();
+	set_interrupt_level(oldlevel); /* Won't get executed but context switch will enable interrupt */
     /*
      * The thread is switched out before this step,
      * so this thread is not going to return.
@@ -368,8 +369,6 @@ static int
 minithread_initialize_sem() {
 	exit_count = semaphore_create();
 	semaphore_initialize(exit_count, 0);
-    exit_muxtex = semaphore_create();
-    semaphore_initialize(exit_muxtex, 1);
 	return 0;
 }
 

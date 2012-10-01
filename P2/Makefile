@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = buffer
+MAIN = sieve
 
 OBJ = \
 	random.o \

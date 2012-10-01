@@ -4,10 +4,10 @@
 
 #ifndef __MINITHREAD_STRUCT_H__
 #define __MINITHREAD_STRUCT_H__
-
+#include "minithread.h"
 #include "queue_private.h"
 #include "multilevel_queue.h"
-#include "minithread.h"
+#include "synch.h"
 
 /* Maximium priority level. Minimum is 0. */
 #define MAX_PRIORITY 3
@@ -29,7 +29,9 @@ enum status {
  * id: thread id.
  * top: stack pointer, points to the top of the stack.
  * base: points to the base of the stack.
- * status: current status.
+ * status: thread current status, RUNNING, BLOCKED OR EXITED.
+ * priority: determines the scheduling queue and the quanta of the thread.
+ * sleep_sem: thread sleeps on this semaphore.
  */
 struct minithread {
     struct node qnode;
@@ -38,6 +40,7 @@ struct minithread {
     stack_pointer_t base;
     enum status status;
     int priority;
+    semaphore_t sleep_sem;
 };
 
 #endif /*__MINITHREAD_PRIVATE_H__*/

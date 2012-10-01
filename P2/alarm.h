@@ -5,6 +5,7 @@
  * This is the alarm interface. You should implement the functions for these
  * prototypes, though you may have to modify some other files to do so.
  */
+typedef struct alarm* alarm_t;
 
 /* Nearest alarm ticks to fire */
 extern long wakeup;
@@ -16,5 +17,10 @@ extern int next_alarm_id;
 extern int register_alarm(int delay, void (*func)(void*), void *arg);
 
 extern void deregister_alarm(int alarmid);
+
+/* Create an alarm structure */
+extern alarm_t create_alarm(int delay, void (*func)(void*), void *arg);
+
+extern void signal_alarm();
 
 #endif /* __ALARM_H_ */

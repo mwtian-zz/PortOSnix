@@ -5,6 +5,7 @@
 
 #include "alarm.h"
 #include "alarm_queue.h"
+#include "alarm_private.h"
 
 /*
  * Create a new alarm_queue
@@ -32,11 +33,9 @@ alarm_queue_new()
  * Return 0 on success, -1 on failure
  */
 int
-alarm_queue_insert(alarm_queue_t alarm_queue, void* data)
+alarm_queue_insert(alarm_queue_t alarm_queue, alarm_t alarm)
 {
-    alarm_t alarm = (alarm_t) data;
     alarm_t cur;
-
     if (alarm_queue == NULL) {
         return -1;
     }
@@ -50,32 +49,33 @@ alarm_queue_insert(alarm_queue_t alarm_queue, void* data)
     }
 
     /* Find the insertion point */
-    for (cur = alarm_queue->head; cur != NULL && cur->time_to_fire < alarm->time_to_fire; cur = cur->next);
+    for (cur = alarm_queue->head;
+    cur != NULL && cur->time_to_fire < alarm->time_to_fire; cur = cur->next);
 
     /* Insert before head */
     if (cur == alarm_queue->head) {
         alarm->prev = NULL;
         alarm->next = cur;
-        alarm_queue->head = data;
+        alarm_queue->head = alarm;
         alarm_queue->length += 1;
         return 0;
     }
 
     /* Insert after tail */
     if (cur == NULL) {
-        alarm_queue->tail->next = data;
+        alarm_queue->tail->next = alarm;
         alarm->prev = alarm_queue->tail;
         alarm->next = NULL;
-        alarm_queue->tail = data;
+        alarm_queue->tail = alarm;
         alarm_queue->length += 1;
         return 0;
     }
 
     /* Insert in middle */
-    cur->prev->next = data;
+    cur->prev->next = alarm;
     alarm->prev = cur->prev;
     alarm->next = cur;
-    cur->prev = data;
+    cur->prev = alarm;
     alarm_queue->length += 1;
     return 0;
 }
@@ -85,7 +85,7 @@ alarm_queue_insert(alarm_queue_t alarm_queue, void* data)
  * Return 0 on success, -1 on failure
  */
 int
-alarm_queue_dequeue(alarm_queue_t alarm_queue, void **data)
+alarm_queue_dequeue(alarm_queue_t alarm_queue, alarm_t *data)
 {
     if (data == NULL) {
         return -1;
@@ -95,7 +95,7 @@ alarm_queue_dequeue(alarm_queue_t alarm_queue, void **data)
         return -1;
     }
 
-    *data = (void*) alarm_queue->head;
+    *data = alarm_queue->head;
     if (*data == NULL) {
         return -1;
     }
@@ -108,7 +108,7 @@ alarm_queue_dequeue(alarm_queue_t alarm_queue, void **data)
  * Return 0 on success, -1 on failure
  */
 int
-alarm_queue_delete(alarm_queue_t alarm_queue, void **data)
+alarm_queue_delete(alarm_queue_t alarm_queue, alarm_t *data)
 {
     alarm_t alarm;
 
@@ -116,7 +116,7 @@ alarm_queue_delete(alarm_queue_t alarm_queue, void **data)
         return -1;
     }
 
-    alarm = (alarm_t) *data;
+    alarm = *data;
     /* Head */
     if (alarm == alarm_queue->head) {
         alarm_queue->head = alarm->next;
@@ -145,7 +145,7 @@ alarm_queue_delete(alarm_queue_t alarm_queue, void **data)
  * Return 0 on success, -1 on failure
  */
 int
-alarm_queue_delete_by_id(alarm_queue_t alarm_queue, int alarm_id, void **data)
+alarm_queue_delete_by_id(alarm_queue_t alarm_queue, int alarm_id, alarm_t *data)
 {
     alarm_t alarm;
     int ret;
@@ -157,7 +157,7 @@ alarm_queue_delete_by_id(alarm_queue_t alarm_queue, int alarm_id, void **data)
     /* Find alarm with alarm_id */
     for (alarm = alarm_queue->head; alarm != NULL && alarm->alarm_id != alarm_id; alarm = alarm->next);
     /* Delete it */
-    ret = alarm_queue_delete(alarm_queue, (void**)&alarm);
+    ret = alarm_queue_delete(alarm_queue, &alarm);
     *data = alarm;
 
     return ret;

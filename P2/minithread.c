@@ -38,7 +38,10 @@ static queue_t exited;
 static long expire;
 static int quanta_lim[MAX_PRIORITY + 1];
 static semaphore_t exit_count;
-static semaphore_t exit_muxtex;
+static semaphore_t exit_mutex;
+static semaphore_t count_mutex;
+
+/* Pointer to idle thread */
 static struct minithread _idle_thread_;
 static minithread_t const idle_thread = &_idle_thread_;
 
@@ -73,7 +76,7 @@ minithread_t
 minithread_create(proc_t proc, arg_t arg)
 {
     minithread_t t;
-    interrupt_level_t oldlevel;
+
     /* Allocate memory for TCB and stack. */
     if ((t = malloc(sizeof(*t))) == NULL) {
         printf("TCB memory allocation failed.\n");
@@ -85,6 +88,17 @@ minithread_create(proc_t proc, arg_t arg)
         free(t);
         return NULL;
     }
+
+    /* Initialize sleep semaphore */
+    t->sleep_sem = semaphore_create();
+    if (NULL == t->sleep_sem) {
+        printf("Sleep semaphore allocation failed.\n");
+        minithread_free_stack(t->base);
+        free(t);
+        return NULL;
+    }
+	semaphore_initialize(t->sleep_sem, 0);
+
     /* Initialize TCB and thread stack. */
     minithread_initialize_stack(&(t->top), proc, arg, minithread_exit, NULL);
     t->qnode.prev = NULL;
@@ -92,11 +106,11 @@ minithread_create(proc_t proc, arg_t arg)
     t->status = INITIAL;
     t->priority = 0;
 
-    oldlevel = set_interrupt_level(DISABLED);
+    semaphore_P(count_mutex);
     t->id = tidcount;
     ++tidcount;
     ++count;
-    set_interrupt_level(oldlevel);
+    semaphore_V(count_mutex);
 
     return t;
 }
@@ -108,19 +122,18 @@ static int
 minithread_cleanup(arg_t arg)
 {
     minithread_t t;
+	interrupt_level_t oldlevel;
     while (1) {
         semaphore_P(exit_count);
-        semaphore_P(exit_muxtex);
+		semaphore_P(exit_mutex);
         queue_dequeue(exited, (void**) &t);
-        semaphore_V(exit_muxtex);
+		semaphore_V(exit_mutex);
         if (NULL != t) {
-            if (NULL != t->base)
-                minithread_free_stack(t->base);
-
+            minithread_free_stack(t->base);
+            free(t->sleep_sem);
             free(t);
         }
         --(count);
-        printf("%d\n", count);
     }
     return 0;
 }
@@ -157,12 +170,15 @@ minithread_stop()
 static int
 minithread_exit(arg_t arg)
 {
-    semaphore_P(exit_muxtex);
+	interrupt_level_t oldlevel;
+	semaphore_P(exit_mutex);
     instack->status = EXITED;
     queue_append(exited, instack);
-    semaphore_V(exit_muxtex);
+    semaphore_V(exit_mutex);
     semaphore_V(exit_count);
+    oldlevel = set_interrupt_level(DISABLED);
     minithread_schedule();
+	set_interrupt_level(oldlevel); /* Won't get executed but context switch will enable interrupt */
     /*
      * The thread is switched out before this step,
      * so this thread is not going to return.
@@ -301,6 +317,10 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
         printf("Schedule/Exit queue creation failed.\n");
         exit(-1);
     }
+    if (minithread_initialize_sem() == -1) {
+		fprintf(stderr, "System semaphore initialization failed.\n");
+		exit(-1);
+	}
     if (-1 == minithread_initialize_systhreads()) {
         printf("System threads initialization failed.\n");
         exit(-1);
@@ -313,12 +333,7 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
         printf("Clock initialization failed.\n");
         exit(-1);
     }
-
-	if (minithread_initialize_sem() == -1) {
-		fprintf(stderr, "Semaphore initialization failed.\n");
-		exit(-1);
-	}
-
+    /* Idle loop */
     while (1) {
         minithread_yield();
     }
@@ -367,9 +382,13 @@ minithread_initialize_clock()
 static int
 minithread_initialize_sem() {
 	exit_count = semaphore_create();
+	exit_mutex = semaphore_create();
+	count_mutex = semaphore_create();
+	if (NULL == exit_count || NULL == exit_mutex || NULL == count_mutex)
+        return -1;
 	semaphore_initialize(exit_count, 0);
-    exit_muxtex = semaphore_create();
-    semaphore_initialize(exit_muxtex, 1);
+	semaphore_initialize(exit_mutex, 1);
+	semaphore_initialize(count_mutex, 1);
 	return 0;
 }
 
@@ -392,10 +411,8 @@ minithread_unlock_and_stop(tas_lock_t* lock)
  * Called when an alarm fires
  */
 static void
-fire_alarm(void *sleepsem) {
-	semaphore_t sleep_sem = (semaphore_t) sleepsem;
-	semaphore_V(sleep_sem);
-	semaphore_destroy(sleep_sem);
+minithread_wakeup(void* sleep_sem) {
+	semaphore_V((semaphore_t) sleep_sem);
 }
 
 /*
@@ -405,16 +422,13 @@ void
 minithread_sleep_with_timeout(int delay)
 {
 	interrupt_level_t oldlevel;
-	semaphore_t sleep_sem = semaphore_create();
-	semaphore_initialize(sleep_sem, 0);
-
 	/*
 	 * Make sure that if ticks >= wakeup, the alarm is in the queue
 	 * and sleep_sem is already Ped
 	 */
 	oldlevel = set_interrupt_level(DISABLED);
-	register_alarm(delay, &fire_alarm, sleep_sem);
-	semaphore_P(sleep_sem);
+	register_alarm(delay, &minithread_wakeup, instack->sleep_sem);
+	semaphore_P(instack->sleep_sem);
 	set_interrupt_level(oldlevel);
 }
 
@@ -427,33 +441,10 @@ void
 clock_handler(void* arg)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-	alarm_t alarm = NULL;
-	long fire_time;
-
 	ticks++;
 	/* Check if alarms can be fired */
-	if (ticks >= wakeup) {
-		while (1) {
-			fire_time = get_latest_time(alarm_queue);
-			if (fire_time == -1) {
-				break;
-			} else {
-				/* Can be fired */
-				if (fire_time <= ticks) {
-					alarm_queue_dequeue(alarm_queue, (void**) &alarm);
-					if (alarm) {
-						/* Fire alarm */
-						alarm->func(alarm->arg);
-						free(alarm);
-					}
-				} else {
-					/* Not yet to fire, update next wakeup time */
-					wakeup = fire_time;
-				}
-			}
-		}
-	}
-
+	if (ticks >= wakeup)
+        signal_alarm();
     if (ticks >= expire)
         minithread_yield();
     set_interrupt_level(oldlevel);

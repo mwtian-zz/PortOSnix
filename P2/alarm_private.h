@@ -11,8 +11,6 @@ struct alarm {
 	void *arg;
 };
 
-typedef struct alarm *alarm_t;
-
 struct alarm_queue {
 	alarm_t head;
 	alarm_t tail;

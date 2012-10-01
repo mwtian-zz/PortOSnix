@@ -2,6 +2,10 @@
 #ifndef __ALARM_QUEUE_H__
 #define __ALARM_QUEUE_H__
 
+#include "alarm.h"
+
+typedef struct alarm* alarm_t;
+
 typedef struct alarm_queue* alarm_queue_t;
 
 /*
@@ -15,25 +19,25 @@ extern alarm_queue_t alarm_queue_new();
  * The queue should be sorted by fire time
  * Return 0 on success, -1 on failure
  */
-extern int alarm_queue_insert(alarm_queue_t, void*);
+extern int alarm_queue_insert(alarm_queue_t, alarm_t);
 
 /*
  * Dequeue an alarm from alarm queue
  * Return 0 on success, -1 on failure
  */
-extern int alarm_queue_dequeue(alarm_queue_t, void**);
+extern int alarm_queue_dequeue(alarm_queue_t, alarm_t*);
 
 /*
  * Delete an alarm from alarm queue
  * Return 0 on success, -1 on failure
  */
-extern int alarm_queue_delete(alarm_queue_t, void**);
+extern int alarm_queue_delete(alarm_queue_t, alarm_t*);
 
 /*
  * Delete an alarm from alarm queue based on its alarm id
  * Return 0 on success, -1 on failure
  */
-extern int alarm_queue_delete_by_id(alarm_queue_t, int, void**);
+extern int alarm_queue_delete_by_id(alarm_queue_t, int, alarm_t*);
 
 /*
  * Return lastest wake up time

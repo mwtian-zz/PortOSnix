@@ -110,7 +110,8 @@ int sink(int* arg) {
   return 0;
 }
 
-void
+int
 main(void) {
   minithread_system_initialize(sink, NULL);
+  return 0;
 }

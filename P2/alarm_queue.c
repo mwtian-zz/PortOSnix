@@ -50,7 +50,7 @@ alarm_queue_insert(alarm_queue_t alarm_queue, alarm_t alarm)
 
     /* Find the insertion point */
     for (cur = alarm_queue->head;
-    cur != NULL && cur->time_to_fire < alarm->time_to_fire; cur = cur->next);
+            cur != NULL && cur->time_to_fire < alarm->time_to_fire; cur = cur->next);
 
     /* Insert before head */
     if (cur == alarm_queue->head) {
@@ -167,7 +167,8 @@ alarm_queue_delete_by_id(alarm_queue_t alarm_queue, int alarm_id, alarm_t *data)
  * Return lastest wake up time
  * Return -1 if queue is empty
  */
-long get_latest_time(alarm_queue_t alarm_queue)
+long
+get_latest_time(alarm_queue_t alarm_queue)
 {
     if (alarm_queue->head != NULL) {
         return alarm_queue->head->time_to_fire;

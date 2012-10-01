@@ -2,7 +2,12 @@
 #include "alarm.h"
 #include "alarm_queue.h"
 #include "alarm_private.h"
-void main() {
+
+/* Create an alarm structure */
+extern alarm_t create_alarm(int delay, void (*func)(void*), void *arg);
+
+int
+main() {
 	alarm_t a1, a2, a3, a4, a5, a6;
 	alarm_queue_t alarm_queue;
 

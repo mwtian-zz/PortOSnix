@@ -34,7 +34,7 @@ static unsigned int count;
 /* Next thread id */
 static unsigned int tidcount;
 /* Pointer to the tcb of running thread */
-static minithread_t instack;
+static minithread_t context;
 /* Pointer to the ready queue */
 static multilevel_queue_t ready;
 /* Pointer to the exited thread queue */
@@ -62,7 +62,7 @@ static minithread_t const idle_thread = &_idle_thread_;
  * External variables used in this file
  */
 extern long ticks;
-extern long wakeup;
+extern long alarmtime;
 extern alarm_queue_t alarmclock;
 
 /* File scope functions, explained below */
@@ -169,7 +169,7 @@ void
 minithread_stop()
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    instack->status = BLOCKED;
+    context->status = BLOCKED;
     minithread_schedule();
     set_interrupt_level(oldlevel);
 }
@@ -182,11 +182,11 @@ minithread_exit(arg_t arg)
 {
     interrupt_level_t oldlevel;
     semaphore_P(exit_mutex);
-    queue_append(exited, instack);
+    queue_append(exited, context);
     semaphore_V(exit_mutex);
     semaphore_V(exit_count);
     oldlevel = set_interrupt_level(DISABLED);
-    instack->status = EXITED;
+    context->status = EXITED;
     minithread_schedule();
     /*
      * The thread is switched out before this step,
@@ -204,7 +204,7 @@ minithread_exit(arg_t arg)
 void
 minithread_yield()
 {
-    minithread_t t = instack;
+    minithread_t t = context;
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     t->status = READY;
     minithread_schedule();
@@ -246,7 +246,7 @@ minithread_schedule()
 static minithread_t
 minithread_pickold()
 {
-    minithread_t t = instack;
+    minithread_t t = context;
     /* Reduce privilige if runs out of quanta */
     if (ticks >= expire)
         if (t->priority < MAX_PRIORITY)
@@ -261,7 +261,7 @@ minithread_pickold()
 /*
  * Return the pointer to the thread entering stack.
  * Return idle_thread if there is no other thread to run.
- * Set up the new thread with its expiration time, status and instack pointer.
+ * Set up the new thread with its expiration time, status and context pointer.
  */
 static minithread_t
 minithread_picknew()
@@ -284,11 +284,13 @@ minithread_picknew()
         if (0 == multilevel_queue_dequeue(ready,
                                           (p + i) % (MAX_PRIORITY + 1),
                                           (void**) &t)) {
-            instack = t;
+            context = t;
             t->status = RUNNING;
             return t;
         }
     }
+    /* If no other thread is available, switch to idle_thread */
+    expire = ticks + 1;
     return idle_thread;
 }
 
@@ -296,14 +298,14 @@ minithread_picknew()
 minithread_t
 minithread_self()
 {
-    return instack;
+    return context;
 }
 
 /* Return ID of the running thread. */
 int
 minithread_id()
 {
-    return instack->id;
+    return context->id;
 }
 
 /*
@@ -323,7 +325,7 @@ minithread_id()
 void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg)
 {
-    if (-1 == minithread_initialize_thread_monitor()) {
+    if (minithread_initialize_thread_monitor() == -1) {
         printf("Schedule/Exit queue creation failed.\n");
         exit(-1);
     }
@@ -331,15 +333,20 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
         fprintf(stderr, "System semaphore initialization failed.\n");
         exit(-1);
     }
-    if (-1 == minithread_initialize_systhreads()) {
+    if (minithread_initialize_systhreads() == -1) {
         printf("System threads initialization failed.\n");
+        exit(-1);
+    }
+    if (alarm_initialize() == -1) {
+        printf("Alarm initialization failed.\n");
         exit(-1);
     }
     if (NULL == minithread_fork(mainproc, mainarg)) {
         printf("Main thread initialization failed.\n");
         exit(-1);
     }
-    if (-1 == minithread_initialize_clock()) {
+    /* clock must be the last to start */
+    if (minithread_initialize_clock() == -1) {
         printf("Clock initialization failed.\n");
         exit(-1);
     }
@@ -358,11 +365,10 @@ minithread_initialize_thread_monitor()
     quanta_lim[0] = 1;
     for (i = 1; i <= MAX_PRIORITY; ++i)
         quanta_lim[i] = 2 * quanta_lim[i - 1];
-    instack = idle_thread;
+    context = idle_thread;
     ready = multilevel_queue_new(MAX_PRIORITY + 1);
     exited = queue_new();
-    alarmclock = alarm_queue_new();
-    if (NULL == ready || NULL == exited || NULL == alarmclock)
+    if (NULL == ready || NULL == exited)
         return -1;
     return 0;
 }
@@ -384,7 +390,7 @@ minithread_initialize_clock()
 {
     ticks = 0;
     expire = -1;
-    wakeup = -1;
+
     set_interrupt_level(DISABLED);
     minithread_clock_init(clock_handler);
     set_interrupt_level(ENABLED);
@@ -438,11 +444,11 @@ minithread_sleep_with_timeout(int delay)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     /*
-     * Make sure that if ticks >= wakeup, the alarm is in the queue
+     * Make sure that if ticks >= alarmtime, the alarm is in the queue
      * and sleep_sem is already Ped
      */
-    if (-1 != register_alarm(delay, &minithread_wakeup, instack->sleep_sem))
-        semaphore_P(instack->sleep_sem);
+    if (-1 != register_alarm(delay, &minithread_wakeup, context->sleep_sem))
+        semaphore_P(context->sleep_sem);
     set_interrupt_level(oldlevel);
 }
 
@@ -456,8 +462,8 @@ clock_handler(void* arg)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     ticks++;
-    if (ticks >= wakeup && wakeup > -1)
-        signal_alarm();
+    if (alarmtime > -1 && ticks >= alarmtime)
+        alarm_signal();
     if (ticks >= expire)
         minithread_yield();
     set_interrupt_level(oldlevel);

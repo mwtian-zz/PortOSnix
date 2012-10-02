@@ -4,18 +4,18 @@
 #include "alarm_private.h"
 
 /* Create an alarm structure */
-extern alarm_t create_alarm(int delay, void (*func)(void*), void *arg);
+extern alarm_t alarm_create(int delay, void (*func)(void*), void *arg);
 
 int
 main() {
 	alarm_t a1, a2, a3, a4, a5, a6;
 	alarm_queue_t alarm_queue;
 
-	a1 = create_alarm(100, NULL, NULL);
-	a2 = create_alarm(500, NULL, NULL);
-	a3 = create_alarm(2000, NULL, NULL);
-	a4 = create_alarm(1000, NULL, NULL);
-	a5 = create_alarm(400, NULL, NULL);
+	a1 = alarm_create(100, NULL, NULL);
+	a2 = alarm_create(500, NULL, NULL);
+	a3 = alarm_create(2000, NULL, NULL);
+	a4 = alarm_create(1000, NULL, NULL);
+	a5 = alarm_create(400, NULL, NULL);
 
 	alarm_queue = alarm_queue_new();
 	alarm_queue_insert(alarm_queue, a1);

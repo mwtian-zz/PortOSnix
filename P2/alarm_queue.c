@@ -49,8 +49,8 @@ alarm_queue_insert(alarm_queue_t alarm_queue, alarm_t alarm)
     }
 
     /* Find the insertion point */
-    for (cur = alarm_queue->head;
-            cur != NULL && cur->time_to_fire < alarm->time_to_fire; cur = cur->next);
+    for (cur = alarm_queue->head; cur != NULL
+            && cur->time_to_fire < alarm->time_to_fire; cur = cur->next);
 
     /* Insert before head */
     if (cur == alarm_queue->head) {

@@ -1,15 +1,12 @@
+#include <stdlib.h>
 #include <stdio.h>
-
 #include "interrupts.h"
-#include "queue.h"
-#include "synch.h"
-#include "minithread.h"
 #include "alarm.h"
 #include "alarm_queue.h"
 #include "alarm_private.h"
 
 /* Nearest alarm ticks to fire */
-long wakeup;
+long alarmtime;
 
 /* Next alarm id */
 int next_alarm_id = 0;
@@ -25,17 +22,18 @@ alarm_queue_t alarmclock;
 int
 register_alarm(int delay, void (*func)(void*), void *arg)
 {
-    alarm_t alarm = create_alarm(delay, func, arg);
+    alarm_t alarm = alarm_create(delay, func, arg);
+    interrupt_level_t oldlevel;
     if (alarm == NULL) {
         return -1;
     }
-
     /* Update nearest alarm to fire */
-    if (alarm->time_to_fire < wakeup || -1 == wakeup) {
-        wakeup = alarm->time_to_fire;
+    oldlevel = set_interrupt_level(DISABLED);
+    if (alarm->time_to_fire < alarmtime || -1 == alarmtime) {
+        alarmtime = alarm->time_to_fire;
     }
-
     alarm_queue_insert(alarmclock, alarm);
+    set_interrupt_level(oldlevel);
     return alarm->alarm_id;
 }
 
@@ -57,48 +55,45 @@ deregister_alarm(int alarmid)
  * Return NULL on failure, pointer to the alarm on success
  */
 alarm_t
-create_alarm(int delay, void (*func)(void*), void *arg)
+alarm_create(int delay, void (*func)(void*), void *arg)
 {
-    alarm_t alarm = (alarm_t) malloc(sizeof(struct alarm));
+    alarm_t alarm = malloc(sizeof(struct alarm));
     if (alarm == NULL) {
         fprintf(stderr, "Can't create alarm!\n");
         return NULL;
     }
     alarm->alarm_id = next_alarm_id++;
-    /* printf("Ticks is %ld\n", ticks); */
-    alarm->func = func;
     alarm->time_to_fire = ticks + (delay * MILLISEC / PERIOD);
+    if (alarm->time_to_fire == ticks)
+        alarm->time_to_fire++; /* Avoid setting alarm to the current tick */
+    alarm->func = func;
     alarm->arg = arg;
     alarm->next = NULL;
     alarm->prev = NULL;
     return alarm;
 }
 
-/* Check if any alarm needs to be fired */
+/* Fire all alarms before or at the current tick */
 void
-signal_alarm()
+alarm_signal()
 {
     alarm_t alarm = NULL;
-    long fire_time;
-    while (1) {
-        fire_time = get_latest_time(alarmclock);
-        if (fire_time == -1) {
-            wakeup = -1;
-            break;
-        } else {
-            /* Can be fired */
-            if (fire_time <= ticks) {
-                alarm_queue_dequeue(alarmclock, &alarm);
-                if (alarm) {
-                    /* Fire alarm */
-                    alarm->func(alarm->arg);
-                    free(alarm);
-                }
-            } else {
-                /* Not yet to fire, update next wakeup time */
-                wakeup = fire_time;
-                break;
-            }
+    while ((alarmtime = get_latest_time(alarmclock)) != -1
+            && alarmtime <= ticks) {
+        if (-1 != alarm_queue_dequeue(alarmclock, &alarm)) {
+            alarm->func(alarm->arg);
+            free(alarm);
         }
     }
 }
+
+/* Initialize alarm structure */
+int
+alarm_initialize()
+{
+    if (NULL == (alarmclock = alarm_queue_new()))
+        return -1;
+    alarmtime = -1;
+    return 0;
+}
+

@@ -4,8 +4,6 @@
 
 #include "alarm.h"
 
-typedef struct alarm* alarm_t;
-
 typedef struct alarm_queue* alarm_queue_t;
 
 /*

@@ -63,7 +63,6 @@ static minithread_t const idle_thread = &_idle_thread_;
  */
 extern long ticks;
 extern long alarmtime;
-extern alarm_queue_t alarmclock;
 
 /* File scope functions, explained below */
 static void minithread_schedule();
@@ -390,7 +389,6 @@ minithread_initialize_clock()
 {
     ticks = 0;
     expire = -1;
-
     set_interrupt_level(DISABLED);
     minithread_clock_init(clock_handler);
     set_interrupt_level(ENABLED);
@@ -443,10 +441,7 @@ void
 minithread_sleep_with_timeout(int delay)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    /*
-     * Make sure that if ticks >= alarmtime, the alarm is in the queue
-     * and sleep_sem is already Ped
-     */
+    context->status = BLOCKED;
     if (-1 != register_alarm(delay, &minithread_wakeup, context->sleep_sem))
         semaphore_P(context->sleep_sem);
     set_interrupt_level(oldlevel);

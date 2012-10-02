@@ -3,9 +3,6 @@
 #include "alarm_queue.h"
 #include "alarm_private.h"
 
-/* Create an alarm structure */
-extern alarm_t alarm_create(int delay, void (*func)(void*), void *arg);
-
 int
 main() {
 	alarm_t a1, a2, a3, a4, a5, a6;

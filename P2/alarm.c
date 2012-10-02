@@ -12,7 +12,7 @@ long alarmtime;
 int next_alarm_id = 0;
 
 /* Alarm queue */
-alarm_queue_t alarmclock;
+alarm_queue_t alarm_clock;
 
 /*
  * insert alarm event into the alarm queue
@@ -32,7 +32,7 @@ register_alarm(int delay, void (*func)(void*), void *arg)
     if (alarm->time_to_fire < alarmtime || -1 == alarmtime) {
         alarmtime = alarm->time_to_fire;
     }
-    alarm_queue_insert(alarmclock, alarm);
+    alarm_queue_insert(alarm_clock, alarm);
     set_interrupt_level(oldlevel);
     return alarm->alarm_id;
 }
@@ -46,7 +46,7 @@ deregister_alarm(int alarmid)
 {
     alarm_t alarm;
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    alarm_queue_delete_by_id(alarmclock, alarmid, &alarm);
+    alarm_queue_delete_by_id(alarm_clock, alarmid, &alarm);
     set_interrupt_level(oldlevel);
 }
 
@@ -78,9 +78,9 @@ void
 alarm_signal()
 {
     alarm_t alarm = NULL;
-    while ((alarmtime = get_latest_time(alarmclock)) != -1
+    while ((alarmtime = get_latest_time(alarm_clock)) != -1
             && alarmtime <= ticks) {
-        if (-1 != alarm_queue_dequeue(alarmclock, &alarm)) {
+        if (-1 != alarm_queue_dequeue(alarm_clock, &alarm)) {
             alarm->func(alarm->arg);
             free(alarm);
         }
@@ -91,7 +91,7 @@ alarm_signal()
 int
 alarm_initialize()
 {
-    if (NULL == (alarmclock = alarm_queue_new()))
+    if (NULL == (alarm_clock = alarm_queue_new()))
         return -1;
     alarmtime = -1;
     return 0;

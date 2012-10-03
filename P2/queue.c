@@ -14,8 +14,7 @@ queue_t
 queue_new()
 {
     queue_t q;
-    if ((q = malloc(sizeof(*q))) == NULL) {
-        printf("Queue memory allocation failed.\n");
+    if ((q = malloc(sizeof(struct queue))) == NULL) {
         return NULL;
     }
     q->length = 0;

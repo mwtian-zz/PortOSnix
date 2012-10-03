@@ -29,7 +29,17 @@ struct semaphore {
 semaphore_t
 semaphore_create()
 {
-    semaphore_t sem = malloc(sizeof(*sem));
+	queue_t q;
+    semaphore_t sem = malloc(sizeof(struct semaphore));
+	if (sem == NULL) {
+		return NULL;
+	}
+	q = queue_new();
+    if (NULL == q) {
+		free(sem);
+        return NULL;
+	}
+	sem->wait = q;
     return sem;
 }
 
@@ -55,15 +65,10 @@ semaphore_destroy(semaphore_t sem)
 void
 semaphore_initialize(semaphore_t sem, int cnt)
 {
-    queue_t q;
     if (NULL == sem)
-        return;
-    q = queue_new();
-    if (NULL == q)
         return;
     sem->count = cnt;
     sem->lock = 0;
-    sem->wait = q;
 }
 
 /*

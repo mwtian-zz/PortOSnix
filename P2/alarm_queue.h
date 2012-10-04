@@ -54,9 +54,4 @@ extern int alarm_queue_length(alarm_queue_t);
  */
 extern int alarm_queue_free(alarm_queue_t);
 
-/*
- * Print queue content for debugging
- */
-extern void alarm_queue_print(alarm_queue_t);
-
 #endif /* __ALARM_QUEUE_H__ */

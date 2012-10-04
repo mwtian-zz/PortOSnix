@@ -59,7 +59,6 @@ alarm_create(int delay, void (*func)(void*), void *arg)
 {
     alarm_t alarm = malloc(sizeof(struct alarm));
     if (alarm == NULL) {
-        fprintf(stderr, "Can't create alarm!\n");
         return NULL;
     }
     alarm->alarm_id = next_alarm_id++;

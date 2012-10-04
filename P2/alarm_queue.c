@@ -16,7 +16,6 @@ alarm_queue_new()
 {
     alarm_queue_t new_queue = (alarm_queue_t) malloc(sizeof(struct alarm_queue));
     if (new_queue == NULL) {
-        fprintf(stderr, "Can't create alarm queue!");
         return NULL;
     }
 
@@ -201,19 +200,4 @@ alarm_queue_free(alarm_queue_t alarm_queue)
     }
     free(alarm_queue);
     return 0;
-}
-
-/*
- * Print alarm queue content for debugging
- */
-void
-alarm_queue_print(alarm_queue_t alarm_queue)
-{
-    alarm_t head;
-
-    printf("Alarm queue starts\n");
-    for (head = alarm_queue->head; head != NULL; head = head->next) {
-        printf("Alarm id is %d, fire time is %ld\n", head->alarm_id, head->time_to_fire);
-    }
-    printf("Alarm queue ends\n");
 }

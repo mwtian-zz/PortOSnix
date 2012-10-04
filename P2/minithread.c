@@ -88,13 +88,11 @@ minithread_create(proc_t proc, arg_t arg)
     minithread_t t;
 
     /* Allocate memory for TCB and stack. */
-    if ((t = malloc(sizeof(*t))) == NULL) {
-        printf("TCB memory allocation failed.\n");
+    if ((t = malloc(sizeof(struct minithread))) == NULL) {
         return NULL;
     }
     minithread_allocate_stack(&(t->base), &(t->top));
     if (NULL == t->base || NULL == t->top) {
-        printf("Stack allocation failed.\n");
         free(t);
         return NULL;
     }
@@ -102,7 +100,6 @@ minithread_create(proc_t proc, arg_t arg)
     /* Initialize sleep semaphore */
     t->sleep_sem = semaphore_create();
     if (NULL == t->sleep_sem) {
-        printf("Sleep semaphore allocation failed.\n");
         minithread_free_stack(t->base);
         free(t);
         return NULL;
@@ -325,28 +322,22 @@ void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg)
 {
     if (minithread_initialize_thread_monitor() == -1) {
-        printf("Schedule/Exit queue creation failed.\n");
         exit(-1);
     }
     if (minithread_initialize_sem() == -1) {
-        fprintf(stderr, "System semaphore initialization failed.\n");
         exit(-1);
     }
     if (minithread_initialize_systhreads() == -1) {
-        printf("System threads initialization failed.\n");
         exit(-1);
     }
     if (alarm_initialize() == -1) {
-        printf("Alarm initialization failed.\n");
         exit(-1);
     }
     if (NULL == minithread_fork(mainproc, mainarg)) {
-        printf("Main thread initialization failed.\n");
         exit(-1);
     }
     /* clock must be the last to start */
     if (minithread_initialize_clock() == -1) {
-        printf("Clock initialization failed.\n");
         exit(-1);
     }
     minithread_yield();

@@ -38,11 +38,24 @@ int thread2(int *arg)
     return 0;
 }
 
+int thread3(int *arg)
+{
+    printf("I am thread3...\n");
+    printf("I am going to sleep for 2 second...\n");
+    printf("hu lu lu...\n");
+    minithread_sleep_with_timeout(2000);
+    printf("fired at %ld ticks.\n", ticks);
+    printf("thread3 woke up...\n");
+
+    return 0;
+}
+
 int run(int *arg)
 {
     minithread_fork(thread0, NULL);
     minithread_fork(thread1, NULL);
     minithread_fork(thread2, NULL);
+    minithread_fork(thread3, NULL);
     return 0;
 }
 

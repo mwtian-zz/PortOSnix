@@ -1,12 +1,12 @@
 #include <defs.h>
 
 /*
- * Provides a clean, virtualized interface to interrupts.
- *
+ * Provides a clean, virtualized interface to interrupts. 
+ * 
  * We provide a virtual processor, which acts much like a
  * modern, real processor - it responds to interrupts, and
- * takes them on the current stack.
- *
+ * takes them on the current stack. 
+ * 
  * Initially, when the system starts up, interrupts are disabled.
  * Calling minithreads_clock_init will start the clock device and
  * enable interrupts.
@@ -28,27 +28,27 @@ extern long ticks;
 #define PERIOD (50*MILLISEC)
 
 /*
- * Virtual processor interrupt level.
+ * Virtual processor interrupt level. 
  * Are interrupts enabled? A new interrupt will only be taken when interrupts
  * are enabled.
  */
 typedef int interrupt_level_t;
-extern interrupt_level_t interrupt_level;
+extern interrupt_level_t interrupt_level; 
 
 #define DISABLED 0
 #define ENABLED 1
 
 
-typedef void (*interrupt_handler_t)();
+typedef void(*interrupt_handler_t)();
 /*
  * Set the interrupt level to newlevel, return the old interrupt level
- *
+ * 
  * You should generally make changes to the interrupt level in a set/restore
- * pair. Be careful about restoring the interrupt level. Your
- * protected code may be have been called with interrupts already
- * disabled, in which case blindly reenabling interrupts will cause
- * synchronization problems. Rather than downgrading the interrupts
- * to a particular level without reference to the old value, you should
+ * pair. Be careful about restoring the interrupt level. Your 
+ * protected code may be have been called with interrupts already 
+ * disabled, in which case blindly reenabling interrupts will cause 
+ * synchronization problems. Rather than downgrading the interrupts 
+ * to a particular level without reference to the old value, you should 
  * generally use a set-and-restore scheme, as follows:
 
      interrupt_level_t l;
@@ -57,11 +57,11 @@ typedef void (*interrupt_handler_t)();
 	   ... [protected code]
 	   set_interrupt_level(l);
 
- * this way, you are protected against nested interrupt downgrades (i.e.
+ * this way, you are protected against nested interrupt downgrades (i.e. 
  * function A disables interrupts and calls B, which also disables them. If
- * B enables them, instead of setting the interrupt_level to its old value,
+ * B enables them, instead of setting the interrupt_level to its old value, 
  * interrupts will be enabled when B terminates, when A expected them to be
- * disabled.
+ * disabled. 
  *
  * the exception to this is when you're disabling interrupts before a call
  * to minithread_switch: the minithread switch code resets the interrupt

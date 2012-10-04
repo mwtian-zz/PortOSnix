@@ -23,6 +23,7 @@ minithread_switch:
     pushq %rbx
     movq %rsp,(%rcx)
     movq (%rax),%rsp
+    movq $1,interrupt_level #Enable interrupts after context switch
     popq %rbx
     popq %rdi
     popq %rsi
@@ -38,7 +39,6 @@ minithread_switch:
     popq %rdx
     popq %rcx
     popq %rax
-    movq $1,interrupt_level #Enable interrupts after context switch
     retq
 
 minithread_root: 
@@ -74,8 +74,12 @@ swap:
 
     ret
 
-
 minithread_trampoline:
+    popq %rax #fxrstor address
+    cmpq $0,%rax
+    je integer_regs #no fp state
+    fxrstorq (%rax)
+  integer_regs:
     popq %r8
     popq %r9
     popq %r10
@@ -86,11 +90,14 @@ minithread_trampoline:
     popq %r15
     popq %rdi
     popq %rsi
-    popq %rax
-    popq %rbx
-    popq %rcx
-    popq %rdx
     popq %rbp
-    popq %rsp
-    jmp *-0x8(%rsp)
+    popq %rbx
+    popq %rdx
+    popq %rax
+    popq %rcx 
+    add $0x10,%rsp #jump over rip and rsp
+    popfq 
+    mov 0x70(%rsp),%rsp #move to end of sigcontext struct
+#MUST BE VERY CAREFUL: add $0x70,%rsp changes the carry flag!!!
+    retq  #return address is here, directly below old SP
 

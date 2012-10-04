@@ -1,16 +1,40 @@
-alarm.o: alarm.c interrupts.h defs.h alarm.h minithread.h \
-  machineprimitives.h queue.h
+alarm.o: alarm.c interrupts.h alarm.h alarm_queue.h alarm_private.h
+alarm_queue.o: alarm_queue.c alarm_queue.h alarm.h alarm_queue_private.h \
+ alarm_private.h
+alarm_queue_test.o: alarm_queue_test.c alarm.h alarm_queue.h \
+ alarm_private.h
+alarm_test.o: alarm_test.c minithread.h machineprimitives.h defs.h \
+ alarm_queue.h alarm.h
+buffer.o: buffer.c minithread.h machineprimitives.h defs.h alarm_queue.h \
+ alarm.h synch.h
 end.o: end.c defs.h
-machineprimitives.o: machineprimitives.c defs.h minithread.h \
- machineprimitives.h
-minithread.o: minithread.c minithread.h machineprimitives.h defs.h \
- queue.h synch.h
-multilevel_queue.o: multilevel_queue.c multilevel_queue.h
-network.o: network.c defs.h network.h interrupts_private.h interrupts.h \
- minithread.h machineprimitives.h random.h
-pid_random.o: pid_random.c pid_random.h random.h
-queue.o: queue.c queue.h
+interrupts.o: interrupts.c interrupts_private.h interrupts.h minithread.h \
+ machineprimitives.h defs.h alarm_queue.h alarm.h
+machineprimitives.o: machineprimitives.c defs.h machineprimitives.h
+machineprimitives_x86_64.o: machineprimitives_x86_64.c defs.h \
+ machineprimitives.h interrupts_private.h interrupts.h
+minithread.o: minithread.c alarm.h interrupts.h queue.h synch.h \
+ minithread.h machineprimitives.h defs.h alarm_queue.h \
+ minithread_private.h queue_private.h multilevel_queue.h
+multilevel_queue.o: multilevel_queue.c multilevel_queue.h queue.h \
+ multilevel_queue_private.h
+queue.o: queue.c queue.h queue_private.h
 random.o: random.c
+retail_shop_1.o: retail_shop_1.c queue.h minithread.h machineprimitives.h \
+ defs.h alarm_queue.h alarm.h synch.h retail_shop_1.h
+retail_shop_3.o: retail_shop_3.c queue.h minithread.h machineprimitives.h \
+ defs.h alarm_queue.h alarm.h synch.h
+sieve.o: sieve.c minithread.h machineprimitives.h defs.h alarm_queue.h \
+ alarm.h synch.h
 start.o: start.c defs.h
-synch.o: synch.c defs.h synch.h queue.h minithread.h \
- machineprimitives.h
+synch.o: synch.c defs.h queue.h minithread.h machineprimitives.h \
+ alarm_queue.h alarm.h interrupts.h synch.h
+test1.o: test1.c minithread.h machineprimitives.h defs.h alarm_queue.h \
+ alarm.h
+test2.o: test2.c minithread.h machineprimitives.h defs.h alarm_queue.h \
+ alarm.h
+test3.o: test3.c minithread.h machineprimitives.h defs.h alarm_queue.h \
+ alarm.h synch.h
+test_multiqueue.o: test_multiqueue.c multilevel_queue_private.h \
+ multilevel_queue.h queue.h
+test_queue.o: test_queue.c queue.h

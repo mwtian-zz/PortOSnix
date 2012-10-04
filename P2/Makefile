@@ -14,20 +14,20 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = retail_shop_1
+MAIN = sieve
 
 OBJ = \
-	random.o \
-	minithread.o \
+    alarm.o \
+    alarm_queue.o \
 	interrupts.o \
 	machineprimitives_x86_64_asm.o \
 	machineprimitives_x86_64.o \
 	machineprimitives.o \
-	multilevel_queue.o \
-	alarm.o \
-	queue.o \
-	alarm_queue.o \
 	$(MAIN).o \
+	minithread.o \
+	multilevel_queue.o \
+	queue.o \
+	random.o \
 	synch.o \
 
 all: portos
@@ -45,8 +45,7 @@ clean:
 	rm -f *.o
 	rm -f $(OUTPUT)
 
-#depend:
-#	gcc -MM *.c 2>/dev/null | sed -e "s/\.o/.obj/" > depend
-
+depend:
+	gcc -MM *.c 2>/dev/null > Depend
 
 include Depend

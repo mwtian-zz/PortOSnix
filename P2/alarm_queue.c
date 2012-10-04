@@ -2,9 +2,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "alarm.h"
 #include "alarm_queue.h"
+#include "alarm_queue_private.h"
 #include "alarm_private.h"
 
 /*

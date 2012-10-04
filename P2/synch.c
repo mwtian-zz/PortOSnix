@@ -29,17 +29,17 @@ struct semaphore {
 semaphore_t
 semaphore_create()
 {
-	queue_t q;
+    queue_t q;
     semaphore_t sem = malloc(sizeof(struct semaphore));
-	if (sem == NULL) {
-		return NULL;
-	}
-	q = queue_new();
-    if (NULL == q) {
-		free(sem);
+    if (NULL == sem) {
         return NULL;
-	}
-	sem->wait = q;
+    }
+    q = queue_new();
+    if (NULL == q) {
+        free(sem);
+        return NULL;
+    }
+    sem->wait = q;
     return sem;
 }
 
@@ -78,9 +78,9 @@ semaphore_initialize(semaphore_t sem, int cnt)
 void
 semaphore_P(semaphore_t sem)
 {
-    while (1 == atomic_test_and_set(&(sem->lock)))
+    while (atomic_test_and_set(&(sem->lock)) == 1)
         ;
-    if (0 > --(sem->count)) {
+    if (--(sem->count) < 0) {
         queue_append(sem->wait, (void*) minithread_self());
         minithread_unlock_and_stop(&(sem->lock));
     } else {
@@ -96,10 +96,10 @@ void
 semaphore_V(semaphore_t sem)
 {
     minithread_t t;
-    while (1 == atomic_test_and_set(&(sem->lock)))
+    while (atomic_test_and_set(&(sem->lock)) == 1)
         ;
-    if (0 >= ++(sem->count)) {
-        if (0 == queue_dequeue(sem->wait, (void**) &t))
+    if (++(sem->count) <= 0) {
+        if (queue_dequeue(sem->wait, (void**) &t) == 0)
             minithread_start(t);
     }
     atomic_clear(&(sem->lock));

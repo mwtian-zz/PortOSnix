@@ -1,10 +1,10 @@
 /*
- * Bounded buffer example. 
+ * Bounded buffer example.
  *
  * Sample program that implements a single producer-single consumer
  * system. To be used to test the correctness of the threading and
  * synchronization implementations.
- * 
+ *
  * Change MAXCOUNT to vary the number of items produced by the producer.
  */
 #include <stdio.h>
@@ -68,10 +68,10 @@ int producer(int* arg) {
   return 0;
 }
 
-void
+int
 main(void) {
   int maxcount = MAXCOUNT;
-  
+
   size = head = tail = 0;
   empty = semaphore_create();
   semaphore_initialize(empty, 0);
@@ -79,4 +79,6 @@ main(void) {
   semaphore_initialize(full, BUFFER_SIZE);
 
   minithread_system_initialize(producer, &maxcount);
+
+  return 0;
 }

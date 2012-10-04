@@ -17,7 +17,7 @@ multilevel_queue_new(int number_of_levels)
     if (NULL == mq)
         return NULL;
     mq->lvl = number_of_levels;
-    mq->q = malloc(mq->lvl * sizeof(*(mq->q)));
+    mq->q = malloc(mq->lvl * sizeof(struct multilevel_queue));
     if (NULL == mq->q) {
         multilevel_queue_free(mq);
         return NULL;

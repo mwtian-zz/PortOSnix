@@ -90,7 +90,7 @@ alarm_signal()
 int
 alarm_initialize()
 {
-    if (NULL == (alarm_clock = alarm_queue_new()))
+    if ((alarm_clock = alarm_queue_new()) == NULL)
         return -1;
     alarmtime = -1;
     return 0;

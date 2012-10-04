@@ -1,6 +1,7 @@
 #include "minithread.h"
 #include <stdio.h>
-extern int ticks;
+extern long ticks;
+
 int
 thread0(int *arg)
 {

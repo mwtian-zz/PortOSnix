@@ -134,7 +134,7 @@ minithread_cleanup(arg_t arg)
         semaphore_P(exit_mutex);
         queue_dequeue(exited, (void**) &t);
         semaphore_V(exit_mutex);
-        if (NULL != t) {
+        if (t != NULL) {
             minithread_free_stack(t->base);
             free(t->sleep_sem);
             free(t);
@@ -227,8 +227,8 @@ minithread_schedule()
 {
     minithread_t rt_old;
     minithread_t rt_new;
-    if (NULL == (rt_old = minithread_pickold())
-            || NULL == (rt_new = minithread_picknew()))
+    if ((rt_old = minithread_pickold()) == NULL
+            || (rt_new = minithread_picknew()) == NULL)
         return;
     /* Switch only when the threads are different. */
     if (rt_old != rt_new)
@@ -248,7 +248,7 @@ minithread_pickold()
         if (t->priority < MAX_PRIORITY)
             ++t->priority;
     if (t != idle_thread && t->status == READY)
-        if (-1 == multilevel_queue_enqueue(ready, t->priority, t))
+        if (multilevel_queue_enqueue(ready, t->priority, t) == -1)
             return NULL;
     return t;
 }
@@ -277,15 +277,15 @@ minithread_picknew()
     expire = ticks + quanta_lim[p];
     /* Switch to idle thread when the ready queue is empty. */
     for (i = 0; i <= MAX_PRIORITY; ++i) {
-        if (0 == multilevel_queue_dequeue(ready,
-                                          (p + i) % (MAX_PRIORITY + 1),
-                                          (void**) &t)) {
+        if (multilevel_queue_dequeue(ready,
+                                     (p + i) % (MAX_PRIORITY + 1),
+                                     (void**) &t) == 0) {
             context = t;
             t->status = RUNNING;
             return t;
         }
     }
-    /* If no other thread is available, switch to idle_thread */
+    /* If no other thread is available, switch to the idle_thread */
     expire = ticks + 1;
     return idle_thread;
 }
@@ -433,7 +433,7 @@ minithread_sleep_with_timeout(int delay)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     context->status = BLOCKED;
-    if (-1 != register_alarm(delay, &minithread_wakeup, context->sleep_sem))
+    if (register_alarm(delay, &minithread_wakeup, context->sleep_sem) != -1)
         semaphore_P(context->sleep_sem);
     set_interrupt_level(oldlevel);
 }

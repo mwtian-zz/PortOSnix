@@ -1,4 +1,4 @@
-/* alarm_private.h: holding alarm structure and alarm queue structure */
+/* alarm_private.h: holding alarm structure */
 #ifndef __ALARM_PRIVATE_H__
 #define __ALARM_PRIVATE_H__
 
@@ -9,12 +9,6 @@ struct alarm {
 	long time_to_fire;
 	void (*func)(void*);
 	void *arg;
-};
-
-struct alarm_queue {
-	alarm_t head;
-	alarm_t tail;
-	int length;
 };
 
 #endif /* __ALARM_PRIVATE_H__ */

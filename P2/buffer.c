@@ -13,13 +13,15 @@
 #include "synch.h"
 #define BUFFER_SIZE 16
 
-#define MAXCOUNT  1000
+#define MAXCOUNT  100000
 
 int buffer[BUFFER_SIZE];
 int size, head, tail;
 
 semaphore_t empty;
 semaphore_t full;
+
+unsigned int genintrand(unsigned int maxval);
 
 int consumer(int* arg) {
   int n, i;

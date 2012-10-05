@@ -41,7 +41,7 @@ extern int alarm_queue_delete_by_id(alarm_queue_t, int, alarm_t*);
  * Return lastest wake up time
  * Return -1 if queue is empty
  */
-extern long get_latest_time(alarm_queue_t);
+extern long alarm_getnext(alarm_queue_t);
 
 /*
  * Return the queue length

@@ -57,7 +57,7 @@ interrupt_level_t set_interrupt_level(interrupt_level_t newlevel) {
  * Register the minithread clock handler by making
  * mini_clock_handler point to it.
  *
- * Then set the signal handler for SIGRTMIN+1 to 
+ * Then set the signal handler for SIGRTMIN+1 to
  * handle_interrupt.  This signal handler will either
  * interrupt the minithreads, or drop the interrupt,
  * depending on safety conditions.
@@ -65,7 +65,7 @@ interrupt_level_t set_interrupt_level(interrupt_level_t newlevel) {
  * The signals are handled on their own stack to reduce
  * chances of an overrun.
  */
-void 
+void
 minithread_clock_init(interrupt_handler_t clock_handler){
     timer_t timerid;
     struct sigevent sev;
@@ -78,7 +78,7 @@ minithread_clock_init(interrupt_handler_t clock_handler){
 
     ss.ss_sp = malloc(SIGSTKSZ);
     if (ss.ss_sp == NULL){
-        perror("malloc."); 
+        perror("malloc.");
         abort();
     }
     ss.ss_size = SIGSTKSZ;
@@ -91,7 +91,7 @@ minithread_clock_init(interrupt_handler_t clock_handler){
 
     /* Establish handler for timer signal */
     sa.sa_handler = (void*)handle_interrupt;
-    sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK; 
+    sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
     sa.sa_sigaction= (void*)handle_interrupt;
     sigemptyset(&sa.sa_mask);
     if (sigaction(SIGRTMIN+1, &sa, NULL) == -1)
@@ -167,11 +167,11 @@ handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
          * and our stack pointer is at the return address we just pushed onto
          * the stack.
          */
-        ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp; 
+        ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp;
         ucontext->uc_mcontext.gregs[RIP]=(unsigned long)mini_clock_handler;
         ucontext->uc_mcontext.gregs[RDI]=(unsigned long)0;
         //printf("SP=%p\n",newsp);
-        
+
     }
 }
 

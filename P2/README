@@ -2,7 +2,34 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 
 CS4411 Project 2 - Preemptive Multitasking
 
+The progamming is done in the Linux/GCC environment.
 
+The clock_handler() function in minithread.c is the interrupt handler.
+
+Seven functions in minithread.c have parts wich disabled interrupts:
+minithread_start(), minithread_stop(), minithread_exit(), minithread_yield(),
+minithread_sleep_with_timeout(), minithread_unlock_and_stop(), clock_handler().
+
+Also minithread_schedule() is always called when initerrupts are disabled.
+
+Alarms and the alarm queue are implemented in alarm.c, alarm_queue.c, alarm.h,
+alarm_queue.h, alarm_private.h, alarm_queue_private.h. Alarms are inserted so
+that the nearest alarm is at the front of the queue.
+
+minithread.c interacts with alarm.c through the global variable alarm_time, and
+functions register_alarm() and alarm_signal().
+
+minithread_sleep_with_timeout() makes a thread sleep on its own semapore. After
+a delay, minithread_wakeup() is fired from the alarm to wake up the thread.
+
+The multilevel queue is implemented in multilevel_queue.c, multilevel_queue.h,
+multilevel_queue_private.c. The 'ready' queue in minithread.c uses the
+multilevel queue.
+
+Tests are written for the alarm, the alarm queue, and the multilevel queue:
+they are alarm_test.c, alarm_queue_test.c, multilevel_queue_test.c.
+retail_shop_1.c and retail_shop_3.c from the last project are also used for
+testing.
 
 --------------------------------------------------------------------------------
 Project Description

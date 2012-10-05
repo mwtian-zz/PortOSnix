@@ -8,7 +8,7 @@
 typedef struct alarm* alarm_t;
 
 /* Nearest alarm ticks to fire */
-extern long alarmtime;
+extern long alarm_time;
 
 /* The id of the alarm to be fired next */
 extern int next_alarm_id;

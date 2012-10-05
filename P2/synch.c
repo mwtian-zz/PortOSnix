@@ -5,7 +5,6 @@
 #include "defs.h"
 #include "queue.h"
 #include "minithread.h"
-#include "interrupts.h"
 #include "synch.h"
 
 /*

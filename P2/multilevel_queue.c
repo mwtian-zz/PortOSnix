@@ -3,6 +3,7 @@
  */
 #include <stdlib.h>
 #include <stdio.h>
+#include "queue.h"
 #include "multilevel_queue.h"
 #include "multilevel_queue_private.h"
 
@@ -59,7 +60,7 @@ multilevel_queue_dequeue(multilevel_queue_t queue, int level, void** item)
         return -1;
     for (i = 0; i < queue->lvl; ++i) {
         if (0 == queue_dequeue(queue->q[(level + i) % queue->lvl], item))
-            return 0;
+            return i;
     }
     *item = NULL;
     return -1;

@@ -6,7 +6,7 @@
 #include "alarm_private.h"
 
 /* Nearest alarm ticks to fire */
-long alarmtime;
+long alarm_time;
 
 /* Next alarm id */
 int next_alarm_id = 0;
@@ -22,15 +22,14 @@ alarm_queue_t alarm_clock;
 int
 register_alarm(int delay, void (*func)(void*), void *arg)
 {
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     alarm_t alarm = alarm_create(delay, func, arg);
-    interrupt_level_t oldlevel;
     if (alarm == NULL) {
         return -1;
     }
     /* Update nearest alarm to fire */
-    oldlevel = set_interrupt_level(DISABLED);
-    if (alarm->time_to_fire < alarmtime || -1 == alarmtime) {
-        alarmtime = alarm->time_to_fire;
+    if (alarm->time_to_fire < alarm_time || -1 == alarm_time) {
+        alarm_time = alarm->time_to_fire;
     }
     alarm_queue_insert(alarm_clock, alarm);
     set_interrupt_level(oldlevel);
@@ -46,7 +45,8 @@ deregister_alarm(int alarmid)
 {
     alarm_t alarm;
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
-    alarm_queue_delete_by_id(alarm_clock, alarmid, &alarm);
+    if (alarm_queue_delete_by_id(alarm_clock, alarmid, &alarm) != -1)
+        free(alarm);
     set_interrupt_level(oldlevel);
 }
 
@@ -63,8 +63,9 @@ alarm_create(int delay, void (*func)(void*), void *arg)
     }
     alarm->alarm_id = next_alarm_id++;
     alarm->time_to_fire = ticks + (delay * MILLISEC / PERIOD);
-    if (alarm->time_to_fire == ticks)
+    if (alarm->time_to_fire == ticks) {
         alarm->time_to_fire++; /* Avoid setting alarm to the current tick */
+    }
     alarm->func = func;
     alarm->arg = arg;
     alarm->next = NULL;
@@ -77,9 +78,9 @@ void
 alarm_signal()
 {
     alarm_t alarm = NULL;
-    while ((alarmtime = get_latest_time(alarm_clock)) != -1
-            && alarmtime <= ticks) {
-        if (-1 != alarm_queue_dequeue(alarm_clock, &alarm)) {
+    while ((alarm_time = alarm_getnext(alarm_clock)) != -1
+            && alarm_time <= ticks) {
+        if (alarm_queue_dequeue(alarm_clock, &alarm) != -1) {
             alarm->func(alarm->arg);
             free(alarm);
         }
@@ -92,7 +93,7 @@ alarm_initialize()
 {
     if ((alarm_clock = alarm_queue_new()) == NULL)
         return -1;
-    alarmtime = -1;
+    alarm_time = -1;
     return 0;
 }
 

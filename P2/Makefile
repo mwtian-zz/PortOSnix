@@ -4,7 +4,7 @@
 
 CC = gcc
 
-CFLAGS = -Wall -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
+CFLAGS = -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
 LFLAGS = -lrt
 
 OUTPUT = minithread
@@ -19,16 +19,16 @@ MAIN = sieve
 OBJ = \
     alarm.o \
     alarm_queue.o \
-	interrupts.o \
-	machineprimitives_x86_64_asm.o \
-	machineprimitives_x86_64.o \
-	machineprimitives.o \
-	$(MAIN).o \
-	minithread.o \
-	multilevel_queue.o \
-	queue.o \
-	random.o \
-	synch.o \
+    interrupts.o \
+    machineprimitives_x86_64_asm.o \
+    machineprimitives_x86_64.o \
+    machineprimitives.o \
+    $(MAIN).o \
+    minithread.o \
+    multilevel_queue.o \
+    queue.o \
+    random.o \
+    synch.o \
 
 all: portos
 

@@ -6,9 +6,9 @@ int
 thread0(int *arg)
 {
     printf("I am thread0...\n");
-    printf("I am going to sleep for 1 second...\n");
+    printf("I am going to sleep for 10 second...\n");
     printf("hu hu hu...\n");
-    minithread_sleep_with_timeout(1000);
+    minithread_sleep_with_timeout(10000);
     printf("fired at %ld ticks.\n", ticks);
     printf("thread0 woke up...\n");
 
@@ -42,9 +42,9 @@ int thread2(int *arg)
 int thread3(int *arg)
 {
     printf("I am thread3...\n");
-    printf("I am going to sleep for 2 second...\n");
+    printf("I am going to sleep for 20 second...\n");
     printf("hu lu lu...\n");
-    minithread_sleep_with_timeout(2000);
+    minithread_sleep_with_timeout(20000);
     printf("fired at %ld ticks.\n", ticks);
     printf("thread3 woke up...\n");
 

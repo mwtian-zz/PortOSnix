@@ -87,36 +87,36 @@ network_printaddr(network_address_t addr) {
 }
 
 static int
-send_pkt(network_address_t dest_address, 
-	 int hdr_len, char* hdr, 
+send_pkt(network_address_t dest_address,
+	 int hdr_len, char* hdr,
 	 int data_len, char* data) {
   int cc;
   struct sockaddr_in sin;
   char* bufp;
   int sz, pktlen;
-  
+
   pktlen = hdr_len + data_len;
-  
+
   /* sanity checks */
   if (hdr_len < 0 || data_len < 0 || pktlen > MAX_NETWORK_PKT_SIZE)
     return 0;
-  
+
   /*
    * Pull up the headers and data and stuff them into the output
    * packet with the
    * field sizes embedded.
    */
-  
+
   bufp = if_info.pkt;
-  
+
   sz = hdr_len;
   memcpy(bufp, hdr, sz);
   bufp += sz;
-  
+
   sz = data_len;
   memcpy(bufp, data, sz);
   bufp += sz;
-  
+
   network_address_to_sockaddr(dest_address, &sin);
   cc = sendto(if_info.sock,
 	      if_info.pkt,
@@ -124,12 +124,12 @@ send_pkt(network_address_t dest_address,
 	      0,
 	      (struct sockaddr *) &sin,
 	      sizeof(sin));
-  
+
   return cc;
 }
 
-int 
-network_send_pkt(network_address_t dest_address, int hdr_len, 
+int
+network_send_pkt(network_address_t dest_address, int hdr_len,
 		 char* hdr, int data_len, char* data) {
 
   if (synthetic_network) {
@@ -174,10 +174,10 @@ network_translate_hostname(char* hostname, network_address_t address) {
 	  address[0] = iaddr;
 	  address[1] = (long) htons(other_udp_port);
 	  return 0;
-   }  
+   }
 }
 
-int 
+int
 network_compare_network_addresses(network_address_t addr1,
 				  network_address_t addr2){
   return (addr1[0]==addr2[0] && addr1[1]==addr2[1]);
@@ -197,12 +197,12 @@ network_address_to_sockaddr(network_address_t addr, struct sockaddr_in* sin) {
   sin->sin_family = SOCK_DGRAM;
 }
 
-int 
+int
 network_format_address(network_address_t address, char* string, int length) {
   struct in_addr ipaddr;
   char* textaddr;
   int addrlen;
-  
+
   ipaddr.s_addr = address[0];
   textaddr = inet_ntoa(ipaddr);
   addrlen = strlen(textaddr);
@@ -213,7 +213,7 @@ network_format_address(network_address_t address, char* string, int length) {
     sprintf(string+addrlen+1, "%d", ntohs((short) address[1]));
     return 0;
   }
-  else 
+  else
     return -1;
 }
 
@@ -225,7 +225,7 @@ network_udp_ports(short myportnum, short otherportnum) {
 
 void
 network_synthetic_params(double loss, double duplication) {
-  synthetic_network = 1;	
+  synthetic_network = 1;
   loss_rate = loss;
   duplication_rate = duplication;
 }
@@ -258,7 +258,7 @@ bcast_initialize(char* configfile, bcast_t* bcast) {
   }
 
   bcast->n_entries = i;
-  
+
 
   if (rv != NULL)
     for (i=0; i<bcast->n_entries; i++) {
@@ -274,7 +274,7 @@ bcast_initialize(char* configfile, bcast_t* bcast) {
 	else if (line[j] != '.') {
 	  bcast->entries[i].links[bcast->entries[i].n_links] = j;
 	  bcast->entries[i].n_links++;
-	}	  
+	}
     }
 
   fclose(config);
@@ -333,13 +333,13 @@ bcast_remove_link(bcast_t* bcast, char* src, char* dest) {
   for (i=0; i<bcast->entries[srcnum].n_links; i++)
     if (bcast->entries[srcnum].links[i] == destnum) {
       if (i < bcast->entries[srcnum].n_links-1) {
-	bcast->entries[srcnum].links[i] = 
+	bcast->entries[srcnum].links[i] =
 	  bcast->entries[srcnum].links[--bcast->entries[srcnum].n_links];
 	break;
       }
       else
 	bcast->entries[srcnum].n_links--;
-    }  
+    }
 }
 
 int
@@ -349,37 +349,37 @@ network_bcast_pkt(int hdr_len, char* hdr, int data_len, char* data) {
 
   AbortOnCondition(!BCAST_ENABLED,
 		   "Error: network broadcast not enabled.");
-  
+
   if (BCAST_USE_TOPOLOGY_FILE){
 
     me = topology.me;
-    
+
     for (i=0; i<topology.entries[me].n_links; i++) {
       int dest = topology.entries[me].links[i];
-      
+
       if (synthetic_network) {
 	if(genrand() < loss_rate)
 	  continue;
-	
+
 	if(genrand() < duplication_rate)
 	  send_pkt(topology.entries[dest].addr, hdr_len, hdr, data_len, data);
       }
-      
-      if (send_pkt(topology.entries[dest].addr, 
+
+      if (send_pkt(topology.entries[dest].addr,
 		   hdr_len, hdr, data_len, data) != hdr_len + data_len)
 	return -1;
     }
 
     if (BCAST_LOOPBACK) {
-      if (send_pkt(topology.entries[me].addr, 
+      if (send_pkt(topology.entries[me].addr,
 		   hdr_len, hdr, data_len, data) != hdr_len + data_len)
 	return -1;
     }
-  
+
   } else { /* real broadcast */
 
     /* send the packet using the private network broadcast address */
-    if (send_pkt(broadcast_addr, 
+    if (send_pkt(broadcast_addr,
 		 hdr_len, hdr, data_len, data) != hdr_len + data_len)
       return -1;
 
@@ -412,33 +412,33 @@ int network_poll(void* arg) {
     if (DEBUG)
       kprintf("NET:Allocating an incoming packet.\n");
 
-    packet = 
+    packet =
       (network_interrupt_arg_t *) malloc(sizeof(network_interrupt_arg_t));
     assert(packet != NULL);
-  
+
     packet->size = recvfrom(*s, packet->buffer, MAX_NETWORK_PKT_SIZE,
-			    0, (struct sockaddr *) &addr, &fromlen);
+			    0, (struct sockaddr *) &addr, (socklen_t*) &fromlen);
     if (packet->size <= 0) {
       kprintf("NET:Error, %d.\n", errno);
       AbortOnCondition(1,"Crashing.");
     }
     else if (DEBUG)
       kprintf("NET:Received a packet, seqno %ld.\n", ntohl(*((int *) packet->buffer)));
-   
+
     assert(fromlen == sizeof(struct sockaddr_in));
     sockaddr_to_network_address(&addr, packet->addr);
 
-    /* 
+    /*
      * now we have filled in the arg to the network interrupt service routine,
      * so we have to get the user's thread to run it.
      */
     if (DEBUG)
       kprintf("NET:packet arrived.\n");
     send_interrupt(NETWORK_INTERRUPT_TYPE, (void*)packet);
-  }	
+  }
 }
 
-/* 
+/*
  * start polling for network packets. this is separate so that clock interrupts
  * can be turned on without network interrupts. however, this function requires
  * that clock_init has been called!
@@ -461,7 +461,7 @@ void start_network_poll(interrupt_handler_t network_handler, int* s) {
       "pthread");
 
   sa.sa_handler = (void*)handle_interrupt;
-  sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK; 
+  sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
   sa.sa_sigaction= (void*)handle_interrupt;
   sigemptyset(&sa.sa_mask);
   sigaddset(&sa.sa_mask,SIGRTMAX-2);
@@ -480,7 +480,7 @@ network_initialize(interrupt_handler_t network_handler) {
   mini_network_handler=network_handler;
 
   memset(&if_info, 0, sizeof(if_info));
-  
+
   if_info.sock = socket(PF_INET, SOCK_DGRAM, 0);
   if (if_info.sock < 0)  {
     perror("socket");
@@ -490,7 +490,7 @@ network_initialize(interrupt_handler_t network_handler) {
   if_info.sin.sin_family = SOCK_DGRAM;
   if_info.sin.sin_addr.s_addr = htonl(0);
   if_info.sin.sin_port = htons(my_udp_port);
-  if (bind(if_info.sock, (struct sockaddr *) &if_info.sin, 
+  if (bind(if_info.sock, (struct sockaddr *) &if_info.sin,
 	   sizeof(if_info.sin)) < 0)  {
     /* kprintf("Error: code %ld.\n", GetLastError());*/
     AbortOnError(0);
@@ -499,7 +499,7 @@ network_initialize(interrupt_handler_t network_handler) {
   }
 
   /* set for fast reuse */
-  assert(setsockopt(if_info.sock, SOL_SOCKET, SO_REUSEADDR, 
+  assert(setsockopt(if_info.sock, SOL_SOCKET, SO_REUSEADDR,
 		    (char *) &arg, sizeof(int)) == 0);
 
   if (BCAST_ENABLED)
@@ -508,9 +508,9 @@ network_initialize(interrupt_handler_t network_handler) {
   /*
    * Interrupts are handled through the caller's handler.
    */
-  
+
   start_network_poll(network_handler, &if_info.sock);
-    
+
   return 0;
 }
 

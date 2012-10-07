@@ -14,6 +14,9 @@ int next_alarm_id = 0;
 /* Alarm queue */
 alarm_queue_t alarm_clock;
 
+/* Conversion from millisecond to period */
+static const int MS_TO_P = PERIOD / MILLISECOND;
+
 /*
  * insert alarm event into the alarm queue
  * returns an "alarm id", which is an integer that identifies the
@@ -62,7 +65,7 @@ alarm_create(int delay, void (*func)(void*), void *arg)
         return NULL;
     }
     alarm->alarm_id = next_alarm_id++;
-    alarm->time_to_fire = ticks + (delay * MILLISECOND / PERIOD);
+    alarm->time_to_fire = ticks + (delay / MS_TO_P);
     if (alarm->time_to_fire == ticks) {
         alarm->time_to_fire++; /* Avoid setting alarm to the current tick */
     }

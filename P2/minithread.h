@@ -2,7 +2,6 @@
 #define __MINITHREAD_H__
 
 #include "machineprimitives.h"
-#include "alarm_queue.h"
 
 /*
  * minithread.h:
@@ -14,8 +13,6 @@
  *	in the comments.  See minithread.c for prototypes.
  */
 
-/* Alarm queue */
-extern alarm_queue_t alarm_queue;  
 
 /*
  * struct minithread:
@@ -43,8 +40,6 @@ extern minithread_t minithread_fork(proc_t proc, arg_t arg);
  */
 extern minithread_t minithread_create(proc_t proc, arg_t arg);
 
-
-
 /*
  * minithread_t minithread_self():
  *	Return identity (minithread_t) of caller thread.
@@ -62,9 +57,10 @@ extern int minithread_id();
 
 /*
  * minithread_stop()
- *	Block the calling thread.
+ * DEPRECATED. Beginning from project 2, you should use minithread_unlock_and_stop() instead
+ * of this function.
  */
-extern void minithread_stop();
+ extern void minithread_stop();
 
 /*
  * minithread_start(minithread_t t)
@@ -88,20 +84,17 @@ extern void minithread_yield();
  */
 extern void minithread_system_initialize(proc_t mainproc, arg_t mainarg);
 
-/*
- * You do not need to implement the following procedure for part 1 of
- * the assignment.  It is required for the preemptive version of the
- * threads package a la part 2. */
-
-/*
+/* This is a new function to implement in project 2.
+ *
  * minithread_unlock_and_stop(tas_lock_t* lock)
  *	Atomically release the specified test-and-set lock and
  *	block the calling thread.
  */
 extern void minithread_unlock_and_stop(tas_lock_t* lock);
 
-/*
- * sleep with timeout in microseconds
+/* This is a new function to implement in project 2.
+ *
+ * sleep with timeout in milliseconds
  */
 extern void minithread_sleep_with_timeout(int delay);
 

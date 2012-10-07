@@ -2,14 +2,14 @@
 
 # You probably only need to modify the MAIN variable to build the desired file
 
-CC = gcc 
+CC = gcc
 
-CFLAGS = -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
+CFLAGS = -Wall -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
 LFLAGS = -lrt -lpthread
 
-OUTPUT = minithread 
+OUTPUT = minithread
 
-# change this to the name of the file you want to link with minithreads, 
+# change this to the name of the file you want to link with minithreads,
 # dropping the ".c": so to use "sieve.c", change to "MAIN = sieve".
 #
 # Note that you must write your own test programs.
@@ -17,22 +17,23 @@ OUTPUT = minithread
 MAIN = sieve
 
 OBJ = \
-	random.o \
-	minithread.o \
-	interrupts.o \
-	network.o \
-	machineprimitives_x86_64_asm.o \
-	machineprimitives_x86_64.o \
-	machineprimitives.o \
-	alarm.o \
-	queue.o \
-	minimsg.o \
-	miniheader.o \
-	multilevel_queue.o \
-	$(MAIN).o \
-	synch.o \
+    alarm.o \
+    alarm_queue.o \
+    interrupts.o \
+    machineprimitives_x86_64_asm.o \
+    machineprimitives_x86_64.o \
+    machineprimitives.o \
+    $(MAIN).o \
+    miniheader.o \
+    minimsg.o \
+    minithread.o \
+    multilevel_queue.o \
+    network.o \
+    queue.o \
+    random.o \
+    synch.o \
 
-all: minithread 
+all: minithread
 
 .c.obj:
 	$(CC) $(CFLAGS) $<
@@ -47,8 +48,7 @@ clean:
 	rm -f *.o
 	rm -f $(OUTPUT)
 
-#depend: 
-#	gcc -MM *.c 2>/dev/null | sed -e "s/\.o/.obj/" > depend
-
+depend:
+	gcc -MM *.c 2>/dev/null > Depend
 
 include Depend

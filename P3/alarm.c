@@ -62,7 +62,7 @@ alarm_create(int delay, void (*func)(void*), void *arg)
         return NULL;
     }
     alarm->alarm_id = next_alarm_id++;
-    alarm->time_to_fire = ticks + (delay * MILLISEC / PERIOD);
+    alarm->time_to_fire = ticks + (delay * MILLISECOND / PERIOD);
     if (alarm->time_to_fire == ticks) {
         alarm->time_to_fire++; /* Avoid setting alarm to the current tick */
     }

@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = alarm_test
+MAIN = preemptester
 
 OBJ = \
     alarm.o \

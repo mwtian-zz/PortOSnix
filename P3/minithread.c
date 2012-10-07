@@ -30,9 +30,9 @@
  */
 
 /* Number of threads */
-static unsigned int count;
+static unsigned int thd_count;
 /* Next thread id */
-static unsigned int tidcount;
+static unsigned int tid_count;
 /* Pointer to the tcb of running thread */
 static minithread_t context;
 /* Pointer to the ready queue */
@@ -113,16 +113,16 @@ minithread_create(proc_t proc, arg_t arg)
     t->priority = 0;
 
     semaphore_P(id_mutex);
-    t->id = tidcount;
-    ++tidcount;
-    ++count;
+    t->id = tid_count;
+    ++tid_count;
+    ++thd_count;
     semaphore_V(id_mutex);
 
     return t;
 }
 
 /*
- * Release memory of exited threads.
+ * Thread to release memory of exited threads.
  */
 static int
 minithread_cleanup(arg_t arg)
@@ -131,7 +131,7 @@ minithread_cleanup(arg_t arg)
     while (1) {
         semaphore_P(exit_count);
         semaphore_P(id_mutex);
-        --(count);
+        --thd_count;
         semaphore_V(id_mutex);
         semaphore_P(exit_mutex);
         queue_dequeue(exited, (void**) &t);
@@ -316,7 +316,7 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
     if (alarm_initialize() == -1) {
         exit(-1);
     }
-    if (NULL == minithread_fork(mainproc, mainarg)) {
+    if (minithread_fork(mainproc, mainarg) == NULL) {
         exit(-1);
     }
     /* clock must be the last to start */
@@ -333,16 +333,16 @@ static int
 minithread_initialize_thread_monitor()
 {
     int i;
-    count = 1;
-    tidcount = 0;
+    thd_count = 1;
+    tid_count = 1;
     quanta_lim[0] = 1;
     for (i = 1; i <= MAX_PRIORITY; ++i)
         quanta_lim[i] = 2 * quanta_lim[i - 1];
-    context = idle_thread;
     ready = multilevel_queue_new(MAX_PRIORITY + 1);
     exited = queue_new();
     if (NULL == ready || NULL == exited)
         return -1;
+    context = idle_thread;
     return 0;
 }
 
@@ -353,8 +353,11 @@ minithread_initialize_systhreads()
         return -1;
     if (NULL == idle_thread)
         return -1;
+    idle_thread->id = 0;
     idle_thread->status = RUNNING;
     idle_thread->priority = MAX_PRIORITY;
+    if ((idle_thread->sleep_sem = semaphore_create()) == NULL)
+        return -1;
     return 0;
 }
 

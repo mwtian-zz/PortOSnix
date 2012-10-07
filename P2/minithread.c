@@ -159,8 +159,8 @@ minithread_start(minithread_t t)
 }
 
 /*
- * The calling thread should be placed on the appropriate wait queue
- * before calling minithread_stop().
+ * DEPRECATED. Beginning from project 2, you should use
+ * minithread_unlock_and_stop() instead of this function.
  */
 void
 minithread_stop()
@@ -297,7 +297,7 @@ minithread_id()
  *
  *     Initialize any private data structures.
  *      Create the idle thread.
- *       Fork the thread which should call mainproc(mainarg)
+ *      Fork the thread which should call mainproc(mainarg)
  *      Start scheduling.
  *
  */
@@ -384,11 +384,10 @@ minithread_initialize_sem()
     return 0;
 }
 
-
 /*
  * minithread_unlock_and_stop(tas_lock_t* lock)
- *	Atomically release the specified test-and-set lock and
- *	block the calling thread.
+ *  Atomically release the specified test-and-set lock and
+ *  block the calling thread.
  */
 void
 minithread_unlock_and_stop(tas_lock_t* lock)

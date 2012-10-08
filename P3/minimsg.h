@@ -9,15 +9,16 @@
  */
 #include "network.h"
 
-/* 
+/*
  *   somewhat arbitrary, but must be <= MAX_NETWORK_PKT_SIZE - NETWORK_HDR_SIZE
- */   
+ */
 #define MINIMSG_MAX_MSG_SIZE (4096)
 
 typedef struct miniport* miniport_t;
 typedef char* minimsg_t;
 
-/* performs any required initialization of the minimsg layer.
+/*
+ * performs any required initialization of the minimsg layer.
  */
 extern void minimsg_initialize();
 

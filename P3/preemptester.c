@@ -34,7 +34,6 @@ main (void)
 int
 testthread(int* arg)
 {
-    minithread_t thrdid1;//, thrdid2;
     int i;
     temp = 0;
     temp2 = 1;
@@ -48,7 +47,7 @@ testthread(int* arg)
 
         for(i = 1; i <= N-1; i++) {
             id[i] = i;
-            thrdid1 = minithread_fork(thread1, &(id[i]));
+            minithread_fork(thread1, &(id[i]));
         }
         thread1(&(id[0]));
         if (temp >= N*3)
@@ -80,14 +79,12 @@ long mytime()
 {
     long i = ((long) clock() / (CLOCKS_PER_SEC / 1000));
     return i;
-
 }
 
 // wait for timeout millisecs
 void wait(long timeout)
 {
     long now = mytime();
-
     while(now+timeout > mytime())
         ;
 }

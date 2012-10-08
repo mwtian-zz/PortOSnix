@@ -12,6 +12,8 @@
 #include <assert.h>
 #include "alarm.h"
 #include "interrupts.h"
+#include "minimsg.h"
+#include "network.h"
 #include "queue.h"
 #include "synch.h"
 #include "minithread.h"
@@ -69,11 +71,12 @@ static void minithread_schedule();
 static minithread_t minithread_picknew();
 static int minithread_exit(arg_t arg);
 static int minithread_cleanup();
-static int minithread_initialize_thread_monitor();
-static int minithread_initialize_systhreads();
-static int minithread_initialize_clock();
-static int minithread_initialize_sem();
-static void clock_handler();
+static int minithread_initialize_scheduler();
+static int minithread_initialize_sys_threads();
+static int minithread_initialize_interrupts();
+static int minithread_initialize_sys_sems();
+static void clock_handler(void* arg);
+static void network_handler(void* arg);
 
 /* minithread functions */
 
@@ -304,23 +307,19 @@ minithread_id()
 void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg)
 {
-    if (minithread_initialize_thread_monitor() == -1) {
+    if (minithread_initialize_scheduler() == -1) {
         exit(-1);
     }
-    if (minithread_initialize_sem() == -1) {
+    if (minithread_initialize_sys_sems() == -1) {
         exit(-1);
     }
-    if (minithread_initialize_systhreads() == -1) {
+    if (minithread_initialize_sys_threads() == -1) {
         exit(-1);
     }
-    if (alarm_initialize() == -1) {
+    if (minithread_initialize_interrupts() == -1) {
         exit(-1);
     }
     if (minithread_fork(mainproc, mainarg) == NULL) {
-        exit(-1);
-    }
-    /* clock must be the last to start */
-    if (minithread_initialize_clock() == -1) {
         exit(-1);
     }
     minithread_yield();
@@ -330,7 +329,7 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
 }
 
 static int
-minithread_initialize_thread_monitor()
+minithread_initialize_scheduler()
 {
     int i;
     thd_count = 1;
@@ -347,7 +346,7 @@ minithread_initialize_thread_monitor()
 }
 
 static int
-minithread_initialize_systhreads()
+minithread_initialize_sys_threads()
 {
     if (NULL == minithread_fork(minithread_cleanup, NULL))
         return -1;
@@ -361,20 +360,9 @@ minithread_initialize_systhreads()
     return 0;
 }
 
+/* Initialize system semaphores */
 static int
-minithread_initialize_clock()
-{
-    ticks = 0;
-    expire = -1;
-    set_interrupt_level(DISABLED);
-    minithread_clock_init(clock_handler);
-    set_interrupt_level(ENABLED);
-    return 0;
-}
-
-/* Initialize semaphores */
-static int
-minithread_initialize_sem()
+minithread_initialize_sys_sems()
 {
     exit_count = semaphore_create();
     exit_mutex = semaphore_create();
@@ -384,6 +372,20 @@ minithread_initialize_sem()
     semaphore_initialize(exit_count, 0);
     semaphore_initialize(exit_mutex, 1);
     semaphore_initialize(id_mutex, 1);
+    return 0;
+}
+
+static int
+minithread_initialize_interrupts()
+{
+    ticks = 0;
+    expire = -1;
+    set_interrupt_level(DISABLED);
+    if (alarm_initialize() == -1)
+        return -1;
+    minithread_clock_init(clock_handler);
+    network_initialize(network_handler);
+    set_interrupt_level(ENABLED);
     return 0;
 }
 
@@ -437,5 +439,12 @@ clock_handler(void* arg)
         alarm_signal();
     if (ticks >= expire)
         minithread_yield();
+    set_interrupt_level(oldlevel);
+}
+
+void
+network_handler(void* arg)
+{
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     set_interrupt_level(oldlevel);
 }

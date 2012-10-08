@@ -1,7 +1,7 @@
 /* network test program 2
 
    local loopback test: spawns two threads, one of which sends a stream of messages and exits, the
-   other of which calls receive the same number of times. 
+   other of which calls receive the same number of times.
 
    USAGE: ./minithread <port>
 
@@ -20,7 +20,7 @@
 #define BUFFER_SIZE 256
 #define MAX_COUNT 100
 
-miniport_t port;
+static miniport_t port;
 
 int receive(int* arg) {
   char buffer[BUFFER_SIZE];
@@ -45,7 +45,7 @@ int transmit(int* arg) {
   minithread_t receiver;
   miniport_t write_port;
   network_address_t my_address;
-  
+
   network_get_my_address(&my_address);
   port = miniport_create_unbound(0);
   write_port = miniport_create_bound(my_address, 0);
@@ -65,6 +65,6 @@ int transmit(int* arg) {
 main(int argc, char** argv) {
   short fromport;
   fromport = atoi(argv[1]);
-  network_udp_ports(fromport,fromport); 
+  network_udp_ports(fromport,fromport);
   minithread_system_initialize(transmit, NULL);
 }

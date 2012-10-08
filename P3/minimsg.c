@@ -2,11 +2,32 @@
  *	Implementation of minimsgs and miniports.
  */
 #include "minimsg.h"
-
-struct miniport
-{
-	int dummy; /* you should erase this field and replace it with your definition */
+#include "synch.h"
+#include "queue.h"
+struct miniport {
+    enum port_type {
+        UNBOUND,
+        BOUND
+    } type_of_port;
+    int port_number;
+    union {
+        struct {
+            queue_t data;
+            semaphore_t mutex_lock;
+            semaphore_t datagrams_ready;
+        } unbound;
+        struct {
+            network_address_t addr;
+            int remote_port;
+        } bound;
+    };
 };
+
+#define MIN_UNBOUNDED 0
+#define MAX_UNBOUNDED 32767
+#define MIN_BOUNDED 32768
+#define MAX_BOUNDED 65535
+static miniport_t port[MAX_BOUNDED - MIN_UNBOUNDED + 1];
 
 /* performs any required initialization of the minimsg layer.
  */
@@ -24,7 +45,7 @@ void minimsg_initialize()
  */
 miniport_t miniport_create_unbound(int port_number)
 {
-
+    return port[port_number];
 }
 
 /* Creates a bound port for use in sending packets. The two parameters, addr and
@@ -37,7 +58,7 @@ miniport_t miniport_create_unbound(int port_number)
  */
 miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
 {
-
+    return port[remote_unbound_port_number];
 }
 
 /* Destroys a miniport and frees up its resources. If the miniport was in use at
@@ -59,7 +80,7 @@ void miniport_destroy(miniport_t miniport)
  */
 int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len)
 {
-
+    return 0;
 }
 
 /* Receives a message through a locally unbound port. Threads that call this function are
@@ -72,5 +93,6 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
  */
 int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, minimsg_t msg, int *len)
 {
-
+    return 0;
 }
+

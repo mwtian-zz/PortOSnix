@@ -29,7 +29,7 @@
 
 #define AbortOnError(fctcall) \
    if (fctcall == 0) {\
-    printf("Error: file %s line %d: code %ld.\n", __FILE__, __LINE__, errno);\
+    printf("Error: file %s line %d: code %d.\n", __FILE__, __LINE__, errno);\
     exit(EXIT_FAILURE);\
   }
 

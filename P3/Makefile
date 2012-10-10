@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = preemptester
+MAIN = network4_modified
 
 OBJ = \
     alarm.o \

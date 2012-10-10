@@ -16,10 +16,13 @@ machineprimitives_x86_64.o: machineprimitives_x86_64.c defs.h \
  machineprimitives.h interrupts_private.h interrupts.h
 miniheader.o: miniheader.c miniheader.h network.h interrupts_private.h \
  interrupts.h defs.h
-minimsg.o: minimsg.c minimsg.h network.h interrupts_private.h \
- interrupts.h defs.h
-minithread.o: minithread.c alarm.h interrupts.h defs.h queue.h synch.h \
- minithread.h machineprimitives.h minithread_private.h queue_private.h \
+minimsg.o: minimsg.c synch.h queue.h queue_private.h miniheader.h \
+ network.h interrupts_private.h interrupts.h defs.h minimsg.h
+minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
+ interrupts_private.h interrupts.h defs.h synch.h queue.h
+minithread.o: minithread.c alarm.h interrupts.h defs.h minimsg.h \
+ network.h interrupts_private.h miniheader.h queue.h synch.h minithread.h \
+ machineprimitives.h minithread_private.h queue_private.h \
  multilevel_queue.h
 multilevel_queue.o: multilevel_queue.c queue.h multilevel_queue.h \
  multilevel_queue_private.h
@@ -29,12 +32,23 @@ network.o: network.c defs.h network.h interrupts_private.h interrupts.h \
  minithread.h machineprimitives.h random.h
 network1.o: network1.c minithread.h machineprimitives.h defs.h minimsg.h \
  network.h interrupts_private.h interrupts.h synch.h
+network1_modified.o: network1_modified.c minithread.h machineprimitives.h \
+ defs.h minimsg.h network.h interrupts_private.h interrupts.h synch.h
 network2.o: network2.c defs.h minithread.h machineprimitives.h minimsg.h \
  network.h interrupts_private.h interrupts.h synch.h
+network2_modified.o: network2_modified.c defs.h minithread.h \
+ machineprimitives.h minimsg.h network.h interrupts_private.h \
+ interrupts.h synch.h
 network3.o: network3.c defs.h minithread.h machineprimitives.h minimsg.h \
  network.h interrupts_private.h interrupts.h synch.h
+network3_modified.o: network3_modified.c defs.h minithread.h \
+ machineprimitives.h minimsg.h network.h interrupts_private.h \
+ interrupts.h synch.h
 network4.o: network4.c defs.h minithread.h machineprimitives.h minimsg.h \
  network.h interrupts_private.h interrupts.h synch.h
+network4_modified.o: network4_modified.c defs.h minithread.h \
+ machineprimitives.h minimsg.h network.h interrupts_private.h \
+ interrupts.h synch.h
 network5.o: network5.c defs.h minithread.h machineprimitives.h minimsg.h \
  network.h interrupts_private.h interrupts.h synch.h
 network6.o: network6.c defs.h minithread.h machineprimitives.h minimsg.h \

@@ -74,8 +74,8 @@ int
 network_initialize(interrupt_handler_t network_handler);
 
 /*
- * network_send_pkt returns the number of bytes sent if it was able to
- * successfully send the data.  Returns -1 otherwise.
+ * network_send_pkt returns the number of bytes sent (header + data, or less)
+ * if it was able to successfully send the data.  Returns -1 otherwise.
  */
 int
 network_send_pkt(network_address_t dest_address,

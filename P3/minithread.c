@@ -13,6 +13,7 @@
 #include "alarm.h"
 #include "interrupts.h"
 #include "minimsg.h"
+#include "miniheader.h"
 #include "network.h"
 #include "queue.h"
 #include "synch.h"
@@ -445,6 +446,10 @@ clock_handler(void* arg)
 void
 network_handler(void* arg)
 {
+    network_interrupt_arg_t *intrpt = arg;
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+    if (PROTOCOL_MINIDATAGRAM == intrpt->buffer[0]) {
+        minimsg_enqueue(intrpt);
+    }
     set_interrupt_level(oldlevel);
 }

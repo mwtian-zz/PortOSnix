@@ -10,7 +10,7 @@
 #include "synch.h"
 
 /* Maximium priority level. Minimum is 0. */
-#define MAX_PRIORITY 3
+#define MAX_SCHED_PRIORITY 3
 
 /*
  * Define constants for thread status.

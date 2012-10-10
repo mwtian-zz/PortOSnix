@@ -45,7 +45,7 @@ static queue_t exited;
 /* Time when current running thread is scheduled to be switch out */
 static long expire;
 /* The quanta limit for each priority level */
-static int quanta_lim[MAX_PRIORITY + 1];
+static int quanta_lim[MAX_SCHED_PRIORITY + 1];
 /* Semaphore for counting exited threads */
 static semaphore_t exit_count;
 /* Semaphore for atomically operating on the exited queue */
@@ -210,7 +210,7 @@ minithread_yield()
     t->status = READY;
     /* Reduce its privilige if t runs out of quanta */
     if (ticks >= expire)
-        if (t->priority < MAX_PRIORITY)
+        if (t->priority < MAX_SCHED_PRIORITY)
             ++t->priority;
     if (t != idle_thread)
         multilevel_queue_enqueue(ready, t->priority, t);
@@ -250,7 +250,7 @@ minithread_schedule()
  * Return idle_thread if there is no other thread to run.
  * Set up the new thread with its expiration time, status and context pointer.
  */
-static inline minithread_t
+static minithread_t
 minithread_picknew()
 {
     minithread_t t;
@@ -336,9 +336,9 @@ minithread_initialize_scheduler()
     thd_count = 1;
     tid_count = 1;
     quanta_lim[0] = 1;
-    for (i = 1; i <= MAX_PRIORITY; ++i)
+    for (i = 1; i <= MAX_SCHED_PRIORITY; ++i)
         quanta_lim[i] = 2 * quanta_lim[i - 1];
-    ready = multilevel_queue_new(MAX_PRIORITY + 1);
+    ready = multilevel_queue_new(MAX_SCHED_PRIORITY + 1);
     exited = queue_new();
     if (NULL == ready || NULL == exited)
         return -1;
@@ -355,7 +355,7 @@ minithread_initialize_sys_threads()
         return -1;
     idle_thread->id = 0;
     idle_thread->status = RUNNING;
-    idle_thread->priority = MAX_PRIORITY;
+    idle_thread->priority = MAX_SCHED_PRIORITY;
     if ((idle_thread->sleep_sem = semaphore_create()) == NULL)
         return -1;
     return 0;

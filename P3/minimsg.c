@@ -6,39 +6,13 @@
 #include "synch.h"
 #include "queue.h"
 #include "queue_private.h"
+#include "network.h"
 #include "miniheader.h"
 #include "minimsg.h"
+#include "minimsg_private.h"
 #include "interrupts.h"
 
-struct miniport {
-    enum port_type {
-        UNBOUNDED,
-        BOUNDED
-    } type;
-    int num;
-    union {
-        struct {
-            queue_t data;
-            semaphore_t mutex;
-            semaphore_t ready;
-        } unbound;
-        struct {
-            network_address_t addr;
-            int remote;
-        } bound;
-    };
-};
-
-struct msg_node {
-    struct node node;
-    network_interrupt_arg_t *intrpt;
-};
-
-#define MIN_UNBOUNDED 0
-#define MAX_UNBOUNDED 32767
-#define MIN_BOUNDED 32768
-#define MAX_BOUNDED 65535
-#define NUM_PORTTYPE 32768
+/* File scope variables */
 static miniport_t port[MAX_BOUNDED - MIN_UNBOUNDED + 1];
 static int bound_count = 0;
 static char bound_wrap = 0;
@@ -238,6 +212,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
     *new_local_bound_port = port;
 
     memcpy(msg, &intrpt->buffer[hdrlen], *len);
+    free(intrpt);
 
     return *len;
 }
@@ -248,21 +223,25 @@ minimsg_enqueue(network_interrupt_arg_t *intrpt)
     int port_num;
     struct msg_node *mnode = malloc(sizeof(struct msg_node));
     if (mnode == NULL)
-        return -1;
+        goto err1;
     mnode->intrpt = intrpt;
 
     if (intrpt->size < hdrlen)
-        return -1;
+        goto err2;
     port_num = unpack_unsigned_short(&intrpt->buffer[19]);
     if (NULL == port[port_num] || BOUNDED == port[port_num]->type)
-        return -1;
+        goto err2;
 
     if (queue_append(port[port_num]->unbound.data, mnode) == 0) {
         semaphore_V(port[port_num]->unbound.ready);
         return 0;
-    } else {
-        return -1;
     }
+
+err1:
+    free(mnode);
+err2:
+    free(intrpt);
+    return -1;
 }
 
 static int

@@ -129,7 +129,12 @@ send_pkt(network_address_t dest_address,
                 0,
                 (struct sockaddr *) &sin,
                 sizeof(sin));
-
+/*
+perror("sendto: ");
+network_printaddr(dest_address);
+printf("\n");
+printf("%d %d 0 %p %ld\n", if_info.sock, pktlen, (void*) &sin, sizeof(sin));
+*/
     return cc;
 }
 

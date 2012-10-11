@@ -145,6 +145,7 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
 {
     struct mini_header hdr;
     network_address_t dest;
+
     if (NULL == local_unbound_port || NULL == local_bound_port
             || NULL == msg || len < 0)
         return -1;
@@ -188,6 +189,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
     network_address_t dest_addr;
     unsigned short dest_port;
     interrupt_level_t oldlevel;
+
     if (NULL == local_unbound_port || NULL == new_local_bound_port
             || NULL == len || BOUNDED == local_unbound_port->type)
         return -1;
@@ -206,6 +208,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
 
     unpack_address(&intrpt->buffer[1], dest_addr);
     dest_port = unpack_unsigned_short(&intrpt->buffer[9]);
+
     port = miniport_create_bound(dest_addr, dest_port);
     if (NULL == port)
         return -1;

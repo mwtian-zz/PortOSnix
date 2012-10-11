@@ -317,12 +317,15 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
     if (minithread_initialize_sys_threads() == -1) {
         exit(-1);
     }
-    if (minithread_initialize_interrupts() == -1) {
-        exit(-1);
-    }
     if (minithread_fork(mainproc, mainarg) == NULL) {
         exit(-1);
     }
+    minimsg_initialize();
+
+    if (minithread_initialize_interrupts() == -1) {
+        exit(-1);
+    }
+
     minithread_yield();
     /* Idle loop */
     while (1)

@@ -31,7 +31,7 @@ int receive_first(int* arg)
 {
     char buffer[BUFFER_SIZE];
     int length;
-    int i;
+    int i, err;
     miniport_t port;
     miniport_t from;
 
@@ -44,7 +44,8 @@ int receive_first(int* arg)
         printf("Sending packet %d.\n", i+1);
         sprintf(buffer, "Received packet %d.\n", i+1);
         length = strlen(buffer) + 1;
-        minimsg_send(port, from, buffer, length);
+        if ((err = minimsg_send(port, from, buffer, length)) == -1)
+            printf("Error on minimsg_send: %d\n", err);
         miniport_destroy(from);
     }
 
@@ -71,7 +72,8 @@ int transmit_first(int* arg)
         printf("Sending packet %d.\n", i+1);
         sprintf(buffer, "Received packet %d.\n", i+1);
         length = strlen(buffer) + 1;
-        minimsg_send(port, dest, buffer, length);
+        if (minimsg_send(port, dest, buffer, length) == -1)
+            printf("Error on minimsg_send\n");
         length = BUFFER_SIZE;
         minimsg_receive(port, &from, buffer, &length);
         printf("%s", buffer);

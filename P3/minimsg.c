@@ -140,20 +140,35 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
 {
     struct mini_header hdr;
     network_address_t dest;
-
+	int total_sent = 0, times, i, val;
+	int to_send = len;
+	
     if (NULL == local_unbound_port || NULL == local_bound_port
             || NULL == msg || len < 0)
         return -1;
 
     minimsg_packhdr(&hdr, local_unbound_port, local_bound_port);
     network_address_copy(local_bound_port->bound.addr, dest);
-    if (len > MINIMSG_MAX_MSG_SIZE)
-        len = MINIMSG_MAX_MSG_SIZE;
-
-    if (network_send_pkt(dest, HEADER_LENGTH, (char*) &hdr, len, msg) != -1)
-        return len;
-    else
-        return -1;
+	
+	/*
+	 * Send (len / MINIMSG_MAX_MSG_SIZE) + 1 times 
+	 * If any send fail, then fail
+	 */
+	times = (len / MINIMSG_MAX_MSG_SIZE) + 1;
+	for (i = 0; i < times; i++) {
+		if (to_send >= MINIMSG_MAX_MSG_SIZE) {
+			to_send = MINIMSG_MAX_MSG_SIZE;
+		}
+		val = network_send_pkt(dest, HEADER_LENGTH, (char*)&hdr, to_send, msg + total_sent);
+		if (val == -1) {
+			return -1;
+		} else {
+			total_sent += val;
+			to_send = len - total_sent;
+		}
+	}
+	
+	return total_sent;
 }
 
 /* Pack header using the local receiving and sending ports. */

@@ -198,7 +198,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
     if (intrpt->size < HEADER_LENGTH)
         return -1;
     *len = intrpt->size - HEADER_LENGTH;
-    header = intrpt->buffer;
+    header = (mini_header_t) intrpt->buffer;
 
     unpack_address(header->source_address, dest_addr);
     dest_port = unpack_unsigned_short(header->source_port);
@@ -218,25 +218,25 @@ int
 minimsg_enqueue(network_interrupt_arg_t *intrpt)
 {
     int port_num;
+    mini_header_t header = (mini_header_t) intrpt->buffer;
     struct msg_node *mnode = malloc(sizeof(struct msg_node));
-    if (mnode == NULL)
-        goto err2;
-
-    mnode->intrpt = intrpt;
-    port_num = unpack_unsigned_short(&intrpt->buffer[19]);
-    if (NULL == port[port_num] || BOUNDED == port[port_num]->type)
-        goto err1;
-
-    if (queue_append(port[port_num]->unbound.data, mnode) == 0) {
-        semaphore_V(port[port_num]->unbound.ready);
-        return 0;
+    if (mnode == NULL) {
+        free(intrpt);
+        return -1;
     }
 
-err1:
-    free(mnode);
-err2:
-    free(intrpt);
-    return -1;
+    mnode->intrpt = intrpt;
+    port_num = unpack_unsigned_short(header->destination_port);
+    if (port_num < MIN_UNBOUNDED || port_num > MAX_UNBOUNDED
+            || NULL == port[port_num]
+            || queue_append(port[port_num]->unbound.data, mnode) != 0) {
+        free(mnode);
+        free(intrpt);
+        return -1;
+    }
+
+    semaphore_V(port[port_num]->unbound.ready);
+    return 0;
 }
 
 static int

@@ -40,7 +40,7 @@ testthread(int* arg)
     timeout = 1000;
 
     for (N = 2; N <= 50; N *= 5) {
-        printf("%d threads Test...\n", N);
+        printf("%d threads Test...", N);
         strt = mytime();
         timeout *= 3;
         id[0] = 0;

@@ -20,7 +20,6 @@ struct miniport {
     union {
         struct {
             queue_t data;
-            semaphore_t mutex;
             semaphore_t ready;
         } unbound;
         struct {

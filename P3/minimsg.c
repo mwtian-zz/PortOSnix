@@ -17,7 +17,6 @@ static miniport_t port[MAX_BOUNDED - MIN_UNBOUNDED + 1];
 static int bound_count = 0;
 static char bound_wrap = 0;
 static network_address_t hostaddr;
-static const int hdrlen = 21;
 
 /* File scope helper functions */
 static int
@@ -52,15 +51,12 @@ miniport_create_unbound(int port_number)
         port[port_number]->type = UNBOUNDED;
         port[port_number]->num = port_number;
         port[port_number]->unbound.data = queue_new();
-        port[port_number]->unbound.mutex = semaphore_create();
         port[port_number]->unbound.ready = semaphore_create();
         if (NULL == port[port_number]->unbound.data
-                || NULL == port[port_number]->unbound.mutex
                 || NULL == port[port_number]->unbound.ready) {
             miniport_destroy(port[port_number]);
             return NULL;
         }
-        semaphore_initialize(port[port_number]->unbound.mutex, 1);
         semaphore_initialize(port[port_number]->unbound.ready, 0);
     }
     return port[port_number];
@@ -123,7 +119,6 @@ miniport_destroy(miniport_t miniport)
         return;
     if (UNBOUNDED == miniport->type) {
         queue_free(miniport->unbound.data);
-        semaphore_destroy(miniport->unbound.mutex);
         semaphore_destroy(miniport->unbound.ready);
     }
     port[miniport->num] = NULL;
@@ -155,7 +150,7 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
     if (len > MINIMSG_MAX_MSG_SIZE)
         len = MINIMSG_MAX_MSG_SIZE;
 
-    if (network_send_pkt(dest, hdrlen, (char*) &hdr, len, msg) != -1)
+    if (network_send_pkt(dest, HEADER_LENGTH, (char*) &hdr, len, msg) != -1)
         return len;
     else
         return -1;
@@ -187,6 +182,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
     miniport_t port;
     network_interrupt_arg_t *intrpt;
     network_address_t dest_addr;
+    mini_header_t header;
     unsigned short dest_port;
     interrupt_level_t oldlevel;
 
@@ -196,25 +192,23 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
 
     oldlevel = set_interrupt_level(DISABLED);
     semaphore_P(local_unbound_port->unbound.ready);
+    minimsg_dequeue(local_unbound_port->unbound.data, &intrpt);
     set_interrupt_level(oldlevel);
 
-    semaphore_P(local_unbound_port->unbound.mutex);
-    minimsg_dequeue(local_unbound_port->unbound.data, &intrpt);
-    semaphore_V(local_unbound_port->unbound.mutex);
-
-    if (intrpt->size < hdrlen)
+    if (intrpt->size < HEADER_LENGTH)
         return -1;
-    *len = intrpt->size - hdrlen;
+    *len = intrpt->size - HEADER_LENGTH;
+    header = intrpt->buffer;
 
-    unpack_address(&intrpt->buffer[1], dest_addr);
-    dest_port = unpack_unsigned_short(&intrpt->buffer[9]);
+    unpack_address(header->source_address, dest_addr);
+    dest_port = unpack_unsigned_short(header->source_port);
 
     port = miniport_create_bound(dest_addr, dest_port);
     if (NULL == port)
         return -1;
     *new_local_bound_port = port;
 
-    memcpy(msg, &intrpt->buffer[hdrlen], *len);
+    memcpy(msg, &intrpt->buffer[HEADER_LENGTH], *len);
     free(intrpt);
 
     return *len;
@@ -226,14 +220,12 @@ minimsg_enqueue(network_interrupt_arg_t *intrpt)
     int port_num;
     struct msg_node *mnode = malloc(sizeof(struct msg_node));
     if (mnode == NULL)
-        goto err1;
-    mnode->intrpt = intrpt;
-
-    if (intrpt->size < hdrlen)
         goto err2;
+
+    mnode->intrpt = intrpt;
     port_num = unpack_unsigned_short(&intrpt->buffer[19]);
     if (NULL == port[port_num] || BOUNDED == port[port_num]->type)
-        goto err2;
+        goto err1;
 
     if (queue_append(port[port_num]->unbound.data, mnode) == 0) {
         semaphore_V(port[port_num]->unbound.ready);

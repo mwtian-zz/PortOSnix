@@ -125,7 +125,8 @@ miniport_destroy(miniport_t miniport)
     free(miniport);
 }
 
-/* Sends a message through a locally bound port (the bound port already has an associated
+/*
+ * Sends a message through a locally bound port (the bound port already has an associated
  * receiver address so it is sufficient to just supply the bound port number). In order
  * for the remote system to correctly create a bound port for replies back to the sending
  * system, it needs to know the sender's listening port (specified by local_unbound_port).
@@ -133,6 +134,7 @@ miniport_destroy(miniport_t miniport)
  * include a network header; your implementation of minimsg_send must construct the header
  * before calling network_send_pkt(). The return value of this function is the number of
  * data payload bytes sent not inclusive of the header.
+ * Return -1 if len is larger then the maximum package size.
  */
 int
 minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
@@ -140,35 +142,20 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
 {
     struct mini_header hdr;
     network_address_t dest;
-	int total_sent = 0, times, i, val;
-	int to_send = len;
-	
+	int sent;
+
     if (NULL == local_unbound_port || NULL == local_bound_port
-            || NULL == msg || len < 0)
+            || NULL == msg || len < 0 || len > MINIMSG_MAX_MSG_SIZE)
         return -1;
 
     minimsg_packhdr(&hdr, local_unbound_port, local_bound_port);
     network_address_copy(local_bound_port->bound.addr, dest);
-	
-	/*
-	 * Send (len / MINIMSG_MAX_MSG_SIZE) + 1 times 
-	 * If any send fail, then fail
-	 */
-	times = (len / MINIMSG_MAX_MSG_SIZE) + 1;
-	for (i = 0; i < times; i++) {
-		if (to_send >= MINIMSG_MAX_MSG_SIZE) {
-			to_send = MINIMSG_MAX_MSG_SIZE;
-		}
-		val = network_send_pkt(dest, HEADER_LENGTH, (char*)&hdr, to_send, msg + total_sent);
-		if (val == -1) {
-			return -1;
-		} else {
-			total_sent += val;
-			to_send = len - total_sent;
-		}
-	}
-	
-	return total_sent;
+    sent = network_send_pkt(dest, HEADER_LENGTH, (char*)&hdr, len, msg);
+
+	if (-1 == sent)
+        return -1;
+
+	return sent - HEADER_LENGTH;
 }
 
 /* Pack header using the local receiving and sending ports. */

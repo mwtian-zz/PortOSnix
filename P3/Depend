@@ -56,7 +56,9 @@ network6.o: network6.c defs.h minithread.h machineprimitives.h minimsg.h \
 network6_mod.o: network6_mod.c defs.h minithread.h machineprimitives.h \
  minimsg.h network.h interrupts_private.h interrupts.h synch.h
 pid_random.o: pid_random.c pid_random.h random.h
-preempttester_mod.o: preempttester_mod.c minithread.h machineprimitives.h \
+preemptester.o: preemptester.c minithread.h machineprimitives.h defs.h \
+ synch.h
+preemptester_mod.o: preemptester_mod.c minithread.h machineprimitives.h \
  defs.h synch.h
 queue.o: queue.c queue.h queue_private.h
 queue_test.o: queue_test.c queue.h

@@ -31,7 +31,7 @@ int thread(int* arg) {
   miniport_t from;
   network_address_t my_address;
 
-  network_get_my_address(&my_address);
+  network_get_my_address(my_address);
   listen_port = miniport_create_unbound(0);
   send_port = miniport_create_bound(my_address, 0);
 

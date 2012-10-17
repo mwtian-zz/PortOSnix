@@ -152,10 +152,7 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
     network_address_copy(local_bound_port->bound.addr, dest);
     sent = network_send_pkt(dest, HEADER_LENGTH, (char*)&hdr, len, msg);
 
-	if (-1 == sent)
-        return -1;
-
-	return (sent - HEADER_LENGTH);
+	return sent - HEADER_LENGTH < 0 ? -1 : sent - HEADER_LENGTH;
 }
 
 /*

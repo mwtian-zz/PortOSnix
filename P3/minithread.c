@@ -320,13 +320,12 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
     if (minithread_fork(mainproc, mainarg) == NULL) {
         exit(-1);
     }
-    minimsg_initialize();
-
     if (minithread_initialize_interrupts() == -1) {
         exit(-1);
     }
 
     minithread_yield();
+
     /* Idle loop */
     while (1)
         ;
@@ -364,7 +363,6 @@ minithread_initialize_sys_threads()
     return 0;
 }
 
-/* Initialize system semaphores */
 static int
 minithread_initialize_sys_sems()
 {
@@ -389,6 +387,7 @@ minithread_initialize_interrupts()
         return -1;
     minithread_clock_init(clock_handler);
     network_initialize(network_handler);
+    minimsg_initialize();
     set_interrupt_level(ENABLED);
     return 0;
 }

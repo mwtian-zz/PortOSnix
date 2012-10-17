@@ -85,7 +85,7 @@ miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
     return port[num];
 }
 
-/* Get the next available bounded port number. Return 0 is none available. */
+/* Get the next available bounded port number. Return 0 if none available. */
 static int
 miniport_get_boundedport_num()
 {
@@ -155,10 +155,13 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
 	if (-1 == sent)
         return -1;
 
-	return sent - HEADER_LENGTH;
+	return (sent - HEADER_LENGTH);
 }
 
-/* Pack header using the local receiving and sending ports. */
+/*
+ * Pack header using the local receiving and sending ports.
+ * Called by minimsg_sent.
+ */
 static void
 minimsg_packhdr(mini_header_t hdr, miniport_t unbound, miniport_t bound)
 {
@@ -181,6 +184,7 @@ int
 minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
                 minimsg_t msg, int *len)
 {
+    int received;
     miniport_t port;
     network_interrupt_arg_t *intrpt;
     network_address_t dest_addr;
@@ -192,16 +196,27 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
             || NULL == len || BOUNDED == local_unbound_port->type)
         return -1;
 
+    /*
+     * These shared data structures can be changed in the newtwork interrupt
+     * handler, so interrupts should be disabled here as well.
+     */
     oldlevel = set_interrupt_level(DISABLED);
     semaphore_P(local_unbound_port->unbound.ready);
     minimsg_dequeue(local_unbound_port->unbound.data, &intrpt);
     set_interrupt_level(oldlevel);
 
-    if (intrpt->size < HEADER_LENGTH)
-        return -1;
-    *len = intrpt->size - HEADER_LENGTH;
-    header = (mini_header_t) intrpt->buffer;
+    /*
+     * The copied size should be the minimum among the user provided buffer
+     * size (original *len), the received data size (received), and
+     * MINIMSG_MAX_MSG_SIZE.
+     */
+    received = intrpt->size - HEADER_LENGTH;
+    if (*len >= received)
+        *len = received;
+    if (*len >= MINIMSG_MAX_MSG_SIZE)
+        *len = MINIMSG_MAX_MSG_SIZE;
 
+    header = (mini_header_t) intrpt->buffer;
     unpack_address(header->source_address, dest_addr);
     dest_port = unpack_unsigned_short(header->source_port);
 
@@ -213,9 +228,10 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
     memcpy(msg, &intrpt->buffer[HEADER_LENGTH], *len);
     free(intrpt);
 
-    return *len;
+    return received;
 }
 
+/* Enqueue the interrupt structure to the correct unbounded port */
 int
 minimsg_enqueue(network_interrupt_arg_t *intrpt)
 {
@@ -241,6 +257,10 @@ minimsg_enqueue(network_interrupt_arg_t *intrpt)
     return 0;
 }
 
+/*
+ * Dequeue the interrupt structure from the specified queue.
+ * Called by minimsg_receive.
+ */
 static int
 minimsg_dequeue(queue_t q, network_interrupt_arg_t **recv)
 {

@@ -145,6 +145,8 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
 	int sent;
 
     if (NULL == local_unbound_port || NULL == local_bound_port
+            || UNBOUNDED != local_unbound_port->type
+            || BOUNDED != local_bound_port->type
             || NULL == msg || len < 0 || len > MINIMSG_MAX_MSG_SIZE)
         return -1;
 
@@ -234,21 +236,23 @@ minimsg_enqueue(network_interrupt_arg_t *intrpt)
 {
     int port_num;
     mini_header_t header = (mini_header_t) intrpt->buffer;
-    struct msg_node *mnode = malloc(sizeof(struct msg_node));
-    if (mnode == NULL) {
+    struct msg_node *mnode;
+
+    port_num = unpack_unsigned_short(header->destination_port);
+    if (port_num < MIN_UNBOUNDED
+            || port_num > MAX_UNBOUNDED
+            || NULL == port[port_num]
+            || queue_append(port[port_num]->unbound.data, mnode) != 0) {
         free(intrpt);
         return -1;
     }
 
-    mnode->intrpt = intrpt;
-    port_num = unpack_unsigned_short(header->destination_port);
-    if (port_num < MIN_UNBOUNDED || port_num > MAX_UNBOUNDED
-            || NULL == port[port_num]
-            || queue_append(port[port_num]->unbound.data, mnode) != 0) {
-        free(mnode);
+    mnode = malloc(sizeof(struct msg_node));
+    if (mnode == NULL) {
         free(intrpt);
         return -1;
     }
+    mnode->intrpt = intrpt;
 
     semaphore_V(port[port_num]->unbound.ready);
     return 0;

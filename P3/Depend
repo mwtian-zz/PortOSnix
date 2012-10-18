@@ -19,6 +19,9 @@ miniheader.o: miniheader.c miniheader.h network.h interrupts_private.h \
 minimsg.o: minimsg.c synch.h queue.h queue_private.h network.h \
  interrupts_private.h interrupts.h defs.h miniheader.h minimsg.h \
  minimsg_private.h
+minimsg_0.o: minimsg_0.c synch.h queue.h queue_private.h network.h \
+ interrupts_private.h interrupts.h defs.h miniheader.h minimsg.h \
+ minimsg_private.h
 minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
  interrupts_private.h interrupts.h defs.h synch.h queue.h
 minithread.o: minithread.c alarm.h interrupts.h defs.h minimsg.h \

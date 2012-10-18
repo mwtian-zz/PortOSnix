@@ -17,8 +17,8 @@
 #define BUFFER_SIZE 256
 #define MAX_COUNT 80
 
-static miniport_t port;
-static network_address_t my_address;
+miniport_t port;
+network_address_t my_address;
 
 int receive(int* arg) {
   char buffer[BUFFER_SIZE];
@@ -41,7 +41,7 @@ int transmit2(int* arg) {
   int length;
   int i;
   miniport_t write_port;
-
+  
   write_port = miniport_create_bound(my_address, 0);
 
   for (i=0; i<MAX_COUNT; i++) {
@@ -62,12 +62,12 @@ int transmit1(int* arg) {
   minithread_t transmitter2;
   minithread_t receiver;
   miniport_t write_port;
-
+  
   network_get_my_address(&my_address);
 
   port = miniport_create_unbound(0);
   write_port = miniport_create_bound(my_address, 0);
-
+ 
   transmitter2 = minithread_fork(transmit2, NULL);
   receiver = minithread_fork(receive, NULL);
 
@@ -85,6 +85,6 @@ int transmit1(int* arg) {
 main(int argc, char** argv) {
   short fromport;
   fromport = atoi(argv[1]);
-  network_udp_ports(fromport,fromport);
+  network_udp_ports(fromport,fromport); 
   minithread_system_initialize(transmit1, NULL);
 }

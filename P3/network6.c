@@ -8,7 +8,7 @@
    destport   = udp port to send to.
 
    if no hostname is supplied, will wait for a packet before sending the first
-   packet; if a hostname is given, will send and then receive.
+   packet; if a hostname is given, will send and then receive. 
    the receive-first copy must be started first!
 */
 
@@ -25,7 +25,7 @@
 #define MAX_COUNT 100
 
 
-static char* hostname;
+char* hostname;
 
 
 int receive_first(int* arg) {
@@ -89,7 +89,7 @@ main(int argc, char** argv) {
   short fromport, toport;
   fromport = atoi(argv[1]);
   toport = atoi(argv[2]);
-  network_udp_ports(fromport,toport);
+  network_udp_ports(fromport,toport); 
 
   if (argc > 3) {
     hostname = argv[3];

@@ -30,11 +30,11 @@ int thread(int* arg) {
   int length = BUFFER_SIZE;
   miniport_t from;
   network_address_t my_address;
-
-  network_get_my_address(my_address);
+  
+  network_get_my_address(&my_address);
   listen_port = miniport_create_unbound(0);
   send_port = miniport_create_bound(my_address, 0);
-
+  
   minimsg_send(listen_port, send_port, text, textlen);
   minimsg_receive(listen_port, &from, buffer, &length);
   printf("%s", buffer);
@@ -45,7 +45,7 @@ int thread(int* arg) {
 main(int argc, char** argv) {
   short fromport;
   fromport = atoi(argv[1]);
-  network_udp_ports(fromport,fromport);
+  network_udp_ports(fromport,fromport); 
   textlen = strlen(text) + 1;
   minithread_system_initialize(thread, NULL);
 }

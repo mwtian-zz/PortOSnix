@@ -4,7 +4,7 @@
 
 CC = gcc
 
-CFLAGS = -Wall -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
+CFLAGS = -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
 LFLAGS = -lrt -lpthread
 
 OUTPUT = minithread
@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = network6_mod
+MAIN = network3_mod
 
 OBJ = \
     alarm.o \

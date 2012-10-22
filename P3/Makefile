@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = network3_mod
+MAIN = network9_manypkgs
 
 OBJ = \
     alarm.o \

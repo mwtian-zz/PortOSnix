@@ -2,13 +2,21 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 
 CS4411 Project 3 - Unreliable Datagram Networking
 
-The progamming is done in the Linux/GCC environment. 
+The progamming is done in the Linux/GCC environment.
 
-We implemented the network handler in minithread.c. We also implemented 
+We implemented the network handler in minithread.c. We also implemented
 functions for unreliable datagram in minimsg.c.
 
-For some of the test cases to compile without warning, we modified their source 
+For some of the test cases to compile without warning, we modified their source
 code.
+
+network7_malpkgs.c tests by sending malformed packages with bad headers.
+
+network8_bigpkgs.c tests by sending maximum and oversized packages.
+
+network9_manypkgs.c tests by sending a large number (> 100000) of packages.
+If choose to show progress, packages will be dropped because interrupts are
+disabled during printf.
 
 --------------------------------------------------------------------------------
 Project Description

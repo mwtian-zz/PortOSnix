@@ -6,6 +6,8 @@ alarm_queue_test.o: alarm_queue_test.c alarm.h alarm_queue.h \
  alarm_private.h
 alarm_test.o: alarm_test.c minithread.h machineprimitives.h defs.h
 alarmtest1.o: alarmtest1.c minithread.h machineprimitives.h defs.h
+alarmtest1_mod.o: alarmtest1_mod.c minithread.h machineprimitives.h \
+ defs.h
 alarmtest2.o: alarmtest2.c minithread.h machineprimitives.h defs.h
 buffer.o: buffer.c minithread.h machineprimitives.h defs.h synch.h
 end.o: end.c defs.h
@@ -17,9 +19,6 @@ machineprimitives_x86_64.o: machineprimitives_x86_64.c defs.h \
 miniheader.o: miniheader.c miniheader.h network.h interrupts_private.h \
  interrupts.h defs.h
 minimsg.o: minimsg.c synch.h queue.h queue_private.h network.h \
- interrupts_private.h interrupts.h defs.h miniheader.h minimsg.h \
- minimsg_private.h
-minimsg_0.o: minimsg_0.c synch.h queue.h queue_private.h network.h \
  interrupts_private.h interrupts.h defs.h miniheader.h minimsg.h \
  minimsg_private.h
 minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
@@ -58,6 +57,12 @@ network6.o: network6.c defs.h minithread.h machineprimitives.h minimsg.h \
  network.h interrupts_private.h interrupts.h synch.h
 network6_mod.o: network6_mod.c defs.h minithread.h machineprimitives.h \
  minimsg.h network.h interrupts_private.h interrupts.h synch.h
+network7_malpkgs.o: network7_malpkgs.c defs.h minithread.h \
+ machineprimitives.h miniheader.h network.h interrupts_private.h \
+ interrupts.h minimsg.h minimsg_private.h queue.h queue_private.h synch.h
+network8_bigpkgs.o: network8_bigpkgs.c defs.h minithread.h \
+ machineprimitives.h minimsg.h network.h interrupts_private.h \
+ interrupts.h minimsg_private.h queue.h queue_private.h synch.h
 pid_random.o: pid_random.c pid_random.h random.h
 preemptester.o: preemptester.c minithread.h machineprimitives.h defs.h \
  synch.h

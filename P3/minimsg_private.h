@@ -1,6 +1,10 @@
 #ifndef __MINIMSG_PRIVATE_H__
 #define __MINIMSG_PRIVATE_H__
 
+#include "queue.h"
+#include "queue_private.h"
+#include "synch.h"
+
 /* Constatns for miniports only */
 
 #define MIN_UNBOUNDED 0

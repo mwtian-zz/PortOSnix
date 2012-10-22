@@ -439,7 +439,7 @@ network_poll(void* arg)
 
         packet->size = recvfrom(*s, packet->buffer, MAX_NETWORK_PKT_SIZE,
                                 0, (struct sockaddr *) &addr, (socklen_t*) &fromlen);
-        if (packet->size <= 0) {
+        if (packet->size < 0) {
             kprintf("NET:Error, %d.\n", errno);
             AbortOnCondition(1,"Crashing.");
         } else if (DEBUG)

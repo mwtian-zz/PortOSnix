@@ -121,6 +121,9 @@ miniport_destroy(miniport_t miniport)
         queue_free(miniport->unbound.data);
         semaphore_destroy(miniport->unbound.ready);
     }
+    if (BOUNDED == miniport->type) {
+        --bound_count;
+    }
     port[miniport->num] = NULL;
     free(miniport);
 }

@@ -2,11 +2,30 @@
  *	Implementation of minisockets.
  */
 #include "minisocket.h"
+#include "queue.h"
 
 struct minisocket
 {
-  int dummy; /* delete this field */
-  /* put your definition of minisockets here */
+    enum socket_type {
+        SERVER_SOCKET,
+        CLIENT_SOCKET
+    } type;
+    int num;
+    int seq;
+    int ack;
+    union {
+        struct {
+            queue_t data;
+            semaphore_t ready;
+        } server;
+        struct {
+            network_address_t addr;
+            int remote;
+        } client;
+    };
+    enum socket_status {
+        INITIAL,
+    } status;
 };
 
 /* Initializes the minisocket layer. */
@@ -15,7 +34,7 @@ void minisocket_initialize()
 
 }
 
-/* 
+/*
  * Listen for a connection from somebody else. When communication link is
  * created return a minisocket_t through which the communication can be made
  * from now on.
@@ -37,7 +56,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error)
  * established create a minisocket through which the communication can be made
  * from now on.
  *
- * The first argument is the network address of the remote machine. 
+ * The first argument is the network address of the remote machine.
  *
  * The argument "port" is the port number on the remote machine to which the
  * connection is made. The port number of the local machine is one of the free
@@ -52,7 +71,7 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 }
 
 
-/* 
+/*
  * Send a message to the other end of the socket.
  *
  * The send call should block until the remote host has ACKnowledged receipt of

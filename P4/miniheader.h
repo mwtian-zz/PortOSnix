@@ -5,6 +5,8 @@
  */
 #include "network.h"
 
+#define HEADER_LENGTH 21
+
 enum { PROTOCOL_MINIDATAGRAM = 1, PROTOCOL_MINISTREAM };
 
 typedef struct mini_header
@@ -12,7 +14,7 @@ typedef struct mini_header
 	char protocol;
 	char source_address[8];
 	char source_port[2];
-	
+
 	char destination_address[8];
 	char destination_port[2];
 } *mini_header_t;

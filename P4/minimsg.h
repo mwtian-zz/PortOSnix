@@ -9,15 +9,16 @@
  */
 #include "network.h"
 
-/* 
+/*
  *   somewhat arbitrary, but must be <= MAX_NETWORK_PKT_SIZE - NETWORK_HDR_SIZE
- */   
+ */
 #define MINIMSG_MAX_MSG_SIZE (4096)
 
 typedef struct miniport* miniport_t;
 typedef char* minimsg_t;
 
-/* performs any required initialization of the minimsg layer.
+/*
+ * performs any required initialization of the minimsg layer.
  */
 extern void minimsg_initialize();
 
@@ -65,5 +66,8 @@ extern int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_po
  * of this function is the number of data payload bytes received not inclusive of the header.
  */
 extern int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, minimsg_t msg, int *len);
+
+/* Enqueue the interruput message on the appropriate port */
+extern int minimsg_enqueue(network_interrupt_arg_t *intrpt);
 
 #endif /*__MINIMSG_H__*/

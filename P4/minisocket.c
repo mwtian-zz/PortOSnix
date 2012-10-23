@@ -3,6 +3,7 @@
  */
 #include "minisocket.h"
 #include "queue.h"
+#include "synch.h"
 
 struct minisocket
 {

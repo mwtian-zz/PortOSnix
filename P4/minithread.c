@@ -132,8 +132,11 @@ static int
 minithread_cleanup(arg_t arg)
 {
     minithread_t t = NULL;
+    interrupt_level_t oldlevel;
     while (1) {
+        oldlevel = set_interrupt_level(DISABLED);
         semaphore_P(exit_count);
+        set_interrupt_level(oldlevel);
         semaphore_P(id_mutex);
         --thd_count;
         semaphore_V(id_mutex);
@@ -185,8 +188,8 @@ minithread_exit(arg_t arg)
     semaphore_P(exit_mutex);
     queue_append(exited, context);
     semaphore_V(exit_mutex);
-    semaphore_V(exit_count);
     oldlevel = set_interrupt_level(DISABLED);
+    semaphore_V(exit_count);
     context->status = EXITED;
     minithread_schedule();
     /*
@@ -212,9 +215,10 @@ minithread_yield()
     if (ticks >= expire)
         if (t->priority < MAX_SCHED_PRIORITY)
             ++t->priority;
-    if (t != idle_thread)
+    if (t != idle_thread) {
         multilevel_queue_enqueue(ready, t->priority, t);
-    minithread_schedule();
+        minithread_schedule();
+    }
     set_interrupt_level(oldlevel);
 }
 

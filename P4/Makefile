@@ -14,7 +14,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = network9_manypkgs
+MAIN = preemptester_mod
 
 OBJ = \
     alarm.o \

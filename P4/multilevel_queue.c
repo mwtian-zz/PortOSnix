@@ -8,7 +8,7 @@
 #include "multilevel_queue_private.h"
 
 /*
- * Returns an empty multilevel queue with number_of_levels levels. 
+ * Returns an empty multilevel queue with number_of_levels levels.
  * On error should return NULL.
  */
 multilevel_queue_t
@@ -37,7 +37,7 @@ multilevel_queue_new(int number_of_levels)
 }
 
 /*
- * Appends an void* to the multilevel queue at the specified level. 
+ * Appends an void* to the multilevel queue at the specified level.
  * Return 0 (success) or -1 (failure).
  */
 int
@@ -58,11 +58,13 @@ int
 multilevel_queue_dequeue(multilevel_queue_t queue, int level, void** item)
 {
     int i;
-    if (NULL == queue || level < 0 || level >= queue->lvl)
+    int curr;
+    if (NULL == queue || level < 0 || level >= queue->lvl || NULL == item)
         return -1;
     for (i = 0; i < queue->lvl; ++i) {
-        if (0 == queue_dequeue(queue->q[(level + i) % queue->lvl], item))
-            return i;
+        curr = (level + i) % queue->lvl;
+        if (0 == queue_dequeue(queue->q[curr], item))
+            return curr;
     }
     *item = NULL;
     return -1;
@@ -80,5 +82,6 @@ multilevel_queue_free(multilevel_queue_t queue)
         return -1;
     for (i = 0; i < queue->lvl; ++i)
         queue_free(queue->q[i]);
+    free(queue);
     return 0;
 }

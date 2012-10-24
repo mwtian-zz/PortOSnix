@@ -5,30 +5,6 @@
 #include "queue.h"
 #include "synch.h"
 
-struct minisocket
-{
-    enum socket_type {
-        SERVER_SOCKET,
-        CLIENT_SOCKET
-    } type;
-    int num;
-    int seq;
-    int ack;
-    union {
-        struct {
-            queue_t data;
-            semaphore_t ready;
-        } server;
-        struct {
-            network_address_t addr;
-            int remote;
-        } client;
-    };
-    enum socket_status {
-        INITIAL,
-    } status;
-};
-
 /* Initializes the minisocket layer. */
 void minisocket_initialize()
 {

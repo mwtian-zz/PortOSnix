@@ -52,7 +52,7 @@ semaphore_destroy(semaphore_t sem)
     if (NULL == sem)
         return;
     if (NULL != sem->wait)
-        free(sem->wait);
+        queue_free(sem->wait);
     free(sem);
 }
 

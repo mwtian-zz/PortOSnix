@@ -17,7 +17,7 @@ static miniport_t port[MAX_BOUNDED - MIN_UNBOUNDED + 1];
 static int bound_count = 0;
 static char bound_wrap = 0;
 static network_address_t hostaddr;
-
+static semapho
 /* File scope helper functions */
 static int
 miniport_get_boundedport_num();

@@ -12,9 +12,18 @@ struct minisocket
     network_address_t addr;
     int remote;
     enum socket_status {
-        LISTEN,
-        SYNSENT
-    } socket_state state;
+		LISTEN,
+		SYNSENT,
+		SYNRECEIVED,
+		ESTABLISHED,
+		CLOSEWAIT,
+		LASTACK,
+		CLOSED,
+		FINWAIT1,
+		FINWAIT2,
+		CLOSING,
+		TIMEWAIT
+    } state;
 };
 
 #endif /* __MINISOCKETS_PRIVATE_H_ */

@@ -5,6 +5,12 @@
 #include "queue.h"
 #include "synch.h"
 
+
+
+static int minisocket_transmit(minisocket_t socket, char msg_type, char *buf, int len) {
+	return -1;
+}
+
 /* Initializes the minisocket layer. */
 void minisocket_initialize()
 {

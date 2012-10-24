@@ -190,7 +190,7 @@ alarm_queue_length(alarm_queue_t alarm_queue)
 int
 alarm_queue_free(alarm_queue_t alarm_queue)
 {
-    if (alarm_queue == NULL) {
+    if (NULL == alarm_queue) {
         return -1;
     }
     free(alarm_queue);

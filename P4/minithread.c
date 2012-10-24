@@ -144,7 +144,7 @@ minithread_cleanup(arg_t arg)
         queue_dequeue(exited, (void**) &t);
         if (t != NULL) {
             minithread_free_stack(t->base);
-            free(t->sleep_sem);
+            semaphore_destroy(t->sleep_sem);
             free(t);
         }
         semaphore_V(exit_mutex);

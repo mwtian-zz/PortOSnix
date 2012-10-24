@@ -6,6 +6,7 @@ struct minisocket
     int num;
     int seq;
     int ack;
+    int alarm;
     queue_t data;
     semaphore_t socket_mutex;
     semaphore_t receive;

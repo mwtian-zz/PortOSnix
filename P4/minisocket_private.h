@@ -23,7 +23,7 @@ struct minisocket
 		FINWAIT2,
 		CLOSING,
 		TIMEWAIT
-    } socket_state state;
+    } state;
 };
 
 #endif /* __MINISOCKETS_PRIVATE_H_ */

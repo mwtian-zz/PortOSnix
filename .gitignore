@@ -1,6 +1,7 @@
 # Only track specific files
 */*
 *~
+.DS_Store
 
 !README.md
 !.gitignore

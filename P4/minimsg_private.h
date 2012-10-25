@@ -2,7 +2,6 @@
 #define __MINIMSG_PRIVATE_H__
 
 #include "queue.h"
-#include "queue_private.h"
 #include "synch.h"
 
 /* Constatns for miniports only */
@@ -31,11 +30,6 @@ struct miniport {
             int remote;
         } bound;
     };
-};
-
-struct msg_node {
-    struct node node;
-    network_interrupt_arg_t *intrpt;
 };
 
 #endif /*__MINIMSG_PRIVATE_H__*/

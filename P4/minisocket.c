@@ -17,7 +17,7 @@ static int socket_count = 0;
 static int retry_delay[MINISOCKET_MAX_TRY - 1];
 static int minisocket_transmit(minisocket_t socket, char msg_type, char *buf,
                                int len);
-							   
+
 static network_address_t hostaddr;
 static semaphore_t port_count_mutex = NULL;
 static semaphore_t port_array_mutex = NULL;
@@ -29,7 +29,7 @@ void minisocket_initialize()
 	if ((port_count_mutex = semaphore_create()) != NULL) {
 		semaphore_initialize(port_count_mutex, 1);
 	}
-	
+
 	if ((port_array_mutex = semaphore_create()) != NULL) {
 		semaphore_initialize(port_array_mutex, 1);
 	}
@@ -52,13 +52,13 @@ minisocket_server_create(int port, minisocket_error *error)
 	network_interrupt_arg_t *packet;
 	mini_header_reliable_t header;
 	interrupt_level_t oldlevel;
-	
+
 	/* Port out of range */
 	if (port < MINISOCKET_MIN_NUM || port > MINISOCKET_MAX_NUM) {
 		*error = SOCKET_PORTOUTOFBOUND;
 		return NULL;
 	}
-	
+
 	semaphore_P(port_array_mutex);
 	/* Port already in use */
 	if (minisocket[port] != NULL) {
@@ -66,21 +66,21 @@ minisocket_server_create(int port, minisocket_error *error)
 		semaphore_V(port_array_mutex);
 		return NULL;
 	}
-	
+
 	/* Create the socket */
 	minisocket[port] = malloc(sizeof(struct minisocket));
 	semaphore_V(port_array_mutex);
-	
+
 	/* Assume out of memory if malloc returns NULL */
 	if (minisocket[port] == NULL) {
 		*error = SOCKET_OUTOFMEMORY;
 		return NULL;
 	}
-	
+
 	semaphore_P(port_count_mutex);
 	socket_count++;
 	semaphore_V(port_count_mutex);
-	
+
 	minisocket[port]->receive = semaphore_create();
 	if (minisocket[port]->receive == NULL) {
 		free(minisocket[port]);
@@ -89,7 +89,7 @@ minisocket_server_create(int port, minisocket_error *error)
 		return NULL;
 	}
 	semaphore_initialize(minisocket[port]->receive, 0);
-	
+
 	minisocket[port]->data = queue_new();
 	if (minisocket[port]->data == NULL) {
 		semaphore_destroy(minisocket[port]->receive);
@@ -98,7 +98,7 @@ minisocket_server_create(int port, minisocket_error *error)
 		minisocket[port] = NULL;
 		return NULL;
 	}
-	
+
 	minisocket[port]->socket_mutex = semaphore_create();
 	if (minisocket[port]->socket_mutex == NULL) {
 		semaphore_destroy(minisocket[port]->receive);
@@ -110,28 +110,29 @@ minisocket_server_create(int port, minisocket_error *error)
 	}
 	semaphore_initialize(minisocket[port]->socket_mutex, 1);
 	minisocket[port]->local_port_num = port;
-	
+
 	do {
 		minisocket[port]->state = LISTEN;
-		
+
 		/* Wait for sync from client*/
 		oldlevel = set_interrupt_level(DISABLED);
 		semaphore_P(minisocket[port]->receive);
 		/* TO BE DONE */
-		/* dequeue from message queue 
+		/* dequeue from message queue
 		 * and the packet is put into packet
 		 */
 		 set_interrupt_level(oldlevel);
-		 
+
 		 header = (mini_header_reliable_t) packet->buffer;
 		 minisocket[port]->remote_port_num = unpack_unsigned_short(header->source_port);
 		 unpack_address(header->source_address, minisocket[port]->addr);
 		 minisocket[port]->state = SYNRECEIVED;
-		 
+
 		 /* Now try to send SYNACK and wait for ack*/
-	 
+
 	} while (minisocket[port]->state != ESTABLISHED);
-		
+
+    return minisocket[port];
 }
 
 
@@ -153,7 +154,7 @@ minisocket_t
 minisocket_client_create(network_address_t addr, int port,
                          minisocket_error *error)
 {
-
+    return NULL;
 }
 
 
@@ -180,7 +181,7 @@ int
 minisocket_send(minisocket_t socket, minimsg_t msg, int len,
                 minisocket_error *error)
 {
-
+    return 0;
 }
 
 /*
@@ -197,7 +198,7 @@ int
 minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
                   minisocket_error *error)
 {
-
+    return 0;
 }
 
 /* Close a connection. If minisocket_close is issued, any send or receive should
@@ -220,22 +221,23 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 int
 minisocket_enqueue(network_interrupt_arg_t *intrpt)
 {
+
     return 0;
 }
 
-/* 
- * Get next available source port, return -1 if none available
+/*
+ * Get the next available socket, return -1 if none available
  */
 static int
-get_source_port() {
+minisocket_get_socket() {
 	int num = -1, i;
-	
+
 	semaphore_P(port_array_mutex);
 	if (socket_count >= MINISOCKET_PORT_NUM) {
 		semaphore_V(port_array_mutex);
 		return num;
 	}
-	
+
 	for (i = MINISOCKET_MIN_NUM; i <= MINISOCKET_MAX_NUM; i++) {
 		if (minisocket[i] == NULL) {
 			num = i;
@@ -252,7 +254,8 @@ get_source_port() {
 
 /* seq, ack and message_type may get from socket */
 static void
-minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket, char message_type, int seq, int ack) {
+minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
+                   char message_type, int seq, int ack) {
 	header->protocol = PROTOCOL_MINISTREAM;
 	pack_address(header->source_address, hostaddr);
 	pack_unsigned_short(header->source_port, socket->local_port_num);

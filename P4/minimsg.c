@@ -1,22 +1,30 @@
 /*
  *	Implementation of minimsgs and miniports.
  */
-#include <stdlib.h>
-#include <string.h>
-#include "synch.h"
-#include "queue.h"
-#include "queue_private.h"
-#include "network.h"
+#include "defs.h"
+#include "interrupts.h"
 #include "miniheader.h"
 #include "minimsg.h"
 #include "minimsg_private.h"
-#include "interrupts.h"
+#include "network.h"
+#include "network_msg.h"
+#include "queue.h"
+#include "queue_private.h"
+#include "synch.h"
 
-/* File scope variables */
+/* Array of pointer to ports, statically initialized to NULL */
 static miniport_t port[MAX_BOUNDED - MIN_UNBOUNDED + 1];
+/* Number of bounded ports */
 static int bound_count = 0;
+/* Has the bounded port number wrapped around yet or not */
 static char bound_wrap = 0;
+/* Address of the current system */
 static network_address_t hostaddr;
+/*
+ * Makes port creation and destroy minithread safe.
+ * Avoiding destroying ports during send/receive of another thread
+ * is the responsibility of the user program.
+ */
 static semaphore_t port_mutex = NULL;
 
 /* File scope helper functions */
@@ -34,6 +42,7 @@ minimsg_initialize()
     network_get_my_address(hostaddr);
     if ((port_mutex = semaphore_create()) != NULL)
         semaphore_initialize(port_mutex, 1);
+
 }
 
 /* Creates an unbound port for listening. Multiple requests to create the same
@@ -46,10 +55,17 @@ minimsg_initialize()
 miniport_t
 miniport_create_unbound(int port_number)
 {
-    if (port_number < MIN_UNBOUNDED || port_number > MAX_UNBOUNDED)
+printf("To create unbound.\n");
+
+    semaphore_P(port_mutex);
+    if (port_number < MIN_UNBOUNDED || port_number > MAX_UNBOUNDED) {
+        semaphore_V(port_mutex);
         return NULL;
-    if (port[port_number] != NULL)
+    }
+    if (port[port_number] != NULL) {
+        semaphore_V(port_mutex);
         return port[port_number];
+    }
     if ((port[port_number] = malloc(sizeof(struct miniport))) != NULL) {
         port[port_number]->type = UNBOUNDED;
         port[port_number]->num = port_number;
@@ -62,6 +78,8 @@ miniport_create_unbound(int port_number)
         }
         semaphore_initialize(port[port_number]->unbound.ready, 0);
     }
+    semaphore_V(port_mutex);
+printf("Created unbound.\n");
     return port[port_number];
 }
 
@@ -76,15 +94,22 @@ miniport_create_unbound(int port_number)
 miniport_t
 miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
 {
-    int num = miniport_get_boundedport_num();
-    if (num < MIN_BOUNDED || num > MAX_BOUNDED)
+    int num;
+printf("To create bound.\n");
+    semaphore_P(port_mutex);
+    num = miniport_get_boundedport_num();
+    if (num < MIN_BOUNDED || num > MAX_BOUNDED) {
+        semaphore_V(port_mutex);
         return NULL;
+    }
     if ((port[num] = malloc(sizeof(struct miniport))) != NULL) {
         port[num]->type = BOUNDED;
         port[num]->num = num;
         network_address_copy(addr, port[num]->bound.addr);
         port[num]->bound.remote = remote_unbound_port_number;
     }
+    semaphore_V(port_mutex);
+printf("Created bound.\n");
     return port[num];
 }
 
@@ -92,11 +117,16 @@ miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
 static int
 miniport_get_boundedport_num()
 {
-    int num, i;
-    if (bound_count > NUM_PORTTYPE)
+    int num;
+    int i;
+    if (bound_count > NUM_PORTTYPE) {
         return 0;
+    }
     if (bound_wrap == 0) {
         num = (bound_count++) + MIN_BOUNDED;
+        if (bound_count >= NUM_PORTTYPE) {
+            bound_wrap = 1;
+        }
     } else {
         for (i = MIN_BOUNDED; i <= MAX_BOUNDED; ++i) {
             if (NULL == port[i]) {
@@ -106,8 +136,6 @@ miniport_get_boundedport_num()
             }
         }
     }
-    if (bound_count >= NUM_PORTTYPE)
-        bound_wrap = 1;
     return num;
 }
 
@@ -118,8 +146,11 @@ miniport_get_boundedport_num()
 void
 miniport_destroy(miniport_t miniport)
 {
-    if (NULL == miniport)
+    semaphore_P(port_mutex);
+    if (NULL == miniport) {
+        semaphore_V(port_mutex);
         return;
+    }
     if (UNBOUNDED == miniport->type) {
         queue_free(miniport->unbound.data);
         semaphore_destroy(miniport->unbound.ready);
@@ -129,6 +160,7 @@ miniport_destroy(miniport_t miniport)
     }
     port[miniport->num] = NULL;
     free(miniport);
+    semaphore_V(port_mutex);
 }
 
 /*

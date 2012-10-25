@@ -8,7 +8,8 @@
 
 struct minisocket
 {
-    int num;
+    int local_port_num;
+	int remote_port_num;
     int seq;
     int ack;
     int alarm;
@@ -16,7 +17,6 @@ struct minisocket
     semaphore_t socket_mutex;
     semaphore_t receive;
     network_address_t addr;
-    int remote;
     enum socket_status {
 		LISTEN,
 		SYNSENT,

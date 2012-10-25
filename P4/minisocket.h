@@ -19,6 +19,7 @@
 #define MINISOCKET_MIN_NUM 0
 #define MINISOCKET_MAX_NUM 65535
 #define MINISOCKET_MAX_TRY 7
+#define MINISOCKET_PORT_NUM (MINISOCKET_MAX_NUM - MINISOCKET_MIN_NUM + 1)
 
 typedef struct minisocket* minisocket_t;
 typedef enum minisocket_error minisocket_error;
@@ -26,14 +27,15 @@ typedef enum minisocket_error minisocket_error;
 
 enum minisocket_error {
   SOCKET_NOERROR=0,
-  SOCKET_NOMOREPORTS,   /* ran out of free ports */
-  SOCKET_PORTINUSE,     /* server tried to use a port that is already in use */
-  SOCKET_NOSERVER,      /* client tried to connect to a port without a server */
-  SOCKET_BUSY,          /* client tried to connect to a port that is in use */
+  SOCKET_NOMOREPORTS,    /* ran out of free ports */
+  SOCKET_PORTINUSE,      /* server tried to use a port that is already in use */
+  SOCKET_PORTOUTOFBOUND, /* server tried to use a port out of bound */
+  SOCKET_NOSERVER,       /* client tried to connect to a port without a server */
+  SOCKET_BUSY,           /* client tried to connect to a port that is in use */
   SOCKET_SENDERROR,
   SOCKET_RECEIVEERROR,
-  SOCKET_INVALIDPARAMS, /* user supplied invalid parameters to the function */
-  SOCKET_OUTOFMEMORY    /* function could not complete because of insufficient memory */
+  SOCKET_INVALIDPARAMS,  /* user supplied invalid parameters to the function */
+  SOCKET_OUTOFMEMORY     /* function could not complete because of insufficient memory */
 };
 
 /* Initializes the minisocket layer. */

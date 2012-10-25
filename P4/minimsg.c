@@ -17,7 +17,8 @@ static miniport_t port[MAX_BOUNDED - MIN_UNBOUNDED + 1];
 static int bound_count = 0;
 static char bound_wrap = 0;
 static network_address_t hostaddr;
-static semapho
+static semaphore_t port_mutex = NULL;
+
 /* File scope helper functions */
 static int
 miniport_get_boundedport_num();
@@ -31,6 +32,8 @@ void
 minimsg_initialize()
 {
     network_get_my_address(hostaddr);
+    if ((port_mutex = semaphore_create()) != NULL)
+        semaphore_initialize(port_mutex, 1);
 }
 
 /* Creates an unbound port for listening. Multiple requests to create the same
@@ -155,9 +158,9 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
 
     minimsg_packhdr(&hdr, local_unbound_port, local_bound_port);
     network_address_copy(local_bound_port->bound.addr, dest);
-    sent = network_send_pkt(dest, HEADER_LENGTH, (char*)&hdr, len, msg);
+    sent = network_send_pkt(dest, MINIMSG_HDRSIZE, (char*)&hdr, len, msg);
 
-    return sent - HEADER_LENGTH < 0 ? -1 : sent - HEADER_LENGTH;
+    return sent - MINIMSG_HDRSIZE < 0 ? -1 : sent - MINIMSG_HDRSIZE;
 }
 
 /*
@@ -213,7 +216,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
      * size (original *len), the received data size (received), and
      * MINIMSG_MAX_MSG_SIZE.
      */
-    received = intrpt->size - HEADER_LENGTH;
+    received = intrpt->size - MINIMSG_HDRSIZE;
     if (*len >= received)
         *len = received;
     if (*len >= MINIMSG_MAX_MSG_SIZE)
@@ -228,7 +231,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
         return -1;
     *new_local_bound_port = port;
 
-    memcpy(msg, &intrpt->buffer[HEADER_LENGTH], *len);
+    memcpy(msg, &intrpt->buffer[MINIMSG_HDRSIZE], *len);
     free(intrpt);
 
     return received;

@@ -5,11 +5,15 @@
  */
 #include "network.h"
 
+#define MINIMSG_HDRSIZE 21
+#define MINISOCKET_HDRSIZE 30
+
+
 /* protocol types */
 enum { PROTOCOL_MINIDATAGRAM = 1, PROTOCOL_MINISTREAM };
 
 /* message types for minisockets */
-enum { MSG_SYN = 1, MSG_SYNACK, MSG_ACK, MSG_FIN };
+enum { MINISOCKET_SYN = 1, MINISOCKET_SYNACK, MINISOCKET_ACK, MINISOCKET_FIN };
 
 /* header definition for unreliable packets */
 typedef struct mini_header
@@ -18,7 +22,7 @@ typedef struct mini_header
 
 	char source_address[8];
 	char source_port[2];
-	
+
 	char destination_address[8];
 	char destination_port[2];
 
@@ -34,7 +38,7 @@ typedef struct mini_header_reliable
 
 	char destination_address[8];
 	char destination_port[2];
-	
+
 	char message_type;
 	char seq_number[4];
 	char ack_number[4];

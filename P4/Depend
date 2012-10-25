@@ -33,7 +33,7 @@ minimsg.o: minimsg.c synch.h queue.h queue_private.h network.h \
 minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
  interrupts_private.h interrupts.h defs.h synch.h queue.h
 minisocket.o: minisocket.c minisocket.h network.h interrupts_private.h \
- interrupts.h defs.h minimsg.h
+ interrupts.h defs.h minimsg.h queue.h synch.h
 minithread.o: minithread.c alarm.h interrupts.h defs.h minimsg.h \
  network.h interrupts_private.h miniheader.h queue.h synch.h minithread.h \
  machineprimitives.h minithread_private.h queue_private.h \

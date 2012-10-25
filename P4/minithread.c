@@ -455,7 +455,7 @@ network_handler(void* arg)
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     network_interrupt_arg_t *intrpt = arg;
     mini_header_t header = (mini_header_t) intrpt->buffer;
-    if (intrpt->size >= HEADER_LENGTH) {
+    if (intrpt->size >= MINIMSG_HDRSIZE) {
         if (PROTOCOL_MINIDATAGRAM == header->protocol) {
             minimsg_enqueue(intrpt);
         }

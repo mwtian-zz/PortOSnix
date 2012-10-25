@@ -14,8 +14,10 @@
 #include "network.h"
 #include "minimsg.h"
 
-#define MINISOCKET_MAX_MSG_SIZE (MAX_NETWORK_PKT_SIZE - sizeof(struct mini_header_reliable))
-
+#define MINISOCKET_MAX_MSG_SIZE (MAX_NETWORK_PKT_SIZE - \
+                                 sizeof(struct mini_header_reliable))
+#define MINISOCKET_MIN_NUM 0
+#define MINISOCKET_MAX_NUM 65535
 
 typedef struct minisocket* minisocket_t;
 typedef enum minisocket_error minisocket_error;
@@ -36,7 +38,7 @@ enum minisocket_error {
 /* Initializes the minisocket layer. */
 void minisocket_initialize();
 
-/* 
+/*
  * Listen for a connection from somebody else. When communication link is
  * created return a minisocket_t through which the communication can be made
  * from now on.
@@ -54,7 +56,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error);
  * established create a minisocket through which the communication can be made
  * from now on.
  *
- * The first argument is the network address of the remote machine. 
+ * The first argument is the network address of the remote machine.
  *
  * The argument "port" is the port number on the remote machine to which the
  * connection is made. The port number of the local machine is one of the free
@@ -65,7 +67,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error);
  */
 minisocket_t minisocket_client_create(network_address_t addr, int port, minisocket_error *error);
 
-/* 
+/*
  * Send a message to the other end of the socket.
  *
  * The send call should block until the remote host has ACKnowledged receipt of
@@ -104,6 +106,6 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
  * send or receive in progress. The minisocket is destroyed by minisocket_close
  * function.  The function should never fail.
  */
-void minisocket_close(minisocket_t socket); 
+void minisocket_close(minisocket_t socket);
 
 #endif /* __MINISOCKETS_H_ */

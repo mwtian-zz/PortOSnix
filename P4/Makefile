@@ -4,7 +4,7 @@
 
 CC = gcc
 
-CFLAGS = -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
+CFLAGS = -Wall -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 -I. -Wdeclaration-after-statement
 LFLAGS = -lrt -lpthread
 
 OUTPUT = minithread

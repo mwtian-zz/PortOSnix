@@ -83,7 +83,7 @@ int transmit_first(int* arg)
     length = strlen(buffer) + 1;
     minimsg_send(port, dest, buffer, length);
 
-    for (i = 0; i < HEADER_LENGTH; i++)
+    for (i = 0; i < MINIMSG_HDRSIZE; i++)
         network_send_pkt(targetaddr, i, (char*)&hdr, 0, buffer);
 
     /* Send packages to wrong ports */

@@ -5,11 +5,10 @@
 #include "queue.h"
 #include "synch.h"
 
-
-
-static int minisocket_transmit(minisocket_t socket, char msg_type, char *buf, int len) {
-	return -1;
-}
+static minisocket_t minisocket[MINISOCKET_MAX_NUM - MINISOCKET_MIN_NUM + 1];
+static int socket_count = 0;
+static int minisocket_transmit(minisocket_t socket, char msg_type, char *buf,
+                               int len);
 
 /* Initializes the minisocket layer. */
 void minisocket_initialize()
@@ -28,7 +27,8 @@ void minisocket_initialize()
  * Return value: the minisocket_t created, otherwise NULL with the errorcode
  * stored in the "error" variable.
  */
-minisocket_t minisocket_server_create(int port, minisocket_error *error)
+minisocket_t
+minisocket_server_create(int port, minisocket_error *error)
 {
 
 }
@@ -48,7 +48,9 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error)
  * Return value: the minisocket_t created, otherwise NULL with the errorcode
  * stored in the "error" variable.
  */
-minisocket_t minisocket_client_create(network_address_t addr, int port, minisocket_error *error)
+minisocket_t
+minisocket_client_create(network_address_t addr, int port,
+                         minisocket_error *error)
 {
 
 }
@@ -73,7 +75,9 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
  * Return value: returns the number of successfully transmitted bytes. Sets the
  *               error code and returns -1 if an error is encountered.
  */
-int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_error *error)
+int
+minisocket_send(minisocket_t socket, minimsg_t msg, int len,
+                minisocket_error *error)
 {
 
 }
@@ -88,7 +92,9 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
  * Return value: -1 in case of error and sets the error code, the number of
  *           bytes received otherwise
  */
-int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisocket_error *error)
+int
+minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
+                  minisocket_error *error)
 {
 
 }
@@ -98,7 +104,14 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
  * send or receive in progress. The minisocket is destroyed by minisocket_close
  * function.  The function should never fail.
  */
-void minisocket_close(minisocket_t socket)
+void
+minisocket_close(minisocket_t socket)
 {
 
+}
+
+static int
+minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
+{
+	return -1;
 }

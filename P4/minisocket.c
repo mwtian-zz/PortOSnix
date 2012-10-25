@@ -235,6 +235,7 @@ minisocket_enqueue(network_interrupt_arg_t *intrpt)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int local_num = unpack_unsigned_short(header->destination_port);
     int remote_num = unpack_unsigned_short(header->source_port);
+    int ack = unpack_unsigned_int(header->ack_number);
     int type = header->message_type;
     /* Sanity checks kept at minimum. */
     if (local_num > MINISOCKET_MAX_NUM || local_num < MINISOCKET_MIN_NUM
@@ -242,10 +243,11 @@ minisocket_enqueue(network_interrupt_arg_t *intrpt)
         free(intrpt);
         return -1;
     }
-    /* Disable alarm if necessary */
-    if (minisocket[local_num]->seq == ack)
+    /* Disable alarm if ACK is valid. */
+    if (minisocket[local_num]->seq != ack)
         if ((MSG_ACK == type && ESTABLISHED == minisocket[local_num]->state)
-                || (MSG_SYNACK == type && LISTEN == minisocket[local_num]->state))
+                || (MSG_SYNACK == type && SYNSENT == minisocket[local_num]->state)
+                || (MSG_ACK == type && SYNRECEIVED == minisocket[local_num]->state))
             deregister_alarm(minisocket[local_num]->alarm);
 
     mnode = malloc(sizeof(struct msg_node));

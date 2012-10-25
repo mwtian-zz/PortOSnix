@@ -86,6 +86,9 @@ minisocket_server_create(int port, minisocket_error *error)
 		free(minisocket[port]);
 		*error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
 		minisocket[port] = NULL;
+		semaphore_P(port_count_mutex);
+		socket_count--;
+		semaphore_V(port_count_mutex);
 		return NULL;
 	}
 	semaphore_initialize(minisocket[port]->receive, 0);
@@ -96,6 +99,9 @@ minisocket_server_create(int port, minisocket_error *error)
 		free(minisocket[port]);
 		*error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
 		minisocket[port] = NULL;
+		semaphore_P(port_count_mutex);
+		socket_count--;
+		semaphore_V(port_count_mutex);
 		return NULL;
 	}
 
@@ -106,6 +112,9 @@ minisocket_server_create(int port, minisocket_error *error)
 		free(minisocket[port]);
 		*error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
 		minisocket[port] = NULL;
+		semaphore_P(port_count_mutex);
+		socket_count--;
+		semaphore_V(port_count_mutex);
 		return NULL;
 	}
 	semaphore_initialize(minisocket[port]->socket_mutex, 1);

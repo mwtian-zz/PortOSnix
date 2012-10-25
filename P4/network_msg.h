@@ -12,4 +12,5 @@ struct msg_tosend {
     int retry;
 };
 
+
 #endif /* __NETWORK_MSG_H__ */

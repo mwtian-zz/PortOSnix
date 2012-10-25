@@ -34,7 +34,6 @@ int receive_first(int* arg)
     int i, err;
     miniport_t port;
     miniport_t from;
-printf("receive create ports.\n");
 
     port = miniport_create_unbound(1);
 
@@ -62,7 +61,6 @@ int transmit_first(int* arg)
     miniport_t port;
     miniport_t dest;
     miniport_t from;
-printf("transmit create ports.\n");
 
     AbortOnCondition(network_translate_hostname(hostname, addr) < 0,
                      "Could not resolve hostname, exiting.");
@@ -97,10 +95,8 @@ main(int argc, char** argv)
 
     if (argc > 3) {
         hostname = argv[3];
-printf("transmit initialize.\n");
         minithread_system_initialize(transmit_first, NULL);
     } else {
-printf("receive initialize.\n");
         minithread_system_initialize(receive_first, NULL);
     }
     return 0;

@@ -8,16 +8,18 @@
 #include "minisocket.h"
 #include "minisocket_private.h"
 #include "network.h"
+#include "network_msg.h"
 #include "queue.h"
 #include "synch.h"
 #include "miniheader.h"
 
-static minisocket_t minisocket[MINISOCKET_MAX_NUM - MINISOCKET_MIN_NUM + 1];
-static int socket_count = 0;
-static int retry_delay[MINISOCKET_MAX_TRY - 1];
 static int minisocket_transmit(minisocket_t socket, char msg_type, char *buf,
                                int len);
 
+static minisocket_t minisocket[MINISOCKET_MAX_NUM - MINISOCKET_MIN_NUM + 1];
+static int socket_count = 0;
+static int retry_delay[MINISOCKET_MAX_TRY - 1];
+static int win_size = 1;
 static network_address_t hostaddr;
 static semaphore_t port_count_mutex = NULL;
 static semaphore_t port_array_mutex = NULL;
@@ -29,7 +31,6 @@ void minisocket_initialize()
 	if ((port_count_mutex = semaphore_create()) != NULL) {
 		semaphore_initialize(port_count_mutex, 1);
 	}
-
 	if ((port_array_mutex = semaphore_create()) != NULL) {
 		semaphore_initialize(port_array_mutex, 1);
 	}
@@ -230,7 +231,36 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 int
 minisocket_enqueue(network_interrupt_arg_t *intrpt)
 {
+    struct msg_node *mnode;
+    mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
+    int local_num = unpack_unsigned_short(header->destination_port);
+    int remote_num = unpack_unsigned_short(header->source_port);
+    int type = header->message_type;
+    /* Sanity checks kept at minimum. */
+    if (local_num > MINISOCKET_MAX_NUM || local_num < MINISOCKET_MIN_NUM
+            || NULL == minisocket[local_num]) {
+        free(intrpt);
+        return -1;
+    }
+    /* Disable alarm if necessary */
+    if (minisocket[local_num]->seq == ack)
+        if ((MSG_ACK == type && ESTABLISHED == minisocket[local_num]->state)
+                || (MSG_SYNACK == type && LISTEN == minisocket[local_num]->state))
+            deregister_alarm(minisocket[local_num]->alarm);
 
+    mnode = malloc(sizeof(struct msg_node));
+    if (mnode == NULL) {
+        free(intrpt);
+        return -1;
+    }
+    mnode->intrpt = intrpt;
+
+    if (queue_append(minisocket[local_num]->data, mnode) != 0) {
+        free(mnode);
+        free(intrpt);
+        return -1;
+    }
+    semaphore_V(minisocket[local_num]->receive);
     return 0;
 }
 

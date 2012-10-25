@@ -42,7 +42,6 @@ minimsg_initialize()
     network_get_my_address(hostaddr);
     if ((port_mutex = semaphore_create()) != NULL)
         semaphore_initialize(port_mutex, 1);
-
 }
 
 /* Creates an unbound port for listening. Multiple requests to create the same
@@ -55,8 +54,6 @@ minimsg_initialize()
 miniport_t
 miniport_create_unbound(int port_number)
 {
-printf("To create unbound.\n");
-
     semaphore_P(port_mutex);
     if (port_number < MIN_UNBOUNDED || port_number > MAX_UNBOUNDED) {
         semaphore_V(port_mutex);
@@ -79,7 +76,6 @@ printf("To create unbound.\n");
         semaphore_initialize(port[port_number]->unbound.ready, 0);
     }
     semaphore_V(port_mutex);
-printf("Created unbound.\n");
     return port[port_number];
 }
 
@@ -95,7 +91,6 @@ miniport_t
 miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
 {
     int num;
-printf("To create bound.\n");
     semaphore_P(port_mutex);
     num = miniport_get_boundedport_num();
     if (num < MIN_BOUNDED || num > MAX_BOUNDED) {
@@ -109,7 +104,6 @@ printf("To create bound.\n");
         port[num]->bound.remote = remote_unbound_port_number;
     }
     semaphore_V(port_mutex);
-printf("Created bound.\n");
     return port[num];
 }
 
@@ -263,7 +257,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
         return -1;
     *new_local_bound_port = port;
 
-    memcpy(msg, &intrpt->buffer[MINIMSG_HDRSIZE], *len);
+    memcpy(msg, header + 1, *len);
     free(intrpt);
 
     return received;
@@ -273,11 +267,10 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
 int
 minimsg_enqueue(network_interrupt_arg_t *intrpt)
 {
-    int port_num;
-    mini_header_t header = (mini_header_t) intrpt->buffer;
     struct msg_node *mnode;
+    mini_header_t header = (mini_header_t) intrpt->buffer;
+    int port_num = unpack_unsigned_short(header->destination_port);
 
-    port_num = unpack_unsigned_short(header->destination_port);
     if (port_num < MIN_UNBOUNDED || port_num > MAX_UNBOUNDED
             || NULL == port[port_num]) {
         free(intrpt);

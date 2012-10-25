@@ -16,7 +16,7 @@ struct minisocket
     queue_t data;
     semaphore_t socket_mutex;
     semaphore_t receive;
-    enum socket_status {
+    enum socket_state {
 		LISTEN,
 		SYNSENT,
 		SYNRECEIVED,

@@ -215,13 +215,14 @@ minithread_yield()
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     t->status = READY;
     /* Reduce its privilige if t runs out of quanta */
-    if (ticks >= expire)
+    if (ticks >= expire) {
         if (t->priority < MAX_SCHED_PRIORITY)
             ++t->priority;
+    }
     if (t != idle_thread) {
         multilevel_queue_enqueue(ready, t->priority, t);
-        minithread_schedule();
     }
+    minithread_schedule();
     set_interrupt_level(oldlevel);
 }
 

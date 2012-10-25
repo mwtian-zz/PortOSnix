@@ -18,6 +18,7 @@
                                  sizeof(struct mini_header_reliable))
 #define MINISOCKET_MIN_NUM 0
 #define MINISOCKET_MAX_NUM 65535
+#define MINISOCKET_MAX_TRY 7
 
 typedef struct minisocket* minisocket_t;
 typedef enum minisocket_error minisocket_error;
@@ -107,5 +108,7 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
  * function.  The function should never fail.
  */
 void minisocket_close(minisocket_t socket);
+
+int minisocket_enqueue(network_interrupt_arg_t *intrpt);
 
 #endif /* __MINISOCKETS_H_ */

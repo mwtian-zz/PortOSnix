@@ -1,6 +1,11 @@
 #ifndef __MINISOCKETS_PRIVATE_H_
 #define __MINISOCKETS_PRIVATE_H_
 
+#include "network.h"
+#include "queue.h"
+#include "synch.h"
+#include "synch.h"
+
 struct minisocket
 {
     int num;

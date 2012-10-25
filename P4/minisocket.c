@@ -1,12 +1,19 @@
 /*
  *	Implementation of minisockets.
  */
+
+#include "defs.h"
+
+#include "alarm.h"
 #include "minisocket.h"
+#include "minisocket_private.h"
+#include "network.h"
 #include "queue.h"
 #include "synch.h"
 
 static minisocket_t minisocket[MINISOCKET_MAX_NUM - MINISOCKET_MIN_NUM + 1];
 static int socket_count = 0;
+static int retry_delay[MINISOCKET_MAX_TRY - 1];
 static int minisocket_transmit(minisocket_t socket, char msg_type, char *buf,
                                int len);
 
@@ -114,4 +121,10 @@ static int
 minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 {
 	return -1;
+}
+
+int
+minisocket_enqueue(network_interrupt_arg_t *intrpt)
+{
+    return 0;
 }

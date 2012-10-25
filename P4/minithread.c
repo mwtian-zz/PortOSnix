@@ -7,13 +7,16 @@
  *  NAMING AND TYPING OF THESE PROCEDURES.
  *
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+
 #include "alarm.h"
 #include "interrupts.h"
-#include "minimsg.h"
 #include "miniheader.h"
+#include "minimsg.h"
+#include "minisocket.h"
 #include "network.h"
 #include "queue.h"
 #include "synch.h"
@@ -458,6 +461,10 @@ network_handler(void* arg)
     if (intrpt->size >= MINIMSG_HDRSIZE) {
         if (PROTOCOL_MINIDATAGRAM == header->protocol) {
             minimsg_enqueue(intrpt);
+        }
+    } else if (intrpt->size >= MINISOCKET_HDRSIZE) {
+        if (PROTOCOL_MINISTREAM == header->protocol) {
+            minisocket_enqueue(intrpt);
         }
     }
     set_interrupt_level(oldlevel);

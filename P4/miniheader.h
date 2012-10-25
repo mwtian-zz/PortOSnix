@@ -13,7 +13,7 @@
 enum { PROTOCOL_MINIDATAGRAM = 1, PROTOCOL_MINISTREAM };
 
 /* message types for minisockets */
-enum { MINISOCKET_SYN = 1, MINISOCKET_SYNACK, MINISOCKET_ACK, MINISOCKET_FIN };
+enum { MSG_SYN = 1, MSG_SYNACK, MSG_ACK, MSG_FIN };
 
 /* header definition for unreliable packets */
 typedef struct mini_header

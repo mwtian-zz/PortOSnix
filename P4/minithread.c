@@ -396,6 +396,7 @@ minithread_initialize_interrupts()
     minithread_clock_init(clock_handler);
     network_initialize(network_handler);
     minimsg_initialize();
+    minisocket_initialize();
     set_interrupt_level(ENABLED);
     return 0;
 }

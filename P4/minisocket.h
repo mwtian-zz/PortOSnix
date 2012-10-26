@@ -14,13 +14,6 @@
 #include "network.h"
 #include "minimsg.h"
 
-#define MINISOCKET_MAX_MSG_SIZE (MAX_NETWORK_PKT_SIZE - \
-                                 sizeof(struct mini_header_reliable))
-#define MINISOCKET_MIN_NUM 0
-#define MINISOCKET_MAX_NUM 65535
-#define MINISOCKET_MAX_TRY 7
-#define MINISOCKET_PORT_NUM (MINISOCKET_MAX_NUM - MINISOCKET_MIN_NUM + 1)
-
 typedef struct minisocket* minisocket_t;
 typedef enum minisocket_error minisocket_error;
 

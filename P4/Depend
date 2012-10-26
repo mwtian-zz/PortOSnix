@@ -34,7 +34,8 @@ minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
  interrupts_private.h interrupts.h defs.h synch.h queue.h
 minisocket.o: minisocket.c defs.h alarm.h minisocket.h network.h \
  interrupts_private.h interrupts.h minimsg.h minisocket_private.h queue.h \
- synch.h queue_wrap.h queue_private.h miniheader.h
+ synch.h minithread.h machineprimitives.h queue_wrap.h queue_private.h \
+ miniheader.h
 minithread.o: minithread.c alarm.h interrupts.h defs.h miniheader.h \
  network.h interrupts_private.h minimsg.h minisocket.h queue.h synch.h \
  minithread.h machineprimitives.h minithread_private.h queue_private.h \

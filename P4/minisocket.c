@@ -211,9 +211,6 @@ minisocket_client_create(network_address_t addr, int port,
 		minisocket_destroy(minisocket[source_port_num]);
 		return NULL;
 	}
-	
-	/* Got synack and send ack */
-	/* Do it here or in minisocket_transmit? */
 }
 
 
@@ -242,7 +239,7 @@ minisocket_send(minisocket_t socket, minimsg_t msg, int len,
 {
 	int sent = 0, total_sent = 0, to_sent = len;
 	
-	if (socket == NULL || socket->state != ESTABLISHED) {
+	if (socket == NULL || socket->state == CLOSED) {
 		if (error != NULL) {
 			*error = SOCKET_SENDERROR;
 		}
@@ -251,6 +248,13 @@ minisocket_send(minisocket_t socket, minimsg_t msg, int len,
 	
 	semaphore_P(socket->mutex);
 	while (to_sent > 0) {
+		if (socket->state == CLOSED) {
+			if (error != NULL) {
+				*error = SOCKET_SENDERROR;
+			}
+			semaphore_V(socket->mutex);
+			return -1;
+		}
 		socket->seq++;
 		if (to_sent > MINISOCKET_MAX_MSG_SIZE) {
 			sent = minisocket_transmit(socket, 0, msg + total_sent, MINISOCKET_MAX_MSG_SIZE);
@@ -292,11 +296,23 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
     unsigned short dest_port;
     interrupt_level_t oldlevel;
 	
+	if (socket->state == CLOSED) {
+		if (error != NULL) {
+			*error = RECEIVEERROR;
+		}
+		return -1;
+	}
 	oldlevel = set_interrupt_level(DISABLED);
 	semaphore_P(socket->receive);
 	/* Dequeue message from queue and put into packet */
 	set_interrupt_level(oldlevel);
 	
+	if (socket->state == CLOSED) {
+		if (error != NULL) {
+			*error = RECEIVEERROR;	
+		}
+		return -1;
+	}
 	/* Copy data into msg */
 	/* What to do with residual data? Put it back? */
 	
@@ -311,7 +327,16 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
 void
 minisocket_close(minisocket_t socket)
 {
-
+	if (socket->state != ESTABLISHED) {
+		return;
+	}
+	semaphore_P(socket->mutex);
+	socket->state = FINSENT;
+	socket->seq++;
+	minisocket_transmit(socket, MSG_FIN, NULL, 0)
+	socket->state = CLOSED;
+	semaphore_V(socket->mutex);
+	minisocket_destroy(socket);
 }
 
 /* Return -1 on failure */

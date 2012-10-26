@@ -196,4 +196,3 @@ alarm_queue_free(alarm_queue_t alarm_queue)
     free(alarm_queue);
     return 0;
 }
-

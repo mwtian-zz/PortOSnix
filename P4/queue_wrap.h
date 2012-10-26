@@ -2,7 +2,6 @@
 #define __QUEUE_WRAP_H__
 
 #include "queue_private.h"
-#include "network.h"
 
 struct queue_wrap_node {
     struct node node;

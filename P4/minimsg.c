@@ -260,7 +260,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
     return received;
 }
 
-/* Enqueue the interrupt structure to the correct unbounded port */
+/* Place the interrupt structure to the correct unbounded port, or discard it */
 int
 minimsg_process(network_interrupt_arg_t *intrpt)
 {

@@ -15,6 +15,8 @@
 #include "miniheader.h"
 
 static int
+minisocket_server_init(network_interrupt_arg_t *intrpt, minisocket_t local);
+static int
 minisocket_transmit(minisocket_t socket, char msg_type, char *buf, int len);
 static void
 minisocket_acknowlege(minisocket_t socket);
@@ -25,6 +27,8 @@ minisocket_retry_cancel(minisocket_t socket);
 static void
 minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
                    char message_type);
+static int
+minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local);
 static int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local);
 static int
@@ -51,7 +55,8 @@ static semaphore_t port_array_mutex = NULL;
 static semaphore_t source_port_mutex = NULL;
 
 /* Initializes the minisocket layer. */
-void minisocket_initialize()
+void
+minisocket_initialize()
 {
     int i;
     network_get_my_address(hostaddr);
@@ -84,8 +89,6 @@ void minisocket_initialize()
 minisocket_t
 minisocket_server_create(int port, minisocket_error *error)
 {
-    network_interrupt_arg_t *packet;
-    mini_header_reliable_t header;
     interrupt_level_t oldlevel;
 
     /* Port out of range */
@@ -128,29 +131,16 @@ minisocket_server_create(int port, minisocket_error *error)
 
         /* Wait for sync from client*/
         oldlevel = set_interrupt_level(DISABLED);
-        semaphore_P(minisocket[port]->receive);
+        semaphore_P(minisocket[port]->synchonize);
         /* TO BE DONE:
          * dequeue from message queue
          * and the packet is put into packet
-         * - Should be handled in minisocket_process_syn
          */
         set_interrupt_level(oldlevel);
-
-        header = (mini_header_reliable_t) packet->buffer;
-        /* Assert message type to be MSG_SYN when get here */
-        if (header->message_type != MSG_SYN) {
-            fprintf(stderr, "Message type should be sync!\n");
-            exit(1);
-        }
-        minisocket[port]->remote_port_num = unpack_unsigned_short(header->source_port);
-        unpack_address(header->source_address, minisocket[port]->addr);
-        minisocket[port]->state = SYNRECEIVED;
-        minisocket[port]->ack = unpack_unsigned_int(header->seq_number); /* Acknowledge client sequence number */
-        minisocket[port]->seq = 0;  /* Initial sequence number for server */
-        free(packet);
-
+        /* minisocket_process_syn manages incoming SYN messages */
         /* Now try to send SYNACK and wait for ack*/
-        minisocket_transmit(minisocket[port], MSG_SYNACK, NULL, 0);
+        if (SYNRECEIVED == minisocket[port]->state)
+            minisocket_transmit(minisocket[port], MSG_SYNACK, NULL, 0);
     } while (minisocket[port]->state != ESTABLISHED);
 
     return minisocket[port];
@@ -226,12 +216,17 @@ minisocket_initialize_socket(int port, minisocket_error *error)
 
     socket->local_port_num = port;
     socket->mutex = NULL;
+    socket->synchonize = NULL;
+    socket->retry = NULL;
     socket->receive = NULL;
     socket->data = NULL;
     socket->mutex = semaphore_create();
+    socket->synchonize = semaphore_create();
+    socket->retry = semaphore_create();
     socket->receive = semaphore_create();
     socket->data = queue_new();
-    if (NULL == socket->mutex || NULL == socket->receive
+    if (NULL == socket->mutex || NULL == socket->synchonize
+            || NULL == socket->retry || NULL == socket->receive
             || NULL == socket->data) {
         minisocket[port] = NULL;
         *error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
@@ -507,7 +502,7 @@ minisocket_process(network_interrupt_arg_t *intrpt)
     return intrpt_status;
 }
 
-int
+static int
 minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
@@ -517,12 +512,28 @@ minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local)
     if (local->remote_port_num != remote_num
             || network_address_same(local->addr, remote_addr) != 1)
         return -1;
+    return 0;
+}
+
+int
+minisocket_server_init(network_interrupt_arg_t *intrpt, minisocket_t local)
+{
+    mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
+    local->remote_port_num = unpack_unsigned_short(header->source_port);
+    unpack_address(header->source_address, local->addr);
+    local->ack = unpack_unsigned_int(header->seq_number);
+    local->seq = 0;
+    local->state = SYNRECEIVED;
+    return 0;
 }
 
 int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
-
+    if (LISTEN == local->state) {
+        minisocket_server_init(intrpt, local);
+        semaphore_V(local->synchonize);
+    }
     return INTERRUPT_PROCESSED;
 }
 
@@ -577,4 +588,3 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     return INTERRUPT_PROCESSED;
 }
-

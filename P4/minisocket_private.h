@@ -25,6 +25,7 @@ struct minisocket
     int alarm;
     queue_t data;
     semaphore_t mutex;
+    semaphore_t synchonize;
     semaphore_t retry;
     semaphore_t receive;
     enum socket_state {

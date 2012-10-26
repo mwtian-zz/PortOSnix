@@ -415,15 +415,6 @@ minithread_unlock_and_stop(tas_lock_t* lock)
 }
 
 /*
- * Called when an alarm fired to wake up a thread
- */
-static void
-minithread_wakeup(void* sleep_sem)
-{
-    semaphore_V((semaphore_t) sleep_sem);
-}
-
-/*
  * Sleep with timeout in milliseconds
  */
 void
@@ -431,7 +422,7 @@ minithread_sleep_with_timeout(int delay)
 {
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     context->status = BLOCKED;
-    if (register_alarm(delay, &minithread_wakeup, context->sleep_sem) != -1)
+    if (register_alarm(delay, &semaphore_Signal, context->sleep_sem) != -1)
         semaphore_P(context->sleep_sem);
     set_interrupt_level(oldlevel);
 }
@@ -453,10 +444,10 @@ clock_handler(void* arg)
     set_interrupt_level(oldlevel);
 }
 
+/* Interrupts are disabled in the respective processing functions */
 void
 network_handler(void* arg)
 {
-    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     network_interrupt_arg_t *intrpt = arg;
     mini_header_t header = (mini_header_t) intrpt->buffer;
     if (intrpt->size >= MINIMSG_HDRSIZE) {
@@ -468,5 +459,4 @@ network_handler(void* arg)
             minisocket_process(intrpt);
         }
     }
-    set_interrupt_level(oldlevel);
 }

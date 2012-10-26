@@ -103,3 +103,9 @@ semaphore_V(semaphore_t sem)
     }
     atomic_clear(&(sem->lock));
 }
+
+void
+semaphore_Signal(void* sem)
+{
+    semaphore_V((semaphore_t) sem);
+}

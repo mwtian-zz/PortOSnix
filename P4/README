@@ -12,7 +12,7 @@ http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3/faq.htm
 
 1. minisocket_t minisocket_server_create(int port, minisocket_error *error):
 	server create minisocket structure, set state to listen, P() on receive semaphore
-	waked up on receive semaphore, check state and received data, if is listen and data is syn, send synack and timeout, set state to synreceived, 
+	waked up on receive semaphore, check state and received data, if is listen and data is syn, send synack and timeout, set state to synreceived,
 	if received data before timeout, check state and received data, if is synreceived and data is ack, set state establish, return socket.
 	else set state to listen and P() on receive semaphore
 
@@ -36,3 +36,10 @@ http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3/faq.htm
 new functions need:
 	/* transmit 7 times before get ack, return -1 if timeout 7 times */
 	int minisocket_transmit(minisocket_t socket, char msg_type, char *buf, int len)
+
+Q: Use a daemon for minisocket? After a packet is buffered, even if no receive is called, the packet should be ACKed.
+Doing this with interrupt disabled is expensive.
+A: Found on slides. Yes.
+
+Q: What happens when network_send_pkt sent out incomplete packet, but with
+correct seq and ack?

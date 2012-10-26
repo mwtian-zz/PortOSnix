@@ -15,6 +15,8 @@
 
 static int minisocket_transmit(minisocket_t socket, char msg_type, char *buf,
                                int len);
+static void minisocket_packhdr(mini_header_reliable_t header,
+                               minisocket_t socket, char message_type);
 
 static minisocket_t minisocket[MINISOCKET_MAX_NUM - MINISOCKET_MIN_NUM + 1];
 static int socket_count = 0;
@@ -225,22 +227,41 @@ minisocket_close(minisocket_t socket)
 static int
 minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 {
+    int sent;
+    struct mini_header_reliable header;
+    minisocket_packhdr(&header, socket, msg_type);
 
-    return -1;
+    sent = network_send_pkt(socket->addr, MINISOCKET_HDRSIZE, (char*)&header,
+                            len, msg);
+    return sent - MINIMSG_HDRSIZE < 0 ? -1 : sent - MINIMSG_HDRSIZE;
 }
 
 int
 minisocket_process(network_interrupt_arg_t *intrpt)
 {
+    interrupt_level_t oldlevel;
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int local_num = unpack_unsigned_short(header->destination_port);
+    int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
     int type = header->message_type;
+    int success_flag = 0;
     /* Sanity checks kept at minimum. */
     if (local_num > MINISOCKET_MAX_NUM || local_num < MINISOCKET_MIN_NUM
             || NULL == minisocket[local_num]) {
         free(intrpt);
         return -1;
+    }
+
+    oldlevel = set_interrupt_level(DISABLED);
+    /* Queue every packet except empty ACK */
+    if (!(MSG_ACK == type && intrpt->size == MINISOCKET_HDRSIZE)) {
+        if (queue_wrap_enqueue(minisocket[local_num]->data, intrpt) != 0) {
+            free(intrpt);
+            set_interrupt_level(oldlevel);
+            return -1;
+        }
+        semaphore_V(minisocket[local_num]->receive);
     }
     /* Disable alarm if ACK is valid. */
     if (minisocket[local_num]->alarm != -1 && minisocket[local_num]->seq == ack)
@@ -250,9 +271,11 @@ minisocket_process(network_interrupt_arg_t *intrpt)
                 || (MSG_ACK == type
                     && SYNRECEIVED == minisocket[local_num]->state))
             deregister_alarm(minisocket[local_num]->alarm);
+    /* Return ACK if the packet is valid data */
+    if (MSG_ACK == type && minisocket[local_num]->ack + 1 == seq)
+        minisocket_transmit(minisocket[local_num], MSG_ACK, NULL, 0);
+    set_interrupt_level(oldlevel);
 
-    queue_wrap_enqueue(minisocket[local_num]->data, intrpt);
-    semaphore_V(minisocket[local_num]->receive);
     return 0;
 }
 
@@ -287,7 +310,7 @@ minisocket_get_socket()
 /* seq, ack and message_type may get from socket */
 static void
 minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
-                   char message_type, int seq, int ack)
+                   char message_type)
 {
     header->protocol = PROTOCOL_MINISTREAM;
     pack_address(header->source_address, hostaddr);
@@ -295,6 +318,6 @@ minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
     pack_address(header->destination_address, socket->addr);
     pack_unsigned_short(header->destination_port, socket->remote_port_num);
     header->message_type = message_type;
-    pack_unsigned_int(header->seq_number, seq);
-    pack_unsigned_int(header->ack_number, ack);
+    pack_unsigned_int(header->seq_number, socket->seq);
+    pack_unsigned_int(header->ack_number, socket->ack);
 }

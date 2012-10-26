@@ -264,19 +264,23 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
 int
 minimsg_process(network_interrupt_arg_t *intrpt)
 {
+    interrupt_level_t oldlevel;
     mini_header_t header = (mini_header_t) intrpt->buffer;
     int port_num = unpack_unsigned_short(header->destination_port);
-
     if (port_num < MIN_UNBOUNDED || port_num > MAX_UNBOUNDED
             || NULL == port[port_num]) {
         free(intrpt);
         return -1;
     }
+
+    oldlevel = set_interrupt_level(DISABLED);
     if (queue_wrap_enqueue(port[port_num]->unbound.data, intrpt) != 0) {
         free(intrpt);
+        set_interrupt_level(oldlevel);
         return -1;
     }
-
     semaphore_V(port[port_num]->unbound.ready);
+    set_interrupt_level(oldlevel);
+
     return 0;
 }

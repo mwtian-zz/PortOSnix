@@ -32,6 +32,7 @@ struct minisocket
 		SYNSENT,
 		SYNRECEIVED,
 		ESTABLISHED,
+		FINSENT,
 		CLOSEWAIT,
 		LASTACK,
 		CLOSED,

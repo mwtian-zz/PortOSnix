@@ -250,7 +250,6 @@ static int
 minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 {
     int i;
-    int sent;
     struct mini_header_reliable header;
     minisocket_packhdr(&header, socket, msg_type);
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
@@ -291,11 +290,15 @@ minisocket_process(network_interrupt_arg_t *intrpt)
     minisocket_interrupt_status intrpt_status;
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     minisocket_t local;
+    network_address_t local_addr;
     int local_num = unpack_unsigned_short(header->destination_port);
     int type = header->message_type;
+
     /* Sanity checks kept at minimum. */
+    unpack_address(header->destination_address, local_addr);
     if (local_num > MINISOCKET_MAX_CLIENT || local_num < MINISOCKET_MIN_SERVER
-            || NULL == minisocket[local_num]) {
+            || NULL == minisocket[local_num]
+            || network_address_same(hostaddr, local_addr) != 1) {
         free(intrpt);
         return -1;
     }
@@ -332,8 +335,14 @@ int
 minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
+    network_address_t remote_addr;
+    int remote_num = unpack_unsigned_short(header->source_port);
     int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
+    unpack_address(header->source_address, remote_addr);
+    if (local->remote_port_num != remote_num
+            || network_address_same(local->addr, remote_addr) != 1)
+        return INTERRUPT_PROCESSED;
     /* Remote acknowleges local sent SYN, and sends SYN back. */
     if (SYNSENT == local->state && local->seq == ack && local->ack + 1 == seq) {
         deregister_alarm(local->alarm);
@@ -348,8 +357,14 @@ int
 minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
+    network_address_t remote_addr;
+    int remote_num = unpack_unsigned_short(header->source_port);
     int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
+    unpack_address(header->source_address, remote_addr);
+    if (local->remote_port_num != remote_num
+            || network_address_same(local->addr, remote_addr) != 1)
+        return INTERRUPT_PROCESSED;
     /* Disable retransmission if send is acknowleged */
     if (local->alarm > -1 && local->seq == ack)
         if ((ESTABLISHED == local->state) || (SYNRECEIVED == local->state))

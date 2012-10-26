@@ -117,7 +117,7 @@ minisocket_server_create(int port, minisocket_error *error)
 		}
         return NULL;
     }
-	
+
 	/* Initialize socket with port number */
 	if (minisocket_initialize_socket(port, error) == -1) {
 		return NULL;
@@ -129,9 +129,10 @@ minisocket_server_create(int port, minisocket_error *error)
         /* Wait for sync from client*/
         oldlevel = set_interrupt_level(DISABLED);
         semaphore_P(minisocket[port]->receive);
-        /* TO BE DONE */
-        /* dequeue from message queue
+        /* TO BE DONE:
+         * dequeue from message queue
          * and the packet is put into packet
+         * - Should be handled in minisocket_process_syn
          */
         set_interrupt_level(oldlevel);
 
@@ -147,7 +148,7 @@ minisocket_server_create(int port, minisocket_error *error)
 		minisocket[port]->ack = unpack_unsigned_int(header->seq_number); /* Acknowledge client sequence number */
 		minisocket[port]->seq = 0;  /* Initial sequence number for server */
 		free(packet);
-		
+
         /* Now try to send SYNACK and wait for ack*/
 		minisocket_transmit(minisocket[port], MSG_SYNACK, NULL, 0);
     } while (minisocket[port]->state != ESTABLISHED);
@@ -175,7 +176,7 @@ minisocket_client_create(network_address_t addr, int port,
                          minisocket_error *error)
 {
 	int source_port_num;
-	
+
 	/* Get a free source port number */
 	source_port_num = minisocket_get_socket();
 	/* Run out of free ports */
@@ -185,7 +186,7 @@ minisocket_client_create(network_address_t addr, int port,
 		}
 		return NULL;
 	}
-	
+
 	minisocket[source_port_num] = malloc(sizeof(struct minisocket));
 	if (minisocket[source_port_num] == NULL) {
 		if (error != NULL) {
@@ -193,17 +194,17 @@ minisocket_client_create(network_address_t addr, int port,
 		}
 		return NULL;
 	}
-	
+
 	/* Initialize socket with source_port_num */
 	if (minisocket_initialize_socket(source_port_num, error) == -1) {
 		return NULL;
 	}
-	
+
 	minisocket[source_port_num]->remote_port_num = port;
 	network_address_copy(addr, minisocket[source_port_num]->addr);
 	minisocket[source_port_num]->seq = 0;
 	minisocket[source_port_num]->state = SYNSENT;
-	
+
 	/* Send syn to server */
 	if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
 		/* Connection to server fails, destroy socket */
@@ -211,6 +212,8 @@ minisocket_client_create(network_address_t addr, int port,
 		minisocket_destroy(minisocket[source_port_num]);
 		return NULL;
 	}
+
+	return minisocket[source_port_num];
 }
 
 
@@ -238,14 +241,14 @@ minisocket_send(minisocket_t socket, minimsg_t msg, int len,
                 minisocket_error *error)
 {
 	int sent = 0, total_sent = 0, to_sent = len;
-	
+
 	if (socket == NULL || socket->state == CLOSED) {
 		if (error != NULL) {
 			*error = SOCKET_SENDERROR;
 		}
 		return -1;
 	}
-	
+
 	semaphore_P(socket->mutex);
 	while (to_sent > 0) {
 		if (socket->state == CLOSED) {
@@ -295,10 +298,10 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
     mini_header_reliable_t header;
     unsigned short dest_port;
     interrupt_level_t oldlevel;
-	
+
 	if (socket->state == CLOSED) {
 		if (error != NULL) {
-			*error = RECEIVEERROR;
+			*error = SOCKET_RECEIVEERROR;
 		}
 		return -1;
 	}
@@ -306,16 +309,16 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
 	semaphore_P(socket->receive);
 	/* Dequeue message from queue and put into packet */
 	set_interrupt_level(oldlevel);
-	
+
 	if (socket->state == CLOSED) {
 		if (error != NULL) {
-			*error = RECEIVEERROR;	
+			*error = SOCKET_RECEIVEERROR;
 		}
 		return -1;
 	}
 	/* Copy data into msg */
 	/* What to do with residual data? Put it back? */
-	
+
     return 0;
 }
 
@@ -333,7 +336,7 @@ minisocket_close(minisocket_t socket)
 	semaphore_P(socket->mutex);
 	socket->state = FINSENT;
 	socket->seq++;
-	minisocket_transmit(socket, MSG_FIN, NULL, 0)
+	minisocket_transmit(socket, MSG_FIN, NULL, 0);
 	socket->state = CLOSED;
 	semaphore_V(socket->mutex);
 	minisocket_destroy(socket);
@@ -563,7 +566,7 @@ minisocket_initialize_socket(int port, minisocket_error *error) {
     }
     semaphore_initialize(minisocket[port]->mutex, 1);
     minisocket[port]->local_port_num = port;
-	
+
 	return 0;
 }
 

@@ -8,7 +8,7 @@
 #include "minisocket.h"
 #include "minisocket_private.h"
 #include "network.h"
-#include "network_msg.h"
+#include "queue_wrap.h"
 #include "queue.h"
 #include "synch.h"
 #include "miniheader.h"
@@ -229,7 +229,7 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 }
 
 int
-minisocket_enqueue(network_interrupt_arg_t *intrpt)
+minisocket_process(network_interrupt_arg_t *intrpt)
 {
     struct msg_node *mnode;
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
@@ -250,18 +250,7 @@ minisocket_enqueue(network_interrupt_arg_t *intrpt)
                 || (MSG_ACK == type && SYNRECEIVED == minisocket[local_num]->state))
             deregister_alarm(minisocket[local_num]->alarm);
 
-    mnode = malloc(sizeof(struct msg_node));
-    if (mnode == NULL) {
-        free(intrpt);
-        return -1;
-    }
-    mnode->intrpt = intrpt;
-
-    if (queue_append(minisocket[local_num]->data, mnode) != 0) {
-        free(mnode);
-        free(intrpt);
-        return -1;
-    }
+    queue_wrap_enqueue(minisocket[local_num]->data, intrpt);
     semaphore_V(minisocket[local_num]->receive);
     return 0;
 }

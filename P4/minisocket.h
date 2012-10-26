@@ -111,6 +111,6 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
  */
 void minisocket_close(minisocket_t socket);
 
-int minisocket_enqueue(network_interrupt_arg_t *intrpt);
+int minisocket_process(network_interrupt_arg_t *intrpt);
 
 #endif /* __MINISOCKETS_H_ */

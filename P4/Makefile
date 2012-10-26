@@ -32,6 +32,7 @@ OBJ = \
     multilevel_queue.o \
     network.o \
     queue.o \
+    queue_wrap.o \
     random.o \
     synch.o \
 

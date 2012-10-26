@@ -461,11 +461,11 @@ network_handler(void* arg)
     mini_header_t header = (mini_header_t) intrpt->buffer;
     if (intrpt->size >= MINIMSG_HDRSIZE) {
         if (PROTOCOL_MINIDATAGRAM == header->protocol) {
-            minimsg_enqueue(intrpt);
+            minimsg_process(intrpt);
         }
     } else if (intrpt->size >= MINISOCKET_HDRSIZE) {
         if (PROTOCOL_MINISTREAM == header->protocol) {
-            minisocket_enqueue(intrpt);
+            minisocket_process(intrpt);
         }
     }
     set_interrupt_level(oldlevel);

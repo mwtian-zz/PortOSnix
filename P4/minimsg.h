@@ -68,6 +68,6 @@ extern int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_po
 extern int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, minimsg_t msg, int *len);
 
 /* Enqueue the interruput message on the appropriate port */
-extern int minimsg_enqueue(network_interrupt_arg_t *intrpt);
+extern int minimsg_process(network_interrupt_arg_t *intrpt);
 
 #endif /*__MINIMSG_H__*/

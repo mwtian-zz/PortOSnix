@@ -7,9 +7,8 @@
 #include "minimsg.h"
 #include "minimsg_private.h"
 #include "network.h"
-#include "network_msg.h"
 #include "queue.h"
-#include "queue_private.h"
+#include "queue_wrap.h"
 #include "synch.h"
 
 /* Array of pointer to ports, statically initialized to NULL */
@@ -32,8 +31,6 @@ static int
 miniport_get_boundedport_num();
 static void
 minimsg_packhdr(mini_header_t hdr, miniport_t unbound, miniport_t bound);
-static int
-minimsg_dequeue(queue_t q, network_interrupt_arg_t **recv);
 
 /* Performs any required initialization of the minimsg layer. */
 void
@@ -234,7 +231,7 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
      */
     oldlevel = set_interrupt_level(DISABLED);
     semaphore_P(local_unbound_port->unbound.ready);
-    minimsg_dequeue(local_unbound_port->unbound.data, &intrpt);
+    queue_wrap_dequeue(local_unbound_port->unbound.data, (void**) &intrpt);
     set_interrupt_level(oldlevel);
 
     /*
@@ -265,9 +262,8 @@ minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port,
 
 /* Enqueue the interrupt structure to the correct unbounded port */
 int
-minimsg_enqueue(network_interrupt_arg_t *intrpt)
+minimsg_process(network_interrupt_arg_t *intrpt)
 {
-    struct msg_node *mnode;
     mini_header_t header = (mini_header_t) intrpt->buffer;
     int port_num = unpack_unsigned_short(header->destination_port);
 
@@ -276,38 +272,11 @@ minimsg_enqueue(network_interrupt_arg_t *intrpt)
         free(intrpt);
         return -1;
     }
-
-    mnode = malloc(sizeof(struct msg_node));
-    if (mnode == NULL) {
-        free(intrpt);
-        return -1;
-    }
-    mnode->intrpt = intrpt;
-
-    if (queue_append(port[port_num]->unbound.data, mnode) != 0) {
-        free(mnode);
+    if (queue_wrap_enqueue(port[port_num]->unbound.data, intrpt) != 0) {
         free(intrpt);
         return -1;
     }
 
     semaphore_V(port[port_num]->unbound.ready);
     return 0;
-}
-
-/*
- * Dequeue the interrupt structure from the specified queue.
- * Called by minimsg_receive.
- */
-static int
-minimsg_dequeue(queue_t q, network_interrupt_arg_t **recv)
-{
-    struct msg_node *mnode;
-    if (queue_dequeue(q, (void**) &mnode) == 0) {
-        *recv = mnode->intrpt;
-        free(mnode);
-        return 0;
-    } else {
-        *recv = NULL;
-        return -1;
-    }
 }

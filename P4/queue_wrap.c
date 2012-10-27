@@ -3,6 +3,18 @@
 #include "queue_wrap.h"
 
 int
+queue_wrap_prepend(queue_t q, void* data)
+{
+    struct queue_wrap_node *node;
+    if (NULL == q)
+        return -1;
+    if ((node = malloc(sizeof(struct queue_wrap_node))) == NULL)
+        return -1;
+    node->data = data;
+    return queue_prepend(q, node);
+}
+
+int
 queue_wrap_enqueue(queue_t q, void* data)
 {
     struct queue_wrap_node *node;

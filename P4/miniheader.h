@@ -5,8 +5,8 @@
  */
 #include "network.h"
 
-#define MINIMSG_HDRSIZE 21
-#define MINISOCKET_HDRSIZE 30
+#define MINIMSG_HDRSIZE (sizeof(struct mini_header))
+#define MINISOCKET_HDRSIZE (sizeof(struct mini_header_reliable))
 
 
 /* protocol types */

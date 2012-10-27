@@ -454,10 +454,13 @@ network_handler(void* arg)
     if (intrpt->size >= MINIMSG_HDRSIZE) {
         if (PROTOCOL_MINIDATAGRAM == header->protocol) {
             minimsg_process(intrpt);
+            return;
         }
-    } else if (intrpt->size >= MINISOCKET_HDRSIZE) {
+    }
+    if (intrpt->size >= MINISOCKET_HDRSIZE) {
         if (PROTOCOL_MINISTREAM == header->protocol) {
             minisocket_process(intrpt);
+            return;
         }
     }
 }

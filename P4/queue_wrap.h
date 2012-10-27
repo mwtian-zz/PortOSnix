@@ -9,6 +9,9 @@ struct queue_wrap_node {
 };
 
 extern int
+queue_wrap_prepend(queue_t q, void* data);
+
+extern int
 queue_wrap_enqueue(queue_t q, void* data);
 
 extern int

@@ -43,3 +43,9 @@ A: Found on slides. Yes.
 
 Q: What happens when network_send_pkt sent out incomplete packet, but with
 correct seq and ack?
+
+
+TO DO:
+1. End all the receive when minisocket_close is called. Could use a counter to record how many is waiting and V that semaphore that many times.
+2. Make it thread safe.
+

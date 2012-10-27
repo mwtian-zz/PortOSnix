@@ -137,6 +137,11 @@ minisocket_server_create(int port, minisocket_error *error)
 
     } while (minisocket[port]->state != ESTABLISHED);
 
+	printf("server own address: ");
+	network_printaddr(minisocket[port]->local_addr);
+	printf(" Remote address: ");
+	network_printaddr(minisocket[port]->remote_addr);
+	
     return minisocket[port];
 }
 
@@ -185,11 +190,17 @@ minisocket_client_create(network_address_t addr, int port,
     }
 
     minisocket[source_port_num]->remote_port_num = port;
-    network_address_copy(addr, minisocket[source_port_num]->addr);
+    network_address_copy(addr, minisocket[source_port_num]->remote_addr);
+	network_address_copy(hostaddr, minisocket[source_port_num]->local_addr);
     minisocket[source_port_num]->seq = 0;
     minisocket[source_port_num]->ack = 0;
     minisocket[source_port_num]->state = SYNSENT;
-
+	
+	printf("Client own address: ");
+	network_printaddr(hostaddr);
+	printf(" Remote address: ");
+	network_printaddr(minisocket[source_port_num]->remote_addr);
+	
     /* Send syn to server */
     if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
         /* Connection to server fails, destroy socket */
@@ -419,7 +430,7 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
         ++socket->seq;
     minisocket_packhdr(&header, socket, msg_type);
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
-        network_send_pkt(socket->addr, MINISOCKET_HDRSIZE,
+        network_send_pkt(socket->remote_addr, MINISOCKET_HDRSIZE,
                                 (char*)&header, len, msg);
         minisocket_retry_wait(socket, retry_delay[i]);
         if (-1 == socket->alarm)
@@ -436,9 +447,9 @@ minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
                    char message_type)
 {
     header->protocol = PROTOCOL_MINISTREAM;
-    pack_address(header->source_address, hostaddr);
+    pack_address(header->source_address, socket->local_addr);
     pack_unsigned_short(header->source_port, socket->local_port_num);
-    pack_address(header->destination_address, socket->addr);
+    pack_address(header->destination_address, socket->remote_addr);
     pack_unsigned_short(header->destination_port, socket->remote_port_num);
     header->message_type = message_type;
     pack_unsigned_int(header->seq_number, socket->seq);
@@ -465,7 +476,7 @@ minisocket_acknowlege(minisocket_t local)
 {
     struct mini_header_reliable header;
     minisocket_packhdr(&header, local, MSG_ACK);
-    network_send_pkt(local->addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
+    network_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
 }
 
 int
@@ -516,7 +527,7 @@ minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local)
     network_address_t remote_addr;
     int remote_num = unpack_unsigned_short(header->source_port);
     unpack_address(header->source_address, remote_addr);
-    /* || network_address_same(local->addr, remote_addr) != 1 */
+    /* || network_address_same(local->remote_addr, remote_addr) != 1 */
     if (local->remote_port_num != remote_num)
         return -1;
     return 0;
@@ -527,7 +538,8 @@ minisocket_server_init(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     local->remote_port_num = unpack_unsigned_short(header->source_port);
-    unpack_address(header->source_address, local->addr);
+    unpack_address(header->source_address, local->remote_addr);
+	unpack_address(header->destination_address, local->local_addr);
     local->ack = unpack_unsigned_int(header->seq_number);
     local->seq = 0;
     local->state = SYNRECEIVED;

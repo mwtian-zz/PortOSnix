@@ -489,11 +489,13 @@ minisocket_process(network_interrupt_arg_t *intrpt)
     /* Sanity checks kept at minimum. */
     unpack_address(header->destination_address, local_addr);
     if (local_num > MINISOCKET_MAX_CLIENT || local_num < MINISOCKET_MIN_SERVER
-            || NULL == minisocket[local_num]
-            || network_address_same(hostaddr, local_addr) != 1) {
+            || NULL == minisocket[local_num]) {
+        network_printaddr(hostaddr);
+        network_printaddr(local_addr);
         free(intrpt);
         return -1;
     }
+
     local = minisocket[local_num];
     switch (type) {
     case MSG_SYN:
@@ -523,8 +525,8 @@ minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local)
     network_address_t remote_addr;
     int remote_num = unpack_unsigned_short(header->source_port);
     unpack_address(header->source_address, remote_addr);
-    if (local->remote_port_num != remote_num
-            || network_address_same(local->addr, remote_addr) != 1)
+    /* || network_address_same(local->addr, remote_addr) != 1 */
+    if (local->remote_port_num != remote_num)
         return -1;
     return 0;
 }
@@ -544,6 +546,8 @@ minisocket_server_init(network_interrupt_arg_t *intrpt, minisocket_t local)
 static int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
+    if (MINISOCKET_DEBUG == 1)
+        printf("SYN received.\n");
     if (LISTEN == local->state) {
         minisocket_server_init(intrpt, local);
         semaphore_V(local->synchonize);
@@ -557,6 +561,8 @@ minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
+    if (MINISOCKET_DEBUG == 1)
+        printf("SYNACK received.\n");
 
     if (minisocket_validate(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
@@ -577,6 +583,8 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
+    if (MINISOCKET_DEBUG == 1)
+        printf("ACK received.\n");
 
     if (minisocket_validate(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;

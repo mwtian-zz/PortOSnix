@@ -19,7 +19,7 @@
 
 #define BUFFER_SIZE 100000
 
-int port=80; /* port on which we do the communication */
+int port = 8080; /* port on which we do the communication */
 char* hostname;
 
 char* GetErrorDescription(int errorcode)
@@ -115,7 +115,7 @@ int client(int* arg)
     network_translate_hostname(hostname, address);
 
     /* create a network connection to the local machine */
-    socket = minisocket_client_create(address, port,&error);
+    socket = minisocket_client_create(address, port, &error);
     if (socket==NULL) {
         printf("ERROR: %s. Exiting. \n",GetErrorDescription(error));
         return -1;

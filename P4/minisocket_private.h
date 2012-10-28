@@ -18,8 +18,9 @@
 struct minisocket
 {
     int local_port_num;
-    network_address_t addr;
 	int remote_port_num;
+    network_address_t remote_addr;
+	network_address_t local_addr;
     int seq;
     int ack;
     int alarm;

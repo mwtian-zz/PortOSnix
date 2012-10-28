@@ -551,6 +551,8 @@ minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
     if (LISTEN == local->state) {
         minisocket_server_init(intrpt, local);
         semaphore_V(local->synchonize);
+    } else {
+        /* Acknowlege, and reply FIN. */
     }
     return INTERRUPT_PROCESSED;
 }

@@ -16,7 +16,7 @@
 
 
 #define BUFFER_SIZE 100000
-#define RECV_BUFFER_SIZE 1
+#define RECV_BUFFER_SIZE 100000
 
 
 int port = 8080; /* port on which we do the communication */
@@ -135,7 +135,7 @@ int receive(int* arg)
     bytes_received=0;
     while (bytes_received!=BUFFER_SIZE) {
         int received_bytes;
-        if ((received_bytes=minisocket_receive(socket,buffer, 1, &error))==-1) {
+        if ((received_bytes=minisocket_receive(socket,buffer, RECV_BUFFER_SIZE, &error))==-1) {
             printf("ERROR: %s. Exiting. \n",GetErrorDescription(error));
             /* close the connection */
             minisocket_close(socket);

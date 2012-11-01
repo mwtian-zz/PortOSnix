@@ -14,6 +14,7 @@
 #define MINISOCKET_CLIENT_NUM (MINISOCKET_MAX_CLIENT - MINISOCKET_MIN_CLIENT + 1)
 #define MINISOCKET_MAX_TRY 7
 #define MINISOCKET_INITIAL_TIMEOUT 100
+#define MINISOCKET_FIN_TIMEOUT 15000
 
 struct minisocket
 {
@@ -25,7 +26,10 @@ struct minisocket
     int ack;
     int alarm;
     queue_t data;
-    semaphore_t mutex;
+    semaphore_t send_mutex; /* send mutex: only one thread can send */
+	semaphore_t data_mutex; /* data queue */
+	semaphore_t state_mutex; /* socket state */
+	semaphore_t seq_mutex;   /* sequence number mutex */
     semaphore_t synchonize;
     semaphore_t retry;
     semaphore_t receive;
@@ -35,6 +39,7 @@ struct minisocket
 		SYNRECEIVED,
 		ESTABLISHED,
 		FINSENT,
+		FINRECEIVED,
 		CLOSEWAIT,
 		LASTACK,
 		CLOSED,

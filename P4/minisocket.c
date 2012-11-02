@@ -359,6 +359,11 @@ minisocket_send(minisocket_t socket, minimsg_t msg, int len,
 
     semaphore_P(socket->send_mutex);
     while (to_sent > 0) {
+		if (socket == NULL) {
+			*error = SOCKET_SENDERROR;
+			semaphore_V(socket->send_mutex);
+			return -1;
+		}
         state = minisocket_get_state(socket);
         if (state != ESTABLISHED) {
             *error = SOCKET_SENDERROR;

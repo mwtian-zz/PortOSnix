@@ -49,3 +49,4 @@ TO DO:
 1. End all the receive when minisocket_close is called. Could use a counter to record how many is waiting and V that semaphore that many times.
 2. Make it thread safe.
 
+3. In process_ack, use semaphore to protect enqueue

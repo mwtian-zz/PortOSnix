@@ -1,7 +1,7 @@
-#ifndef __INTERRUPTS_H_
-#define __INTERRUPTS_H_
+#ifndef __INTERRUPTS_PRIVATE_H_
+#define __INTERRUPTS_PRIVATE_H_
 /*
- * Interface for interrupt related functions used 
+ * Interface for interrupt related functions used
  * by the virtual machine symulator
  *
  * YOU SHOULD NOT [NEED TO] MODIFY THIS FILE.
@@ -36,4 +36,4 @@ mini_network_handler;
 
 void send_interrupt(int interrupt_type, void* arg);
 
-#endif
+#endif /* __INTERRUPTS_PRIVATE_H_ */

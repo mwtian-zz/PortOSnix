@@ -35,6 +35,7 @@ int server(int* arg)
     }
     return 0;
 }
+
 int sender(int* arg)
 {
     char buffer[BUFFER_SIZE];
@@ -47,7 +48,8 @@ int sender(int* arg)
     id = *arg;
     socket = minisocket_server_create(port[id],&error);
     if (socket==NULL) {
-        printf("*****GRADING: thread %d.Can't create the server. Error code: %d.\n",error);
+        printf("*****GRADING: thread %d.Can't create the server.\
+               Error code: %d.\n", id, error);
         return 0;
     }
 
@@ -71,6 +73,7 @@ int sender(int* arg)
     }
     printf("*****GRADING: thread %d. all data sent successfully\n", id);
     /* close the connection */
+printf("Sender %d closing socket %d.\n", id, port[id]);
     minisocket_close(socket);
     return 0;
 }
@@ -128,6 +131,8 @@ int receiver(int* arg)
     }
 
     printf("*****GRADING: thread %d. All bytes received.\n",id);
+
+printf("Receiver %d closing socket.\n", id);
 
     minisocket_close(socket);
 

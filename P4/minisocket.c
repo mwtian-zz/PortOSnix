@@ -28,7 +28,7 @@ static void
 minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
                    char message_type);
 static int
-minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local);
+minisocket_validate_source(network_interrupt_arg_t *intrpt, minisocket_t local);
 static int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local);
 static int
@@ -42,7 +42,7 @@ minisocket_get_free_socket();
 static int
 minisocket_initialize_socket(int port, minisocket_error *error);
 static void
-minisocket_destroy(minisocket_t socket);
+minisocket_destroy(minisocket_t *p_socket);
 static int
 minisocket_get_state(minisocket_t socket);
 static void
@@ -53,7 +53,6 @@ minisocket_process_packet(network_interrupt_arg_t *intrp);
 static minisocket_t minisocket[MINISOCKET_PORT_NUM];
 static int socket_count = 0;
 static int retry_delay[MINISOCKET_MAX_TRY];
-static int win_size = 1;
 static network_address_t hostaddr;
 static semaphore_t port_count_mutex = NULL;
 static semaphore_t port_array_mutex = NULL;
@@ -161,12 +160,20 @@ minisocket_server_create(int port, minisocket_error *error)
         state = minisocket_get_state(minisocket[port]);
     } while (state != ESTABLISHED);
 
-    printf("server own address: ");
-    network_printaddr(minisocket[port]->local_addr);
-    printf(" Remote address: ");
-    network_printaddr(minisocket[port]->remote_addr);
-
     return minisocket[port];
+}
+
+static int
+minisocket_server_init(network_interrupt_arg_t *intrpt, minisocket_t local)
+{
+    mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
+    local->remote_port_num = unpack_unsigned_short(header->source_port);
+    unpack_address(header->source_address, local->remote_addr);
+    unpack_address(header->destination_address, local->local_addr);
+    local->ack = unpack_unsigned_int(header->seq_number);
+    local->seq = 0;
+    minisocket_set_state(local, SYNRECEIVED);
+    return 0;
 }
 
 /*
@@ -220,22 +227,16 @@ minisocket_client_create(network_address_t addr, int port,
     minisocket[source_port_num]->ack = 0;
     minisocket[source_port_num]->state = SYNSENT;
 
-    printf("Client own address: ");
-    network_printaddr(hostaddr);
-    printf(" Remote address: ");
-    network_printaddr(minisocket[source_port_num]->remote_addr);
-
     /* Send syn to server */
     if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
         /* Connection to server fails, destroy socket */
         *error = SOCKET_NOSERVER;
-        minisocket_destroy(minisocket[source_port_num]);
+        minisocket_destroy(&minisocket[source_port_num]);
         return NULL;
     }
 
     return minisocket[source_port_num];
 }
-
 
 /* Initialize socket with port number, return -1 on failure, 0 on success*/
 static int
@@ -247,9 +248,12 @@ minisocket_initialize_socket(int port, minisocket_error *error)
         return -1;
     }
     socket->local_port_num = port;
+    socket->seq = 0;
+    socket->ack = 0;
     socket->send_mutex = semaphore_create();
     socket->data_mutex = semaphore_create();
     socket->state_mutex = semaphore_create();
+    socket->seq_mutex = semaphore_create();
     socket->synchonize = semaphore_create();
     socket->retry = semaphore_create();
     socket->receive = semaphore_create();
@@ -257,10 +261,10 @@ minisocket_initialize_socket(int port, minisocket_error *error)
     if (NULL == socket->send_mutex || NULL == socket->synchonize
             || NULL == socket->retry || NULL == socket->receive
             || NULL == socket->data || NULL == socket->data_mutex
-            || NULL == socket->state_mutex) {
+            || NULL == socket->state_mutex || NULL == socket->seq_mutex) {
         minisocket[port] = NULL;
         *error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
-        minisocket_destroy(socket);
+        minisocket_destroy(&socket);
         return -1;
     }
     semaphore_initialize(socket->send_mutex, 1);
@@ -269,7 +273,7 @@ minisocket_initialize_socket(int port, minisocket_error *error)
     semaphore_initialize(socket->synchonize, 0);
     semaphore_initialize(socket->retry, 0);
     semaphore_initialize(socket->receive, 0);
-
+    semaphore_initialize(socket->seq_mutex, 0);
     return 0;
 }
 
@@ -302,8 +306,9 @@ minisocket_get_free_socket()
 }
 
 static void
-minisocket_destroy(minisocket_t socket)
+minisocket_destroy(minisocket_t *p_socket)
 {
+    minisocket_t socket = *p_socket;
     if (socket != NULL) {
         minisocket[socket->local_port_num] = NULL;
         queue_free(socket->data);
@@ -311,6 +316,9 @@ minisocket_destroy(minisocket_t socket)
         semaphore_destroy(socket->send_mutex);
         semaphore_destroy(socket->data_mutex);
         semaphore_destroy(socket->state_mutex);
+        semaphore_destroy(socket->seq_mutex);
+        semaphore_destroy(socket->synchonize);
+        semaphore_destroy(socket->retry);
         free(socket);
         semaphore_P(port_count_mutex);
         socket_count--;
@@ -459,12 +467,17 @@ minisocket_close(minisocket_t socket)
     if (state != ESTABLISHED) {
         return;
     }
+
     semaphore_P(socket->send_mutex);
     minisocket_set_state(socket, FINSENT);
     minisocket_transmit(socket, MSG_FIN, NULL, 0);
     minisocket_set_state(socket, CLOSED);
     semaphore_V(socket->send_mutex);
-    minisocket_destroy(socket);
+
+    semaphore_V(cleanup_sem);
+    semaphore_P(cleanup_queue_mutex);
+    queue_wrap_enqueue(closing_sockets, socket);
+    semaphore_V(cleanup_queue_mutex);
 }
 
 /* Return -1 on failure */
@@ -556,7 +569,7 @@ minisocket_cleanup(int *arg)
         queue_wrap_dequeue(closing_sockets, (void**)&socket);
         semaphore_V(cleanup_queue_mutex);
         minisocket_set_state(socket, CLOSED);
-        minisocket_destroy(socket);
+        minisocket_destroy(&minisocket[socket->local_port_num]);
     }
     return 0;
 }
@@ -629,7 +642,7 @@ minisocket_process(network_interrupt_arg_t *intrpt)
 }
 
 static int
-minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local)
+minisocket_validate_source(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     network_address_t remote_addr;
@@ -644,19 +657,6 @@ minisocket_validate(network_interrupt_arg_t *intrpt, minisocket_t local)
 }
 
 static int
-minisocket_server_init(network_interrupt_arg_t *intrpt, minisocket_t local)
-{
-    mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
-    local->remote_port_num = unpack_unsigned_short(header->source_port);
-    unpack_address(header->source_address, local->remote_addr);
-    unpack_address(header->destination_address, local->local_addr);
-    local->ack = unpack_unsigned_int(header->seq_number);
-    local->seq = 0;
-    minisocket_set_state(local, SYNRECEIVED);
-    return 0;
-}
-
-static int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     if (MINISOCKET_DEBUG == 1)
@@ -665,7 +665,7 @@ minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
         minisocket_server_init(intrpt, local);
         semaphore_V(local->synchonize);
     } else {
-        /* Acknowlege, and reply FIN. */
+
     }
     return INTERRUPT_PROCESSED;
 }
@@ -679,7 +679,7 @@ minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
     if (MINISOCKET_DEBUG == 1)
         printf("SYNACK received.\n");
 
-    if (minisocket_validate(intrpt, local) == -1)
+    if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
     /* Remote acknowleges local sent SYN, and sends SYN back. */
     if (SYNSENT == local->state && local->seq == ack) {
@@ -704,26 +704,27 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     if (MINISOCKET_DEBUG == 1)
         printf("ACK received.\n");
 
-    if (minisocket_validate(intrpt, local) == -1)
+    if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
+
     /* Disable retransmission if send is acknowleged */
     if (local->alarm > -1 && local->seq == ack) {
-        if ((ESTABLISHED == state) || (SYNRECEIVED == state))
+        if (ESTABLISHED == state || SYNRECEIVED == state || FINSENT == state) {
             minisocket_retry_cancel(local);
+        }
         if (SYNRECEIVED == state)
             minisocket_set_state(local, ESTABLISHED);
     }
 
     /* Queue data */
-    if (ESTABLISHED == state
-            && local->ack + win_size >= seq && local->ack < seq) {
+    if (ESTABLISHED == state && local->ack + 1 == seq) {
         if (queue_wrap_enqueue(local->data, intrpt) != 0)
             return INTERRUPT_PROCESSED;
         /* Signal waiting thread */
         if (queue_length(local->data) == 1)
             semaphore_V(local->receive);
         /* Acknowlege data received */
-        local->ack = seq;
+        local->ack++;
         minisocket_acknowlege(local);
 
         return INTERRUPT_STORED;
@@ -735,18 +736,29 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
 static int
 minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
+    mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
+    int seq = unpack_unsigned_int(header->seq_number);
     int state = minisocket_get_state(local);
-    if (state != ESTABLISHED && state != FINRECEIVED) {
+
+
+    if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
+
+    if (local->ack + 1 == seq) {
+        if (state == ESTABLISHED || state == FINSENT) {
+            local->ack++;
+            minisocket_acknowlege(local);
+        }
+        if (state == ESTABLISHED) {
+            minisocket_set_state(local, FINRECEIVED);
+            register_alarm(MINISOCKET_FIN_TIMEOUT, semaphore_Signal, cleanup_sem);
+            queue_wrap_enqueue(closing_sockets, local);
+        }
     }
-    if (state == ESTABLISHED) {
-        state = FINRECEIVED;
+
+    if (state == FINRECEIVED && local->ack == seq) {
         minisocket_acknowlege(local);
-        register_alarm(MINISOCKET_FIN_TIMEOUT, semaphore_Signal, cleanup_sem);
-        queue_wrap_enqueue(closing_sockets, local);
     }
-    if (state == FINRECEIVED) {
-        minisocket_acknowlege(local);
-    }
+
     return INTERRUPT_PROCESSED;
 }

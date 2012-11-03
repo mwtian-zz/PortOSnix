@@ -106,7 +106,7 @@ int receiver(int* arg)
     /* create a network connection to the remote machine */
     socket = minisocket_client_create(address, port[id],&error);
     if (socket==NULL) {
-        printf("can't create the client create, error: %d.\n",error);
+        printf("can't create the client port, error: %d.\n",error);
         return 0;
     } else {
         printf("*****GRADING: thread %d. Server starts \n", id);

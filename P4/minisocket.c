@@ -115,8 +115,6 @@ minisocket_initialize()
 minisocket_t
 minisocket_server_create(int port, minisocket_error *error)
 {
-    int state;
-
     if (error == NULL) {
         return NULL;
     } else {
@@ -210,7 +208,6 @@ minisocket_client_create(network_address_t addr, int port,
         *error = SOCKET_NOMOREPORTS;
         return NULL;
     }
-
     minisocket[source_port_num] = malloc(sizeof(struct minisocket));
     if (minisocket[source_port_num] == NULL) {
         *error = SOCKET_OUTOFMEMORY;
@@ -229,8 +226,8 @@ minisocket_client_create(network_address_t addr, int port,
     /* Send SYN to server */
     if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
         /* Connection to server fails, destroy socket */
-        *error = SOCKET_NOSERVER;
         minisocket_destroy(&minisocket[source_port_num]);
+        *error = SOCKET_NOSERVER;
         return NULL;
     }
 
@@ -556,6 +553,7 @@ minisocket_control(int *arg)
         semaphore_P(control_sem);
         queue_wrap_dequeue(packet_buffer, (void**)&intrpt);
         set_interrupt_level(oldlevel);
+printf("To process packet.\n");
         minisocket_process_packet(intrpt);
     }
     return 0;
@@ -617,6 +615,7 @@ minisocket_process_packet(network_interrupt_arg_t *intrpt)
         return -1;
     }
 
+printf("Packet received.\n");
     local = minisocket[local_num];
     switch (type) {
     case MSG_SYN:
@@ -644,6 +643,7 @@ minisocket_process(network_interrupt_arg_t *intrpt)
 {
     queue_wrap_enqueue(packet_buffer, intrpt);
     semaphore_V(control_sem);
+printf("Packet enqueued for control.\n");
     return 0;
 }
 
@@ -665,7 +665,7 @@ minisocket_validate_source(network_interrupt_arg_t *intrpt, minisocket_t local)
 static int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
-    if (MINISOCKET_DEBUG == 1)
+    //if (MINISOCKET_DEBUG == 1)
         printf("SYN received.\n");
     if (LISTEN == local->state) {
         minisocket_server_init(intrpt, local);

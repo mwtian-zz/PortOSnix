@@ -451,6 +451,7 @@ network_handler(void* arg)
 {
     network_interrupt_arg_t *intrpt = arg;
     mini_header_t header = (mini_header_t) intrpt->buffer;
+printf("Packet size: %d\n", intrpt->size);
     if (intrpt->size >= MINIMSG_HDRSIZE) {
         if (PROTOCOL_MINIDATAGRAM == header->protocol) {
             minimsg_process(intrpt);
@@ -460,6 +461,7 @@ network_handler(void* arg)
     if (intrpt->size >= MINISOCKET_HDRSIZE) {
         if (PROTOCOL_MINISTREAM == header->protocol) {
             minisocket_process(intrpt);
+printf("minisocket packet received.\n");
             return;
         }
     }

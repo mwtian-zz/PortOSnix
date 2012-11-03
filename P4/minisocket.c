@@ -47,8 +47,10 @@ static int
 minisocket_get_state(minisocket_t socket);
 static void
 minisocket_set_state(minisocket_t socket, int state);
-int
+static int
 minisocket_process_packet(network_interrupt_arg_t *intrp);
+static void
+minisocket_signal_busy(network_interrupt_arg_t *intrpt);
 
 static minisocket_t minisocket[MINISOCKET_PORT_NUM];
 static int socket_count = 0;
@@ -225,9 +227,12 @@ minisocket_client_create(network_address_t addr, int port,
 
     /* Send SYN to server */
     if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
+        if (FINRECEIVED == minisocket[source_port_num])
+            *error = SOCKET_BUSY;
+        else
+            *error = SOCKET_NOSERVER;
         /* Connection to server fails, destroy socket */
         minisocket_destroy(&minisocket[source_port_num]);
-        *error = SOCKET_NOSERVER;
         return NULL;
     }
 
@@ -542,6 +547,32 @@ minisocket_acknowlege(minisocket_t local)
     network_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
 }
 
+static void
+minisocket_signal_busy(network_interrupt_arg_t *intrpt)
+{
+    struct mini_header_reliable header;
+    mini_header_t recved_hdr = (mini_header_t) intrpt->buffer;
+    network_address_t local_addr;
+    network_address_t remote_addr;
+    int local_num;
+    int remote_num;
+    unpack_address(recved_hdr->destination_address, local_addr);
+    unpack_address(recved_hdr->source_address, remote_addr);
+    local_num = unpack_unsigned_short(recved_hdr->destination_port);
+    remote_num = unpack_unsigned_short(recved_hdr->source_port);
+
+    header.protocol = PROTOCOL_MINISTREAM;
+    pack_address(header.source_address, local_addr);
+    pack_unsigned_short(header.source_port, local_num);
+    pack_address(header.destination_address, remote_addr);
+    pack_unsigned_short(header.destination_port, remote_num);
+    header.message_type = MSG_FIN;
+    pack_unsigned_int(header.seq_number, 1);
+    pack_unsigned_int(header.ack_number, 1);
+
+    network_send_pkt(remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
+}
+
 static int
 minisocket_control(int *arg)
 {
@@ -615,7 +646,6 @@ minisocket_process_packet(network_interrupt_arg_t *intrpt)
         return -1;
     }
 
-printf("Packet received.\n");
     local = minisocket[local_num];
     switch (type) {
     case MSG_SYN:
@@ -643,7 +673,6 @@ minisocket_process(network_interrupt_arg_t *intrpt)
 {
     queue_wrap_enqueue(packet_buffer, intrpt);
     semaphore_V(control_sem);
-printf("Packet enqueued for control.\n");
     return 0;
 }
 
@@ -665,13 +694,18 @@ minisocket_validate_source(network_interrupt_arg_t *intrpt, minisocket_t local)
 static int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
-    //if (MINISOCKET_DEBUG == 1)
+    if (MINISOCKET_DEBUG == 1)
         printf("SYN received.\n");
+    
+    semaphore_P(local->state_mutex);
     if (LISTEN == local->state) {
+        local->state = SYNRECEIVED;
+        semaphore_V(local->state_mutex);
         minisocket_server_init(intrpt, local);
         semaphore_V(local->synchonize);
     } else {
-
+        semaphore_V(local->state_mutex);
+        minisocket_signal_busy(intrpt);
     }
     return INTERRUPT_PROCESSED;
 }
@@ -749,6 +783,11 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
 
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
+
+    if (SYNSENT == local->state) {
+        local->state = FINRECEIVED;
+        return INTERRUPT_PROCESSED;
+    }
 
     if (local->ack + 1 == seq) {
         if (state == ESTABLISHED || state == FINSENT) {

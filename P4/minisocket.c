@@ -247,6 +247,7 @@ minisocket_initialize_socket(int port, minisocket_error *error)
     socket->local_port_num = port;
     socket->seq = 0;
     socket->ack = 0;
+	socket->receive_count = 0;
     socket->send_mutex = semaphore_create();
     socket->data_mutex = semaphore_create();
     socket->state_mutex = semaphore_create();
@@ -254,11 +255,13 @@ minisocket_initialize_socket(int port, minisocket_error *error)
     socket->synchonize = semaphore_create();
     socket->retry = semaphore_create();
     socket->receive = semaphore_create();
+	socket->receive_count_mutex = semaphore_create();
     socket->data = queue_new();
     if (NULL == socket->send_mutex || NULL == socket->synchonize
             || NULL == socket->retry || NULL == socket->receive
             || NULL == socket->data || NULL == socket->data_mutex
-            || NULL == socket->state_mutex || NULL == socket->seq_mutex) {
+            || NULL == socket->state_mutex || NULL == socket->seq_mutex
+			|| NULL = socket->receive_count_mutex) {
         minisocket[port] = NULL;
         *error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
         minisocket_destroy(&socket);
@@ -271,6 +274,7 @@ minisocket_initialize_socket(int port, minisocket_error *error)
     semaphore_initialize(socket->retry, 0);
     semaphore_initialize(socket->receive, 0);
     semaphore_initialize(socket->seq_mutex, 0);
+	semaphore_initialize(socket->receive_count_mutex);
     return 0;
 }
 
@@ -306,7 +310,13 @@ static void
 minisocket_destroy(minisocket_t *p_socket)
 {
     minisocket_t socket = *p_socket;
+	int i;
     if (socket != NULL) {
+		semaphore_P(socket->receive_count_mutex);
+		for (i = 0; i < socket->receive_count; i++) {
+			semaphore_V(socket->receive);
+		}
+		semaphore_V(socket->receive_count_mutex);
         minisocket[socket->local_port_num] = NULL;
         queue_free(socket->data);
         semaphore_destroy(socket->receive);
@@ -414,7 +424,20 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
         return -1;
     }
 
+	semaphore_P(socket->receive_count_mutex);
+	state = minisocket_get_state(socket);
+	if (state != ESTABLISHED) {
+		*error = SOCKET_RECEIVEERROR;
+		semaphore_V(socket->receive_count_mutex);
+		return -1;
+	}
+	socket->receive_count++;
+	semaphore_V(socket->receive_count_mutex);
     semaphore_P(socket->receive);
+	semaphore_P(socket->receive_count_mutex);
+	socket->receive_count--;
+	semaphore_V(socket->receive_count_mutex);
+	
     while (1) {
         if (socket == NULL) {
             *error = SOCKET_RECEIVEERROR;

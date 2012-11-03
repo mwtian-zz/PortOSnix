@@ -55,8 +55,8 @@ static int socket_count = 0;
 static int retry_delay[MINISOCKET_MAX_TRY];
 static network_address_t hostaddr;
 static semaphore_t port_count_mutex = NULL;
-static semaphore_t port_array_mutex = NULL;
-static semaphore_t source_port_mutex = NULL;
+static semaphore_t client_port_mutex = NULL;
+static semaphore_t server_port_mutex = NULL;
 static semaphore_t control_sem = NULL;
 static semaphore_t cleanup_sem = NULL;
 static semaphore_t cleanup_queue_mutex = NULL;
@@ -72,22 +72,22 @@ minisocket_initialize()
 {
     int i;
     network_get_my_address(hostaddr);
-    if ((port_count_mutex = semaphore_create()) != NULL) {
-        semaphore_initialize(port_count_mutex, 1);
-    }
-    if ((port_array_mutex = semaphore_create()) != NULL) {
-        semaphore_initialize(port_array_mutex, 1);
-    }
-    if ((source_port_mutex = semaphore_create()) != NULL) {
-        semaphore_initialize(source_port_mutex, 1);
-    }
+    
     retry_delay[0] = MINISOCKET_INITIAL_TIMEOUT;
     for (i = 1; i < MINISOCKET_MAX_TRY; ++i)
         retry_delay[i] = 2 * retry_delay[i - 1];
-    minithread_fork(minisocket_control, NULL);
-    minithread_fork(minisocket_cleanup, NULL);
     packet_buffer = queue_new();
     closing_sockets = queue_new();
+    
+    if ((port_count_mutex = semaphore_create()) != NULL) {
+        semaphore_initialize(port_count_mutex, 1);
+    }
+    if ((client_port_mutex = semaphore_create()) != NULL) {
+        semaphore_initialize(client_port_mutex, 1);
+    }
+    if ((server_port_mutex = semaphore_create()) != NULL) {
+        semaphore_initialize(server_port_mutex, 1);
+    }
     if ((control_sem = semaphore_create()) != NULL) {
         semaphore_initialize(control_sem, 0);
     }
@@ -97,6 +97,8 @@ minisocket_initialize()
     if ((cleanup_queue_mutex = semaphore_create()) != NULL) {
         semaphore_initialize(cleanup_queue_mutex, 1);
     }
+    minithread_fork(minisocket_control, NULL);
+    minithread_fork(minisocket_cleanup, NULL);
 }
 
 /*
@@ -126,20 +128,20 @@ minisocket_server_create(int port, minisocket_error *error)
         return NULL;
     }
 
-    semaphore_P(source_port_mutex);
+    semaphore_P(server_port_mutex);
     /* Port already in use */
     if (minisocket[port] != NULL) {
         *error = SOCKET_PORTINUSE;
-        semaphore_V(source_port_mutex);
+        semaphore_V(server_port_mutex);
         return NULL;
     }
 
     /* Create the socket */
     minisocket[port] = malloc(sizeof(struct minisocket));
-    semaphore_V(source_port_mutex);
+    semaphore_V(server_port_mutex);
 
     /* Assume out of memory if malloc returns NULL */
-    if (minisocket[port] == NULL) {
+    if (NULL == minisocket[port]) {
         *error = SOCKET_OUTOFMEMORY;
         return NULL;
     }
@@ -154,15 +156,15 @@ minisocket_server_create(int port, minisocket_error *error)
         /* Wait for SYN from client */
         semaphore_P(minisocket[port]->synchonize);
         /* Woke up by minisocket_process_syn */
-        if (SYNRECEIVED == minisocket[port]->state)
+        if (minisocket_get_state(minisocket[port]) == SYNRECEIVED)
             minisocket_transmit(minisocket[port], MSG_SYNACK, NULL, 0);
-        /* If SYNACK is received, state becomes ESTABLISHED */
-        state = minisocket_get_state(minisocket[port]);
-    } while (state != ESTABLISHED);
+        /* If SYNACK is received, state becomes ESTABLISHED in control thread */
+    } while (minisocket_get_state(minisocket[port]) != ESTABLISHED);
 
     return minisocket[port];
 }
 
+/* Called by minisocket_process_syn to initialize server with client info */
 static int
 minisocket_server_init(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
@@ -215,19 +217,16 @@ minisocket_client_create(network_address_t addr, int port,
         return NULL;
     }
 
-    /* Initialize socket with source_port_num */
+    /* Initialize socket */
     if (minisocket_initialize_socket(source_port_num, error) == -1) {
         return NULL;
     }
-
-    minisocket[source_port_num]->remote_port_num = port;
-    network_address_copy(addr, minisocket[source_port_num]->remote_addr);
     network_address_copy(hostaddr, minisocket[source_port_num]->local_addr);
-    minisocket[source_port_num]->seq = 0;
-    minisocket[source_port_num]->ack = 0;
     minisocket[source_port_num]->state = SYNSENT;
+    network_address_copy(addr, minisocket[source_port_num]->remote_addr);
+    minisocket[source_port_num]->remote_port_num = port;
 
-    /* Send syn to server */
+    /* Send SYN to server */
     if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
         /* Connection to server fails, destroy socket */
         *error = SOCKET_NOSERVER;
@@ -247,6 +246,7 @@ minisocket_initialize_socket(int port, minisocket_error *error)
         *error = SOCKET_OUTOFMEMORY;
         return -1;
     }
+    socket->state = CLOSED;
     socket->local_port_num = port;
     socket->seq = 0;
     socket->ack = 0;
@@ -286,9 +286,9 @@ minisocket_get_free_socket()
     int num = -1;
     int i;
 
-    semaphore_P(port_array_mutex);
+    semaphore_P(client_port_mutex);
     if (socket_count >= MINISOCKET_CLIENT_NUM) {
-        semaphore_V(port_array_mutex);
+        semaphore_V(client_port_mutex);
         return num;
     }
     for (i = MINISOCKET_MIN_CLIENT; i <= MINISOCKET_MAX_CLIENT; i++) {
@@ -301,7 +301,7 @@ minisocket_get_free_socket()
             break;
         }
     }
-    semaphore_V(port_array_mutex);
+    semaphore_V(client_port_mutex);
     return num;
 }
 
@@ -437,9 +437,10 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
             stored_len += received;
         } else {
             memcpy(msg + stored_len, header + 1, max_len - stored_len);
+            origin = (char*)(header + 1) + max_len - stored_len;
             dest = (char*)(header + 1);
-            for (origin = (char*)(header + 1) + max_len - stored_len; origin < (char*)header + intrpt->size; origin++) {
-                *dest++ = *origin;
+            while ( origin < (char*)header + intrpt->size) {
+                *(dest++) = *(origin++);
             }
             intrpt->size -= (max_len - stored_len);
             stored_len = max_len;
@@ -474,10 +475,10 @@ minisocket_close(minisocket_t socket)
     minisocket_set_state(socket, CLOSED);
     semaphore_V(socket->send_mutex);
 
-    semaphore_V(cleanup_sem);
     semaphore_P(cleanup_queue_mutex);
     queue_wrap_enqueue(closing_sockets, socket);
     semaphore_V(cleanup_queue_mutex);
+    semaphore_V(cleanup_sem);
 }
 
 /* Return -1 on failure */
@@ -700,12 +701,13 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     int ack = unpack_unsigned_int(header->ack_number);
     int state;
 
-    state = minisocket_get_state(local);
     if (MINISOCKET_DEBUG == 1)
         printf("ACK received.\n");
 
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
+
+    state = minisocket_get_state(local);
 
     /* Disable retransmission if send is acknowleged */
     if (local->alarm > -1 && local->seq == ack) {
@@ -739,7 +741,6 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
     int state = minisocket_get_state(local);
-
 
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;

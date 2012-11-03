@@ -25,11 +25,13 @@ struct minisocket
     int seq;
     int ack;
     int alarm;
+	int receive_count;
     queue_t data;
     semaphore_t send_mutex; /* send mutex: only one thread can send */
     semaphore_t data_mutex; /* data queue */
     semaphore_t state_mutex; /* socket state */
     semaphore_t seq_mutex;   /* sequence number mutex */
+	seamphore_t receive_count_mutex; /* receive count mutex */
     semaphore_t synchonize;
     semaphore_t retry;
     semaphore_t receive;

@@ -135,8 +135,8 @@ minisocket_server_create(int port, minisocket_error *error)
     semaphore_P(server_port_mutex);
     if (minisocket[port] != NULL) {
         /* Port already in use. Return error. */
-        *error = SOCKET_PORTINUSE;
         semaphore_V(server_port_mutex);
+        *error = SOCKET_PORTINUSE;
         return NULL;
     } else {
         /* Port not in use. Create the socket */
@@ -153,8 +153,10 @@ minisocket_server_create(int port, minisocket_error *error)
         return NULL;
     }
 
+    semaphore_P(minisocket[port]->state_mutex);
     do {
-        minisocket_set_state(minisocket[port], LISTEN);
+        minisocket[port]->state = LISTEN;
+        semaphore_V(minisocket[port]->state_mutex);
         /* Wait for SYN from client */
         semaphore_P(minisocket[port]->synchonize);
         /* Woke up by minisocket_process_syn */
@@ -164,8 +166,10 @@ minisocket_server_create(int port, minisocket_error *error)
          * If a SYNACK is received, state would be set to ESTABLISHED
          * by the control thread.
          */
-    } while (minisocket_get_state(minisocket[port]) != ESTABLISHED);
+         semaphore_P(minisocket[port]->state_mutex);
+    } while (SYNRECEIVED== minisocket[port]->state);
 
+    semaphore_V(minisocket[port]->state_mutex);
     return minisocket[port];
 }
 
@@ -386,11 +390,6 @@ minisocket_send(minisocket_t socket, minimsg_t msg, int len,
 
     semaphore_P(socket->send_mutex);
     while (to_sent > 0) {
-        if (socket == NULL) {
-            *error = SOCKET_SENDERROR;
-            semaphore_V(socket->send_mutex);
-            return -1;
-        }
         state = minisocket_get_state(socket);
         if (state != ESTABLISHED) {
             *error = SOCKET_SENDERROR;
@@ -399,7 +398,8 @@ minisocket_send(minisocket_t socket, minimsg_t msg, int len,
         }
 
         if (to_sent > MINISOCKET_MAX_MSG_SIZE) {
-            sent = minisocket_transmit(socket, MSG_ACK, msg + total_sent, MINISOCKET_MAX_MSG_SIZE);
+            sent = minisocket_transmit(socket, MSG_ACK, msg + total_sent,
+                                       MINISOCKET_MAX_MSG_SIZE);
         } else {
             sent = minisocket_transmit(socket, MSG_ACK, msg + total_sent, to_sent);
         }
@@ -459,10 +459,6 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
     semaphore_V(socket->receive_count_mutex);
 
     while (1) {
-        if (socket == NULL) {
-            *error = SOCKET_RECEIVEERROR;
-            return -1;
-        }
         state = minisocket_get_state(socket);
         if (state != ESTABLISHED) {
             *error = SOCKET_RECEIVEERROR;
@@ -532,22 +528,26 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 {
     int i;
     struct mini_header_reliable header;
+
     if (!(MSG_ACK == msg_type && 0 == len))
         ++socket->seq;
     minisocket_packhdr(&header, socket, msg_type);
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
-        network_send_pkt(socket->remote_addr, MINISOCKET_HDRSIZE,
-                         (char*)&header, len, msg);
+        network_send_pkt(socket->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
+                         len, msg);
         minisocket_retry_wait(socket, retry_delay[i]);
+        /* Alarm disabled because ACK received. */
         if (-1 == socket->alarm)
             return len;
+        /* Alarm disabled because socket is closing. */
+        else if (-2 == socket->alarm)
+            return -2;
     }
 
     socket->alarm = -1;
     return -1;
 }
 
-/* seq, ack and message_type may get from socket */
 static void
 minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
                    char message_type)
@@ -577,6 +577,7 @@ minisocket_retry_cancel(minisocket_t socket)
     semaphore_V(socket->retry);
 }
 
+/* Acknowledge package received */
 static void
 minisocket_acknowlege(minisocket_t local)
 {
@@ -585,6 +586,7 @@ minisocket_acknowlege(minisocket_t local)
     network_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
 }
 
+/* Server already in connection. Reply to SYN with FIN. */
 static void
 minisocket_signal_busy(network_interrupt_arg_t *intrpt)
 {
@@ -611,6 +613,7 @@ minisocket_signal_busy(network_interrupt_arg_t *intrpt)
     network_send_pkt(remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
 }
 
+/* Independent thread handling control messages and sorting data packets. */
 static int
 minisocket_control(int *arg)
 {
@@ -627,6 +630,7 @@ minisocket_control(int *arg)
     return 0;
 }
 
+/* Independent thread cleaning up closed sockets. */
 static int
 minisocket_cleanup(int *arg)
 {
@@ -646,24 +650,7 @@ minisocket_cleanup(int *arg)
     return 0;
 }
 
-static int
-minisocket_get_state(minisocket_t socket)
-{
-    int state;
-    semaphore_P(socket->state_mutex);
-    state = socket->state;
-    semaphore_V(socket->state_mutex);
-    return state;
-}
-
-static void
-minisocket_set_state(minisocket_t socket, int state)
-{
-    semaphore_P(socket->state_mutex);
-    socket->state = state;
-    semaphore_V(socket->state_mutex);
-}
-
+/* Call by minisocket_control to sort packets. */
 int
 minisocket_process_packet(network_interrupt_arg_t *intrpt)
 {
@@ -851,4 +838,22 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
     semaphore_V(local->state_mutex);
 
     return INTERRUPT_PROCESSED;
+}
+
+static int
+minisocket_get_state(minisocket_t socket)
+{
+    int state;
+    semaphore_P(socket->state_mutex);
+    state = socket->state;
+    semaphore_V(socket->state_mutex);
+    return state;
+}
+
+static void
+minisocket_set_state(minisocket_t socket, int state)
+{
+    semaphore_P(socket->state_mutex);
+    socket->state = state;
+    semaphore_V(socket->state_mutex);
 }

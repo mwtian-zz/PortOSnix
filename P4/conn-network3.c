@@ -126,7 +126,7 @@ int receiver(int* arg)
         /* test the information received */
         for (i=0; i<received_bytes; i++) {
             if (buffer[bytes_received+i]!=((bytes_received+i)%128)) {
-                printf("*****GRADING: thread %d. The %d'th byte received is wrong.\n", id, bytes_received+i);
+                //printf("*****GRADING: thread %d. The %d'th byte received is wrong.\n", id, bytes_received+i);
             }
         }
         bytes_received+=received_bytes;

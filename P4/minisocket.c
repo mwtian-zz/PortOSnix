@@ -49,6 +49,8 @@ static int
 minisocket_common_init(int port, minisocket_error *error);
 static void
 minisocket_destroy(minisocket_t *p_socket);
+static void
+minisocket_close_enqueue(minisocket_t socket);
 static int
 minisocket_get_state(minisocket_t socket);
 static void
@@ -187,6 +189,7 @@ minisocket_server_init_from_intrpt(network_interrupt_arg_t *intrpt, minisocket_t
     unpack_address(header->source_address, local->remote_addr);
     unpack_address(header->destination_address, local->local_addr);
     local->ack = unpack_unsigned_int(header->seq_number);
+    local->seq = 0;
     return 0;
 }
 
@@ -233,11 +236,10 @@ minisocket_client_create(network_address_t addr, int port,
     }
 
     /* Initialize socket */
+    socket = minisocket[port_num];
     if (minisocket_common_init(port_num, error) == -1) {
         return NULL;
     }
-    socket = minisocket[port_num];
-
     semaphore_P(socket->state_mutex);
     minisocket_client_init_from_input(addr, port, socket);
     socket->state = SYNSENT;
@@ -250,7 +252,7 @@ minisocket_client_create(network_address_t addr, int port,
         else
             *error = SOCKET_NOSERVER;
         /* Connection to server fails, destroy socket */
-        minisocket_destroy(&minisocket[port_num]);
+        minisocket_close_enqueue(minisocket[port_num]);
         return NULL;
     }
 
@@ -268,6 +270,7 @@ minisocket_client_init_from_input(network_address_t addr, int port,
     network_address_copy(hostaddr, socket->local_addr);
     network_address_copy(addr, socket->remote_addr);
     socket->remote_port_num = port;
+    socket->seq = 0;
     return 0;
 }
 
@@ -304,7 +307,7 @@ minisocket_common_init(int port, minisocket_error *error)
     socket->state = CLOSED;
     socket->local_port_num = port;
     socket->seq = 1;
-//    socket->ack = 0;
+    socket->ack = 0;
     socket->receive_count = 0;
     socket->send_mutex = semaphore_create();
     socket->data_mutex = semaphore_create();
@@ -322,7 +325,7 @@ minisocket_common_init(int port, minisocket_error *error)
             || NULL == socket->receive_count_mutex) {
         minisocket[port] = NULL;
         *error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
-        minisocket_destroy(&socket);
+        minisocket_close_enqueue(socket);
         return -1;
     }
     semaphore_initialize(socket->send_mutex, 1);
@@ -528,6 +531,13 @@ minisocket_close(minisocket_t socket)
     minisocket_transmit(socket, MSG_FIN, NULL, 0);
     semaphore_V(socket->send_mutex);
 
+    minisocket_close_enqueue(socket);
+}
+
+/* Enqueue the socket to the closing queue */
+static void
+minisocket_close_enqueue(minisocket_t socket)
+{
     semaphore_P(cleanup_queue_mutex);
     queue_wrap_enqueue(closing_sockets, socket);
     semaphore_V(cleanup_queue_mutex);
@@ -554,6 +564,8 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
     int i;
     struct mini_header_reliable header;
 
+    //if (!(MSG_ACK == msg_type && 0 == len))
+        ++socket->seq;
     minisocket_packhdr(&header, socket, msg_type);
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
         network_send_pkt(socket->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
@@ -776,7 +788,6 @@ minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
-printf("seq num in SYNACK: %d\n", seq);
     if (MINISOCKET_DEBUG == 1)
         printf("SYNACK received.\n");
 
@@ -789,7 +800,6 @@ printf("seq num in SYNACK: %d\n", seq);
         /* Acknowlege SYNACK */
         local->ack = seq;
         minisocket_acknowlege(local);
-        local->seq++;
         local->state = ESTABLISHED;
     }
     semaphore_V(local->state_mutex);
@@ -804,7 +814,7 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
     int state;
-printf("seq num in ACK: %d\n", seq);
+
     if (MINISOCKET_DEBUG == 1)
         printf("ACK received.\n");
 
@@ -815,9 +825,9 @@ printf("seq num in ACK: %d\n", seq);
     state = local->state;
     /* Disable retransmission if send is acknowleged */
     if (local->alarm > -1 && local->seq == ack) {
-        local->seq++;
-        if (ESTABLISHED == state || SYNRECEIVED == state || LASTACK == state)
+        if (ESTABLISHED == state || SYNRECEIVED == state || LASTACK == state) {
             minisocket_retry_cancel(local, ALARM_SUCCESS);
+        }
         if (SYNRECEIVED == state)
             local->state = ESTABLISHED;
     }
@@ -866,8 +876,9 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
         }
         if (state == ESTABLISHED) {
             local->state = TIMEWAIT;
+            minisocket_receive_unblock(local);
             register_alarm(MINISOCKET_FIN_TIMEOUT, semaphore_Signal, cleanup_sem);
-            queue_wrap_enqueue(closing_sockets, local);
+            minisocket_close_enqueue(local);
         }
     }
 

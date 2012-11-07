@@ -1,6 +1,6 @@
 /*
- *    conn-network test program 3
- *	  10 concurrent connections between two machines exchange big messages.
+ *    conn-network test program 4
+ *    Close connection while there are threads receiving, see if they terminate.
  *    usage: conn-network3 [<hostname>]
  *    if no hostname is supplied, server will be run
  *    if a hostname is given, the client application will be run
@@ -24,43 +24,56 @@ int port = 80;   /* ports on which we do the communication */
 char* hostname;
 int thread_id[10] = {0,1,2,3,4,5,6,7,8,9};
 minisocket_t server_socket;
+minisocket_t recv_skt;
 
 int sender(int* arg);
 int receiver(int* arg);		/* forward definitioan */
 
 
+
+int
+create_server(int *arg) {
+    minisocket_error error;
+    int i = 0;
+    printf("Server waits.\n");
+    server_socket = minisocket_server_create(port,&error);
+    printf("Server created.\n");
+    minithread_fork(sender, &thread_id[i]);
+
+	return 0;
+}
+
 int sender(int* arg)
 {
     char buffer[BUFFER_SIZE];
     int i;
-    int id;
+    int id = *arg;
     int bytes_sent;
 	minisocket_error error;
-	
+
     if (server_socket==NULL) {
-        printf("*****GRADING:");
+        printf("Sender NULL.\n");
         return 0;
     }
 
     /* Fill in the buffer with numbers from 0 to BUFFER_SIZE-1 */
     for (i=0; i<BUFFER_SIZE; i++) {
-        buffer[i]=i%128;
+        buffer[i] = i % 128;
     }
 
     /* send the message */
     bytes_sent=0;
-    while (bytes_sent!=BUFFER_SIZE) {
-        int trans_bytes=
+    while (bytes_sent != BUFFER_SIZE) {
+        int trans_bytes =
             minisocket_send(server_socket,buffer+bytes_sent,
                             BUFFER_SIZE-bytes_sent, &error);
-        printf("******GRADING: thread %d. Sent %d bytes.\n", id, trans_bytes);
+        printf("thread %d. Sent %d bytes.\n", id, trans_bytes);
         if (trans_bytes==-1) {
-            printf("*****GRADING: thread %d. Sending error. Code: %d.\n", id, error);
+            printf("thread %d. Sending error. Code: %d.\n", id, error);
             return 0;
         }
         bytes_sent+=trans_bytes;
     }
-    printf("*****GRADING: thread %d. all data sent successfully\n", id);
     /* close the connection */
     minisocket_close(server_socket);
     return 0;
@@ -69,7 +82,11 @@ int sender(int* arg)
 int client(int* arg)
 {
     int i;
+    minisocket_error error;
+    network_address_t address;
 
+    network_translate_hostname(hostname, address);
+    recv_skt = minisocket_client_create(address, port, &error);
     for (i=0; i<THREAD_COUNTER; i++) {
         minithread_fork(receiver,&thread_id[i]);
     }
@@ -80,64 +97,26 @@ int client(int* arg)
 int receiver(int* arg)
 {
     char buffer[BUFFER_SIZE];
-    int i;
-    int id;
+    int id = *arg;
     int bytes_received;
-    network_address_t address;
-    minisocket_t socket;
     minisocket_error error;
     int received_bytes;
 
-    id = *arg;
-
-    network_translate_hostname(hostname, address);
-    /* create a network connection to the remote machine */
-    socket = minisocket_client_create(address, port, &error);
-    if (socket==NULL) {
-        printf("can't create the client create, error: %d.\n",error);
-        return 0;
-    } else {
-        printf("*****GRADING: thread %d. Server starts \n", id);
-    }
-
     /* receive the message */
     bytes_received=0;
-    while (bytes_received!=BUFFER_SIZE) {
+    while (bytes_received != BUFFER_SIZE) {
         received_bytes = BUFFER_SIZE-bytes_received;
-        received_bytes = minisocket_receive(socket,buffer+bytes_received, RECEIVER_SIZE, &error);
+        received_bytes = minisocket_receive(recv_skt, buffer + bytes_received,
+                                            RECEIVER_SIZE, &error);
         if (received_bytes<0) {
-            printf("*****GRADING: thread %d. Receiving error. Code: %d\n", id, error);
+            printf("thread %d. Terminated. Code: %d\n", id, error);
             return 0;
-        }
-        /* test the information received */
-        for (i=0; i<received_bytes; i++) {
-            if (buffer[bytes_received+i]!=((bytes_received+i)%128)) {
-                printf("*****GRADING: thread %d. The %d'th byte received is wrong.\n", id, bytes_received+i);
-            }
         }
         bytes_received+=received_bytes;
     }
-
-    printf("*****GRADING: thread %d. All bytes received.\n",id);
-
-    minisocket_close(socket);
-
+    printf("thread %d. Terminated. Success.\n");
     return 0;
 }
-
-int
-create_server(int *arg) {
-    minisocket_error error;
-	int i;
-	
-    server_socket = minisocket_server_create(port,&error);
-	for (i = 0; i < THREAD_COUNTER; i++) {
-		minithread_fork(sender, &thread_id[i]);
-	}
-	
-	return 0;
-}
-
 
 int
 main(int argc, char** argv)

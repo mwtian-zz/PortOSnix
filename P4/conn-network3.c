@@ -74,7 +74,6 @@ int sender(int* arg)
     }
     printf("*****GRADING: thread %d. all data sent successfully\n", id);
     /* close the connection */
-printf("Sender %d closing socket %d.\n", id, port[id]);
     minisocket_close(socket);
     return 0;
 }
@@ -126,7 +125,7 @@ int receiver(int* arg)
         /* test the information received */
         for (i=0; i<received_bytes; i++) {
             if (buffer[bytes_received+i]!=((bytes_received+i)%128)) {
-                //printf("*****GRADING: thread %d. The %d'th byte received is wrong.\n", id, bytes_received+i);
+                printf("*****GRADING: thread %d. The %d'th byte received is wrong.\n", id, bytes_received+i);
             }
         }
         bytes_received+=received_bytes;

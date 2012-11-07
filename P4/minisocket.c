@@ -14,6 +14,7 @@
 #include "synch.h"
 #include "miniheader.h"
 
+/* File scope function, explained before each implementation. */
 static int
 minisocket_server_init_from_intrpt(network_interrupt_arg_t *intrpt,
                                    minisocket_t local);
@@ -50,7 +51,9 @@ minisocket_common_init(int port, minisocket_error *error);
 static void
 minisocket_destroy(minisocket_t *p_socket);
 static void
-minisocket_close_enqueue(minisocket_t socket);
+minisocket_cleanup_prepare(minisocket_t socket);
+static void
+minisocket_cleanup_enqueue(minisocket_t socket);
 static int
 minisocket_get_state(minisocket_t socket);
 static void
@@ -60,6 +63,7 @@ minisocket_process_packet(network_interrupt_arg_t *intrp);
 static void
 minisocket_signal_busy(network_interrupt_arg_t *intrpt);
 
+/* File scope variables */
 static minisocket_t minisocket[MINISOCKET_PORT_NUM];
 static int socket_count = 0;
 static int retry_delay[MINISOCKET_MAX_TRY];
@@ -251,7 +255,7 @@ minisocket_client_create(network_address_t addr, int port,
         else
             *error = SOCKET_NOSERVER;
         /* Connection to server fails, destroy socket */
-        minisocket_close_enqueue(minisocket[port_num]);
+        minisocket_cleanup_enqueue(minisocket[port_num]);
         return NULL;
     }
 
@@ -323,7 +327,7 @@ minisocket_common_init(int port, minisocket_error *error)
             || NULL == socket->receive_count_mutex) {
         minisocket[port] = NULL;
         *error = SOCKET_OUTOFMEMORY; /* Assume out of memory? */
-        minisocket_close_enqueue(socket);
+        minisocket_cleanup_enqueue(socket);
         return -1;
     }
     semaphore_initialize(socket->send_mutex, 1);
@@ -462,7 +466,9 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
     }
     socket->receive_count++;
     semaphore_V(socket->receive_count_mutex);
+
     semaphore_P(socket->receive);
+
     semaphore_P(socket->receive_count_mutex);
     socket->receive_count--;
     semaphore_V(socket->receive_count_mutex);
@@ -523,24 +529,31 @@ minisocket_close(minisocket_t socket)
     socket->state = LASTACK;
     semaphore_V(socket->state_mutex);
 
-    minisocket_receive_unblock(socket);
+    minisocket_cleanup_prepare(socket);
 
     semaphore_P(socket->send_mutex);
     minisocket_transmit(socket, MSG_FIN, NULL, 0);
     semaphore_V(socket->send_mutex);
 
-    minisocket_close_enqueue(socket);
+    semaphore_V(cleanup_sem);
+    minisocket_cleanup_enqueue(socket);
 }
 
 /* Enqueue the socket to the closing queue */
 static void
-minisocket_close_enqueue(minisocket_t socket)
+minisocket_cleanup_enqueue(minisocket_t socket)
 {
     semaphore_P(cleanup_queue_mutex);
     queue_wrap_enqueue(closing_sockets, socket);
     semaphore_V(cleanup_queue_mutex);
+}
 
-    semaphore_V(cleanup_sem);
+/* Make the threads in retransmission and waiting for receive fail */
+static void
+minisocket_cleanup_prepare(minisocket_t socket)
+{
+    minisocket_retry_cancel(socket, ALARM_CANCELED);
+    minisocket_receive_unblock(socket);
 }
 
 /* Unblock threads waiting on receive semaphore */
@@ -555,26 +568,29 @@ minisocket_receive_unblock(minisocket_t socket)
     semaphore_V(socket->receive_count_mutex);
 }
 
-/* Return -1 on failure */
+/* Return -1 on failure, length of transmitted on success */
 static int
 minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 {
     int i;
     struct mini_header_reliable header;
+    network_address_t remote;
 
-    //if (!(MSG_ACK == msg_type && 0 == len))
+    semaphore_P(socket->state_mutex);
     ++socket->seq;
+    network_address_copy(socket->remote_addr, remote);
     minisocket_packhdr(&header, socket, msg_type);
+    semaphore_V(socket->state_mutex);
+
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
-        network_send_pkt(socket->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
-                         len, msg);
+        network_send_pkt(remote, MINISOCKET_HDRSIZE, (char*)&header, len, msg);
         minisocket_retry_wait(socket, retry_delay[i]);
         /* Alarm disabled because ACK received. */
-        if (-1 == socket->alarm)
+        if (ALARM_SUCCESS == socket->alarm)
             return len;
         /* Alarm disabled because socket is closing. */
-        else if (-2 == socket->alarm)
-            return -2;
+        else if (ALARM_CANCELED == socket->alarm)
+            return -1;
     }
 
     socket->alarm = -1;
@@ -886,9 +902,9 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
             local->state = TIMEWAIT;
             local->ack++;
             minisocket_acknowlege(local);
-            minisocket_receive_unblock(local);
+            minisocket_cleanup_prepare(local);
             register_alarm(MINISOCKET_FIN_TIMEOUT, semaphore_Signal, cleanup_sem);
-            minisocket_close_enqueue(local);
+            minisocket_cleanup_enqueue(local);
         }
         break;
 

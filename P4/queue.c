@@ -103,7 +103,7 @@ queue_delete(queue_t queue, void** item)
     if (NULL == queue || NULL == item)
         return -1;
     node = *item;
-    if (NULL == node || 0 >= queue->length || queue != node->queue)
+    if (NULL == node || queue->length <= 0 || queue != node->queue)
         return -1;
 
     if (node->prev == NULL)

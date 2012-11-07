@@ -366,6 +366,8 @@ minisocket_destroy(minisocket_t *p_socket)
         free(socket);
         semaphore_P(port_count_mutex);
         socket_count--;
+        if (MINISOCKET_DEBUG == 1)
+            printf("socket count: %d\n", socket_count);
         semaphore_V(port_count_mutex);
     }
 }
@@ -485,13 +487,16 @@ minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len,
         if (val != 0) {
             break;
         }
+
         header = (mini_header_reliable_t) intrpt->buffer;
         received = intrpt->size - MINISOCKET_HDRSIZE;
         if (stored_len + received <= max_len) {
+            /* Copy all data */
             memcpy(msg + stored_len, header + 1, received);
             free(intrpt);
             stored_len += received;
         } else {
+            /* Copy data that can fit into the remaining buffer */
             memcpy(msg + stored_len, header + 1, max_len - stored_len);
             origin = (char*)(header + 1) + max_len - stored_len;
             dest = (char*)(header + 1);
@@ -859,7 +864,6 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
         default:
             ;
         }
-
     }
     /* The packet contains data that has not been seen before */
     if (ESTABLISHED == local->state && local->ack + 1 == seq) {

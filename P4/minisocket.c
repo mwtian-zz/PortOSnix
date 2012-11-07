@@ -27,7 +27,7 @@ minisocket_acknowlege(minisocket_t socket);
 static void
 minisocket_retry_wait(minisocket_t socket, int delay);
 static void
-minisocket_retry_cancel(minisocket_t socket);
+minisocket_retry_cancel(minisocket_t socket, minisocket_alarm_status sig);
 static void
 minisocket_receive_unblock(minisocket_t socket);
 static void
@@ -210,6 +210,8 @@ minisocket_client_create(network_address_t addr, int port,
                          minisocket_error *error)
 {
     int port_num;
+    minisocket_t socket;
+
     if (error != NULL) {
         *error = SOCKET_NOERROR;
     } else {
@@ -235,14 +237,16 @@ minisocket_client_create(network_address_t addr, int port,
     if (minisocket_common_init(port_num, error) == -1) {
         return NULL;
     }
-    semaphore_P(minisocket[port_num]->state_mutex);
-    minisocket_client_init_from_input(addr, port, minisocket[port_num]);
-    minisocket[port_num]->state = SYNSENT;
+    socket = minisocket[port_num];
+
+    semaphore_P(socket->state_mutex);
+    minisocket_client_init_from_input(addr, port, socket);
+    socket->state = SYNSENT;
     semaphore_V(minisocket[port_num]->state_mutex);
 
     /* Send SYN to server */
-    if (minisocket_transmit(minisocket[port_num], MSG_SYN, NULL, 0) == -1) {
-        if (TIMEWAIT == minisocket_get_state(minisocket[port_num]))
+    if (minisocket_transmit(socket, MSG_SYN, NULL, 0) == -1) {
+        if (TIMEWAIT == minisocket_get_state(socket))
             *error = SOCKET_BUSY;
         else
             *error = SOCKET_NOSERVER;
@@ -255,7 +259,7 @@ minisocket_client_create(network_address_t addr, int port,
     socket_count++;
     semaphore_V(port_count_mutex);
 
-    return minisocket[port_num];
+    return socket;
 }
 
 static int
@@ -585,6 +589,7 @@ minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
     pack_unsigned_int(header->ack_number, socket->ack);
 }
 
+/* Register alarm for retransmission after delay */
 static void
 minisocket_retry_wait(minisocket_t socket, int delay)
 {
@@ -592,11 +597,12 @@ minisocket_retry_wait(minisocket_t socket, int delay)
     semaphore_P(socket->retry);
 }
 
+/* Cancel retransmission */
 static void
-minisocket_retry_cancel(minisocket_t socket)
+minisocket_retry_cancel(minisocket_t socket, minisocket_alarm_status sig)
 {
     deregister_alarm(socket->alarm);
-    socket->alarm = -1;
+    socket->alarm = sig;
     semaphore_V(socket->retry);
 }
 
@@ -784,7 +790,7 @@ minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
     /* Remote acknowleges local sent SYN, and sends SYN back. */
     semaphore_P(local->state_mutex);
     if (SYNSENT == local->state && local->seq == ack) {
-        minisocket_retry_cancel(local);
+        minisocket_retry_cancel(local, ALARM_SUCCESS);
         /* Acknowlege SYNACK */
         local->ack = seq;
         minisocket_acknowlege(local);
@@ -814,7 +820,7 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     /* Disable retransmission if send is acknowleged */
     if (local->alarm > -1 && local->seq == ack) {
         if (ESTABLISHED == state || SYNRECEIVED == state || LASTACK == state) {
-            minisocket_retry_cancel(local);
+            minisocket_retry_cancel(local, ALARM_SUCCESS);
         }
         if (SYNRECEIVED == state)
             local->state = ESTABLISHED;

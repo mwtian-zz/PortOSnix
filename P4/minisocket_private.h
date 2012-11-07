@@ -13,6 +13,16 @@
 #define MINISOCKET_INITIAL_TIMEOUT 100
 #define MINISOCKET_FIN_TIMEOUT 15000
 
+typedef enum minisocket_interrupt_status {
+    INTERRUPT_PROCESSED,
+    INTERRUPT_STORED
+} minisocket_interrupt_status;
+
+typedef enum minisocket_alarm_status {
+    ALARM_SUCCESS = -1,
+    ALARM_CANCELED = -2
+} minisocket_alarm_status;
+
 struct minisocket {
     int local_port_num;
     int remote_port_num;
@@ -20,7 +30,7 @@ struct minisocket {
     network_address_t local_addr;
     int seq;
     int ack;
-    int alarm;
+    minisocket_alarm_status alarm;
     int receive_count;
     queue_t data;
     semaphore_t send_mutex; /* send mutex: only one thread can send */
@@ -41,10 +51,5 @@ struct minisocket {
         CLOSED
     } state;
 };
-
-typedef enum minisocket_interrupt_status {
-    INTERRUPT_PROCESSED,
-    INTERRUPT_STORED
-} minisocket_interrupt_status;
 
 #endif /* __MINISOCKETS_PRIVATE_H_ */

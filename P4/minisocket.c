@@ -63,8 +63,7 @@ static int socket_count = 0;
 static int retry_delay[MINISOCKET_MAX_TRY];
 static network_address_t hostaddr;
 static semaphore_t port_count_mutex = NULL;
-static semaphore_t client_port_mutex = NULL;
-static semaphore_t server_port_mutex = NULL;
+static semaphore_t port_array_mutex = NULL;
 static semaphore_t control_sem = NULL;
 static semaphore_t cleanup_sem = NULL;
 static semaphore_t cleanup_queue_mutex = NULL;
@@ -87,24 +86,24 @@ minisocket_initialize()
     packet_buffer = queue_new();
     closing_sockets = queue_new();
 
-    if ((port_count_mutex = semaphore_create()) != NULL) {
-        semaphore_initialize(port_count_mutex, 1);
+    port_count_mutex = semaphore_create();
+    port_array_mutex = semaphore_create();
+    control_sem = semaphore_create();
+    cleanup_sem = semaphore_create();
+    cleanup_queue_mutex = semaphore_create();
+
+    if (NULL == port_count_mutex || NULL == port_array_mutex
+            || NULL == control_sem || NULL == cleanup_sem
+            || NULL == cleanup_queue_mutex) {
+        return;
     }
-    if ((client_port_mutex = semaphore_create()) != NULL) {
-        semaphore_initialize(client_port_mutex, 1);
-    }
-    if ((server_port_mutex = semaphore_create()) != NULL) {
-        semaphore_initialize(server_port_mutex, 1);
-    }
-    if ((control_sem = semaphore_create()) != NULL) {
-        semaphore_initialize(control_sem, 0);
-    }
-    if ((cleanup_sem = semaphore_create()) != NULL) {
-        semaphore_initialize(cleanup_sem, 0);
-    }
-    if ((cleanup_queue_mutex = semaphore_create()) != NULL) {
-        semaphore_initialize(cleanup_queue_mutex, 1);
-    }
+
+    semaphore_initialize(port_count_mutex, 1);
+    semaphore_initialize(port_array_mutex, 1);
+    semaphore_initialize(control_sem, 0);
+    semaphore_initialize(cleanup_sem, 0);
+    semaphore_initialize(cleanup_queue_mutex, 1);
+
     minithread_fork(minisocket_control, NULL);
     minithread_fork(minisocket_cleanup, NULL);
 }
@@ -129,22 +128,22 @@ minisocket_server_create(int port, minisocket_error *error)
         *error = SOCKET_NOERROR;
     }
     /* Port out of range */
-    if (port < MINISOCKET_MIN_SERVER || port > MINISOCKET_MAX_SERVER) {
+    if (port < MINISOCKET_MIN_PORT || port > MINISOCKET_MAX_PORT) {
         *error = SOCKET_PORTOUTOFBOUND;
         return NULL;
     }
 
-    semaphore_P(server_port_mutex);
+    semaphore_P(port_array_mutex);
     if (minisocket[port] != NULL) {
         /* Port already in use. Return error. */
-        semaphore_V(server_port_mutex);
+        semaphore_V(port_array_mutex);
         *error = SOCKET_PORTINUSE;
         return NULL;
     } else {
         /* Port not in use. Create the socket */
         minisocket[port] = malloc(sizeof(struct minisocket));
     }
-    semaphore_V(server_port_mutex);
+    semaphore_V(port_array_mutex);
 
     if (NULL == minisocket[port]) {
         *error = SOCKET_OUTOFMEMORY;
@@ -170,8 +169,12 @@ minisocket_server_create(int port, minisocket_error *error)
          */
         semaphore_P(minisocket[port]->state_mutex);
     } while (SYNRECEIVED== minisocket[port]->state);
-
     semaphore_V(minisocket[port]->state_mutex);
+
+    semaphore_P(port_count_mutex);
+    socket_count++;
+    semaphore_V(port_count_mutex);
+
     return minisocket[port];
 }
 
@@ -206,47 +209,53 @@ minisocket_t
 minisocket_client_create(network_address_t addr, int port,
                          minisocket_error *error)
 {
-    int source_port_num;
+    int port_num;
     if (error != NULL) {
         *error = SOCKET_NOERROR;
     } else {
         return NULL;
     }
-    /* Get a free source port number */
-    source_port_num = minisocket_get_free_socket();
-    /* Run out of free ports */
-    if (source_port_num == -1 || source_port_num < MINISOCKET_MIN_CLIENT
-            || source_port_num > MINISOCKET_MAX_CLIENT) {
+
+    semaphore_P(port_array_mutex);
+    port_num = minisocket_get_free_socket();
+    if (port_num == -1 || port_num < MINISOCKET_MIN_PORT
+            || port_num > MINISOCKET_MAX_PORT) {
         *error = SOCKET_NOMOREPORTS;
         return NULL;
     }
-    minisocket[source_port_num] = malloc(sizeof(struct minisocket));
-    if (minisocket[source_port_num] == NULL) {
+    minisocket[port_num] = malloc(sizeof(struct minisocket));
+    semaphore_V(port_array_mutex);
+
+    if (minisocket[port_num] == NULL) {
         *error = SOCKET_OUTOFMEMORY;
         return NULL;
     }
 
     /* Initialize socket */
-    if (minisocket_common_init(source_port_num, error) == -1) {
+    if (minisocket_common_init(port_num, error) == -1) {
         return NULL;
     }
-    semaphore_P(minisocket[source_port_num]->state_mutex);
-    minisocket_client_init_from_input(addr, port, minisocket[source_port_num]);
-    minisocket[source_port_num]->state = SYNSENT;
-    semaphore_V(minisocket[source_port_num]->state_mutex);
+    semaphore_P(minisocket[port_num]->state_mutex);
+    minisocket_client_init_from_input(addr, port, minisocket[port_num]);
+    minisocket[port_num]->state = SYNSENT;
+    semaphore_V(minisocket[port_num]->state_mutex);
 
     /* Send SYN to server */
-    if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
-        if (TIMEWAIT == minisocket_get_state(minisocket[source_port_num]))
+    if (minisocket_transmit(minisocket[port_num], MSG_SYN, NULL, 0) == -1) {
+        if (TIMEWAIT == minisocket_get_state(minisocket[port_num]))
             *error = SOCKET_BUSY;
         else
             *error = SOCKET_NOSERVER;
         /* Connection to server fails, destroy socket */
-        minisocket_destroy(&minisocket[source_port_num]);
+        minisocket_destroy(&minisocket[port_num]);
         return NULL;
     }
 
-    return minisocket[source_port_num];
+    semaphore_P(port_count_mutex);
+    socket_count++;
+    semaphore_V(port_count_mutex);
+
+    return minisocket[port_num];
 }
 
 static int
@@ -258,6 +267,27 @@ minisocket_client_init_from_input(network_address_t addr, int port,
     socket->remote_port_num = port;
     socket->seq = 1;
     return 0;
+}
+
+/* Get the next available socket, return -1 if none available */
+static int
+minisocket_get_free_socket()
+{
+    int num = -1;
+    int i;
+
+    if (socket_count >= MINISOCKET_PORT_NUM) {
+        semaphore_V(port_array_mutex);
+        return -1;
+    }
+    for (i = MINISOCKET_MAX_PORT; i >= MINISOCKET_MIN_PORT; i--) {
+        if (minisocket[i] == NULL) {
+            num = i;
+            break;
+        }
+    }
+
+    return num;
 }
 
 /* Initialize socket with port number, return -1 on failure, 0 on success*/
@@ -304,41 +334,21 @@ minisocket_common_init(int port, minisocket_error *error)
     return 0;
 }
 
-/*
- * Get the next available socket, return -1 if none available
- */
-static int
-minisocket_get_free_socket()
-{
-    int num = -1;
-    int i;
-
-    semaphore_P(client_port_mutex);
-    if (socket_count >= MINISOCKET_CLIENT_NUM) {
-        semaphore_V(client_port_mutex);
-        return num;
-    }
-    for (i = MINISOCKET_MIN_CLIENT; i <= MINISOCKET_MAX_CLIENT; i++) {
-        if (minisocket[i] == NULL) {
-            num = i;
-            minisocket[i] = (minisocket_t)-1; /* Reserve this port number */
-            semaphore_P(port_count_mutex);
-            socket_count++;
-            semaphore_V(port_count_mutex);
-            break;
-        }
-    }
-    semaphore_V(client_port_mutex);
-    return num;
-}
-
+/* Release memory of closed ports */
 static void
 minisocket_destroy(minisocket_t *p_socket)
 {
     minisocket_t socket = *p_socket;
+    network_interrupt_arg_t *intrpt;
     if (socket != NULL) {
+        semaphore_P(port_array_mutex);
         minisocket[socket->local_port_num] = NULL;
+        semaphore_V(port_array_mutex);
+
+        while (queue_wrap_dequeue(socket->data, (void**)&intrpt) == 0)
+            free(intrpt);
         queue_free(socket->data);
+
         semaphore_destroy(socket->receive);
         semaphore_destroy(socket->send_mutex);
         semaphore_destroy(socket->data_mutex);
@@ -689,7 +699,7 @@ minisocket_process_packet(network_interrupt_arg_t *intrpt)
     int type = header->message_type;
     /* Sanity checks kept at minimum. */
     unpack_address(header->destination_address, local_addr);
-    if (local_num > MINISOCKET_MAX_CLIENT || local_num < MINISOCKET_MIN_SERVER
+    if (local_num > MINISOCKET_MAX_PORT || local_num < MINISOCKET_MIN_PORT
             || NULL == minisocket[local_num]) {
         network_printaddr(hostaddr);
         network_printaddr(local_addr);

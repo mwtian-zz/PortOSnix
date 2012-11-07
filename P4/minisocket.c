@@ -189,7 +189,6 @@ minisocket_server_init_from_intrpt(network_interrupt_arg_t *intrpt, minisocket_t
     unpack_address(header->source_address, local->remote_addr);
     unpack_address(header->destination_address, local->local_addr);
     local->ack = unpack_unsigned_int(header->seq_number);
-    local->seq = 0;
     return 0;
 }
 
@@ -270,7 +269,6 @@ minisocket_client_init_from_input(network_address_t addr, int port,
     network_address_copy(hostaddr, socket->local_addr);
     network_address_copy(addr, socket->remote_addr);
     socket->remote_port_num = port;
-    socket->seq = 0;
     return 0;
 }
 
@@ -565,7 +563,7 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
     struct mini_header_reliable header;
 
     //if (!(MSG_ACK == msg_type && 0 == len))
-        ++socket->seq;
+    ++socket->seq;
     minisocket_packhdr(&header, socket, msg_type);
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
         network_send_pkt(socket->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
@@ -767,44 +765,42 @@ minisocket_validate_source(network_interrupt_arg_t *intrpt, minisocket_t local)
 static int
 minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
+    mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
+    int seq = unpack_unsigned_int(header->seq_number);
+
     if (MINISOCKET_DEBUG == 1)
         printf("SYN received.\n");
 
     semaphore_P(local->state_mutex);
-    if (LISTEN == local->state) {
-        minisocket_server_init_from_intrpt(intrpt, local);
+    switch (local->state) {
+    case LISTEN:
         local->state = SYNRECEIVED;
+        semaphore_V(local->state_mutex);
+        minisocket_server_init_from_intrpt(intrpt, local);
         semaphore_V(local->synchonize);
-    } else {
+        break;
+    case SYNSENT:
+        local->ack = seq;
+        minisocket_acknowlege(local);
+        semaphore_V(local->state_mutex);
+        if (minisocket_validate_source(intrpt, local) == -1)
+            return INTERRUPT_PROCESSED;
+        break;
+    default:
         minisocket_signal_busy(intrpt);
     }
-    semaphore_V(local->state_mutex);
+
     return INTERRUPT_PROCESSED;
 }
 
 static int
 minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
-    mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
-    int seq = unpack_unsigned_int(header->seq_number);
-    int ack = unpack_unsigned_int(header->ack_number);
     if (MINISOCKET_DEBUG == 1)
         printf("SYNACK received.\n");
 
-    if (minisocket_validate_source(intrpt, local) == -1)
-        return INTERRUPT_PROCESSED;
-    /* Remote acknowleges local sent SYN, and sends SYN back. */
-    semaphore_P(local->state_mutex);
-    if (SYNSENT == local->state && local->seq == ack) {
-        minisocket_retry_cancel(local, ALARM_SUCCESS);
-        /* Acknowlege SYNACK */
-        local->ack = seq;
-        minisocket_acknowlege(local);
-        local->state = ESTABLISHED;
-    }
-    semaphore_V(local->state_mutex);
-
-    return INTERRUPT_PROCESSED;
+    minisocket_process_syn(intrpt, local);
+    return minisocket_process_ack(intrpt, local);
 }
 
 static int
@@ -813,7 +809,7 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
     int ack = unpack_unsigned_int(header->ack_number);
-    int state;
+    minisocket_interrupt_status intrpt_status = INTERRUPT_PROCESSED;
 
     if (MINISOCKET_DEBUG == 1)
         printf("ACK received.\n");
@@ -822,34 +818,52 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
         return INTERRUPT_PROCESSED;
 
     semaphore_P(local->state_mutex);
-    state = local->state;
-    /* Disable retransmission if send is acknowleged */
-    if (local->alarm > -1 && local->seq == ack) {
-        if (ESTABLISHED == state || SYNRECEIVED == state || LASTACK == state) {
-            minisocket_retry_cancel(local, ALARM_SUCCESS);
-        }
-        if (SYNRECEIVED == state)
+    /* The packet has a control message */
+    if (local->seq == ack) {
+        minisocket_retry_cancel(local, ALARM_SUCCESS);
+        switch (local->state) {
+        case ESTABLISHED:
+            break;
+
+        case SYNSENT:
+            /* The remote-sent SYN(ACK) has been received. */
+            if (local->ack == seq)
+                local->state = ESTABLISHED;
+            break;
+
+        case SYNRECEIVED:
+            /* When local-sent SYN(ACK) is acknowledged */
             local->state = ESTABLISHED;
-    }
+            break;
 
-    /* Queue data */
-    if (ESTABLISHED == state && local->ack + 1 == seq) {
-        if (queue_wrap_enqueue(local->data, intrpt) != 0) {
-            semaphore_V(local->state_mutex);
-            return INTERRUPT_PROCESSED;
+        case LASTACK:
+            local->state = CLOSED;
+            break;
+
+        default:
+            ;
         }
-        /* Signal waiting thread */
-        if (queue_length(local->data) == 1)
-            semaphore_V(local->receive);
-        /* Acknowlege data received */
-        local->ack++;
-        minisocket_acknowlege(local);
-        semaphore_V(local->state_mutex);
-        return INTERRUPT_STORED;
-    }
 
+    }
+    /* The packet contains data that has not been seen before */
+    if (ESTABLISHED == local->state && local->ack + 1 == seq) {
+        /* Enqueue data and signal the thread waiting for data */
+        semaphore_P(local->data_mutex);
+        if (queue_wrap_enqueue(local->data, intrpt) == 0) {
+            if (queue_length(local->data) == 1) {
+                semaphore_V(local->receive);
+                /* Acknowlege data received */
+                local->ack++;
+                minisocket_acknowlege(local);
+                semaphore_V(local->state_mutex);
+                intrpt_status = INTERRUPT_STORED;
+            }
+        }
+        semaphore_V(local->data_mutex);
+    }
     semaphore_V(local->state_mutex);
-    return INTERRUPT_PROCESSED;
+
+    return intrpt_status;
 }
 
 static int
@@ -857,33 +871,42 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
-    int state = minisocket_get_state(local);
 
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
 
     semaphore_P(local->state_mutex);
-    if (SYNSENT == local->state) {
+    switch (local->state) {
+    case SYNSENT:
         local->state = TIMEWAIT;
-        semaphore_V(local->state_mutex);
-        return INTERRUPT_PROCESSED;
-    }
+        break;
 
-    if (local->ack + 1 == seq) {
-        if (state == ESTABLISHED || state == LASTACK) {
+    case ESTABLISHED:
+        if (local->ack + 1 == seq) {
+            local->state = TIMEWAIT;
             local->ack++;
             minisocket_acknowlege(local);
-        }
-        if (state == ESTABLISHED) {
-            local->state = TIMEWAIT;
             minisocket_receive_unblock(local);
             register_alarm(MINISOCKET_FIN_TIMEOUT, semaphore_Signal, cleanup_sem);
             minisocket_close_enqueue(local);
         }
-    }
+        break;
 
-    if (state == TIMEWAIT && local->ack == seq) {
-        minisocket_acknowlege(local);
+    case LASTACK:
+        if (local->ack + 1 == seq) {
+            local->ack++;
+            minisocket_acknowlege(local);
+        }
+        break;
+
+    case TIMEWAIT:
+        if (local->ack == seq) {
+            minisocket_acknowlege(local);
+        }
+        break;
+
+    default:
+        ;
     }
     semaphore_V(local->state_mutex);
 

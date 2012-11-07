@@ -39,15 +39,9 @@ struct minisocket {
         SYNSENT,
         SYNRECEIVED,
         ESTABLISHED,
-        FINSENT,
-        FINRECEIVED,
-        CLOSEWAIT,
         LASTACK,
-        CLOSED,
-        FINWAIT1,
-        FINWAIT2,
-        CLOSING,
-        TIMEWAIT
+        TIMEWAIT,
+        CLOSED
     } state;
 };
 

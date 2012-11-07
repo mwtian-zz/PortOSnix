@@ -29,6 +29,8 @@ minisocket_retry_wait(minisocket_t socket, int delay);
 static void
 minisocket_retry_cancel(minisocket_t socket);
 static void
+minisocket_receive_unblock(minisocket_t socket);
+static void
 minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
                    char message_type);
 static int
@@ -166,7 +168,7 @@ minisocket_server_create(int port, minisocket_error *error)
          * If a SYNACK is received, state would be set to ESTABLISHED
          * by the control thread.
          */
-         semaphore_P(minisocket[port]->state_mutex);
+        semaphore_P(minisocket[port]->state_mutex);
     } while (SYNRECEIVED== minisocket[port]->state);
 
     semaphore_V(minisocket[port]->state_mutex);
@@ -235,7 +237,7 @@ minisocket_client_create(network_address_t addr, int port,
 
     /* Send SYN to server */
     if (minisocket_transmit(minisocket[source_port_num], MSG_SYN, NULL, 0) == -1) {
-        if (FINRECEIVED == minisocket_get_state(minisocket[source_port_num]))
+        if (TIMEWAIT == minisocket_get_state(minisocket[source_port_num]))
             *error = SOCKET_BUSY;
         else
             *error = SOCKET_NOSERVER;
@@ -334,13 +336,7 @@ static void
 minisocket_destroy(minisocket_t *p_socket)
 {
     minisocket_t socket = *p_socket;
-    int i;
     if (socket != NULL) {
-        semaphore_P(socket->receive_count_mutex);
-        for (i = 0; i < socket->receive_count; i++) {
-            semaphore_V(socket->receive);
-        }
-        semaphore_V(socket->receive_count_mutex);
         minisocket[socket->local_port_num] = NULL;
         queue_free(socket->data);
         semaphore_destroy(socket->receive);
@@ -505,21 +501,38 @@ minisocket_close(minisocket_t socket)
     if (socket == NULL) {
         return;
     }
-    state = minisocket_get_state(socket);
+    semaphore_P(socket->state_mutex);
+    state = socket->state;
     if (state != ESTABLISHED) {
+        semaphore_V(socket->state_mutex);
         return;
     }
+    socket->state = LASTACK;
+    semaphore_V(socket->state_mutex);
+
+    minisocket_receive_unblock(socket);
 
     semaphore_P(socket->send_mutex);
-    minisocket_set_state(socket, FINSENT);
     minisocket_transmit(socket, MSG_FIN, NULL, 0);
-    minisocket_set_state(socket, CLOSED);
     semaphore_V(socket->send_mutex);
 
     semaphore_P(cleanup_queue_mutex);
     queue_wrap_enqueue(closing_sockets, socket);
     semaphore_V(cleanup_queue_mutex);
+
     semaphore_V(cleanup_sem);
+}
+
+/* Unblock threads waiting on receive semaphore */
+static void
+minisocket_receive_unblock(minisocket_t socket)
+{
+    int i;
+    semaphore_P(socket->receive_count_mutex);
+    for (i = 0; i < socket->receive_count; i++) {
+        semaphore_V(socket->receive);
+    }
+    semaphore_V(socket->receive_count_mutex);
 }
 
 /* Return -1 on failure */
@@ -634,18 +647,32 @@ minisocket_control(int *arg)
 static int
 minisocket_cleanup(int *arg)
 {
-    interrupt_level_t oldlevel;
     minisocket_t socket;
-
+    int i, qlen;
     while (1) {
-        oldlevel = set_interrupt_level(DISABLED);
-        semaphore_P(cleanup_sem);
-        set_interrupt_level(oldlevel);
         semaphore_P(cleanup_queue_mutex);
-        queue_wrap_dequeue(closing_sockets, (void**)&socket);
+        qlen = queue_length(closing_sockets);
         semaphore_V(cleanup_queue_mutex);
-        minisocket_set_state(socket, CLOSED);
-        minisocket_destroy(&minisocket[socket->local_port_num]);
+
+        for (i = 0; i < qlen; ++i) {
+            semaphore_P(cleanup_sem);
+
+            semaphore_P(cleanup_queue_mutex);
+            queue_wrap_dequeue(closing_sockets, (void**)&socket);
+            semaphore_V(cleanup_queue_mutex);
+
+            semaphore_P(socket->receive_count_mutex);
+            if (socket->receive_count > 0) {
+                semaphore_V(cleanup_sem);
+                semaphore_P(cleanup_queue_mutex);
+                queue_wrap_enqueue(closing_sockets, socket);
+                semaphore_V(cleanup_queue_mutex);
+            } else {
+                minisocket_set_state(socket, CLOSED);
+                minisocket_destroy(&minisocket[socket->local_port_num]);
+            }
+            semaphore_V(socket->receive_count_mutex);
+        }
     }
     return 0;
 }
@@ -776,7 +803,7 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     state = local->state;
     /* Disable retransmission if send is acknowleged */
     if (local->alarm > -1 && local->seq == ack) {
-        if (ESTABLISHED == state || SYNRECEIVED == state || FINSENT == state) {
+        if (ESTABLISHED == state || SYNRECEIVED == state || LASTACK == state) {
             minisocket_retry_cancel(local);
         }
         if (SYNRECEIVED == state)
@@ -815,24 +842,24 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
 
     semaphore_P(local->state_mutex);
     if (SYNSENT == local->state) {
-        local->state = FINRECEIVED;
+        local->state = TIMEWAIT;
         semaphore_V(local->state_mutex);
         return INTERRUPT_PROCESSED;
     }
 
     if (local->ack + 1 == seq) {
-        if (state == ESTABLISHED || state == FINSENT) {
+        if (state == ESTABLISHED || state == LASTACK) {
             local->ack++;
             minisocket_acknowlege(local);
         }
         if (state == ESTABLISHED) {
-            local->state = FINRECEIVED;
+            local->state = TIMEWAIT;
             register_alarm(MINISOCKET_FIN_TIMEOUT, semaphore_Signal, cleanup_sem);
             queue_wrap_enqueue(closing_sockets, local);
         }
     }
 
-    if (state == FINRECEIVED && local->ack == seq) {
+    if (state == TIMEWAIT && local->ack == seq) {
         minisocket_acknowlege(local);
     }
     semaphore_V(local->state_mutex);

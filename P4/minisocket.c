@@ -87,8 +87,9 @@ minisocket_initialize()
     network_get_my_address(hostaddr);
 
     retry_delay[0] = MINISOCKET_INITIAL_TIMEOUT;
-    for (i = 1; i < MINISOCKET_MAX_TRY; ++i)
+    for (i = 1; i < MINISOCKET_MAX_TRY; ++i) {
         retry_delay[i] = 2 * retry_delay[i - 1];
+    }
     packet_buffer = queue_new();
     closing_sockets = queue_new();
 
@@ -249,7 +250,7 @@ minisocket_client_create(network_address_t addr, int port,
     semaphore_V(minisocket[port_num]->state_mutex);
 
     /* Send SYN to server */
-    if (minisocket_transmit(socket, MSG_SYN, NULL, 0) == -1) {
+    if (minisocket_transmit(socket, MSG_SYN, NULL, 0) < 0) {
         if (TIMEWAIT == minisocket_get_state(socket))
             *error = SOCKET_BUSY;
         else
@@ -308,7 +309,7 @@ minisocket_common_init(int port, minisocket_error *error)
     }
     socket->state = CLOSED;
     socket->local_port_num = port;
-    socket->seq = 1;
+    socket->seq = 0;
     socket->ack = 0;
     socket->receive_count = 0;
     socket->send_mutex = semaphore_create();
@@ -418,7 +419,8 @@ minisocket_send(minisocket_t socket, minimsg_t msg, int len,
         } else {
             sent = minisocket_transmit(socket, MSG_ACK, msg + total_sent, to_sent);
         }
-        if (sent == -1) {
+
+        if (sent < 0) {
             *error = SOCKET_SENDERROR;
             semaphore_V(socket->send_mutex);
             return -1;
@@ -557,7 +559,8 @@ minisocket_cleanup_enqueue(minisocket_t socket)
 static void
 minisocket_cleanup_prepare(minisocket_t socket)
 {
-    minisocket_retry_cancel(socket, ALARM_CANCELED);
+    if (ALARM_SUCCESS != socket->alarm)
+        minisocket_retry_cancel(socket, ALARM_CANCELED);
     minisocket_receive_unblock(socket);
 }
 
@@ -590,15 +593,18 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
         network_send_pkt(remote, MINISOCKET_HDRSIZE, (char*)&header, len, msg);
         minisocket_retry_wait(socket, retry_delay[i]);
+printf("Wait %d, delay %d.\n", i, retry_delay[i]);
         /* Alarm disabled because ACK received. */
-        if (ALARM_SUCCESS == socket->alarm)
+        if (ALARM_SUCCESS == socket->alarm) {
+printf("Message type %d. Transmit success at try %d\n", msg_type, i);
             return len;
+        }
         /* Alarm disabled because socket is closing. */
         else if (ALARM_CANCELED == socket->alarm)
-            return -1;
+            break;
     }
-
-    socket->alarm = -1;
+printf("Message type %d. Transmit failure at try %d\n", msg_type, i);
+    socket->alarm = ALARM_SUCCESS;
     return -1;
 }
 
@@ -790,26 +796,30 @@ minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
     int seq = unpack_unsigned_int(header->seq_number);
 
     if (MINISOCKET_DEBUG == 1)
-        printf("SYN received.\n");
+        printf("SYN received. State: %d.\n", local->state);
 
     semaphore_P(local->state_mutex);
     switch (local->state) {
     case LISTEN:
         local->state = SYNRECEIVED;
-        semaphore_V(local->state_mutex);
         minisocket_server_init_from_intrpt(intrpt, local);
         semaphore_V(local->synchonize);
         break;
     case SYNSENT:
-        local->ack = seq;
-        minisocket_acknowlege(local);
-        semaphore_V(local->state_mutex);
-        if (minisocket_validate_source(intrpt, local) == -1)
+        if (minisocket_validate_source(intrpt, local) == -1) {
+            semaphore_V(local->state_mutex);
             return INTERRUPT_PROCESSED;
+        } else {
+            local->ack = seq;
+            minisocket_acknowlege(local);
+        }
         break;
     default:
-        minisocket_signal_busy(intrpt);
+        if (minisocket_validate_source(intrpt, local) == -1) {
+            minisocket_signal_busy(intrpt);
+        }
     }
+    semaphore_V(local->state_mutex);
 
     return INTERRUPT_PROCESSED;
 }
@@ -818,7 +828,7 @@ static int
 minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     if (MINISOCKET_DEBUG == 1)
-        printf("SYNACK received.\n");
+        printf("SYNACK received. State: %d.\n", local->state);
 
     minisocket_process_syn(intrpt, local);
     return minisocket_process_ack(intrpt, local);
@@ -833,7 +843,7 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     minisocket_interrupt_status intrpt_status = INTERRUPT_PROCESSED;
 
     if (MINISOCKET_DEBUG == 1)
-        printf("ACK received.\n");
+        printf("ACK received. State: %d.\n", local->state);
 
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
@@ -891,6 +901,9 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
+
+    if (MINISOCKET_DEBUG == 1)
+        printf("FIN received. State: %d.\n", local->state);
 
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;

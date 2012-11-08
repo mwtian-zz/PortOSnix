@@ -593,7 +593,7 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
         network_send_pkt(remote, MINISOCKET_HDRSIZE, (char*)&header, len, msg);
         minisocket_retry_wait(socket, retry_delay[i]);
-printf("Wait %d, delay %d.\n", i, retry_delay[i]);
+printf("Wait %d, delay %d, current tick %ld.\n", i, retry_delay[i], ticks);
         /* Alarm disabled because ACK received. */
         if (ALARM_SUCCESS == socket->alarm) {
 printf("Message type %d. Transmit success at try %d\n", msg_type, i);
@@ -849,7 +849,7 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
         return INTERRUPT_PROCESSED;
 
     semaphore_P(local->state_mutex);
-    /* The packet has a control message */
+    /* The packet acknowledges previously sent packet. */
     if (local->seq == ack) {
         minisocket_retry_cancel(local, ALARM_SUCCESS);
         switch (local->state) {

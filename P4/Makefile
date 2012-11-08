@@ -15,7 +15,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = alarm_test
+MAIN = conn-network1
 
 OBJ = \
     alarm.o \

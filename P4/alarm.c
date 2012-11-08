@@ -86,7 +86,7 @@ alarm_signal()
         if (alarm_queue_dequeue(alarm_clock, &alarm) != -1) {
             alarm->func(alarm->arg);
             free(alarm);
-printf("Alarm fired at ticks: %ld\n", ticks);
+//printf("Alarm fired at ticks: %ld\n", ticks);
         }
     }
 }

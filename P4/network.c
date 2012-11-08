@@ -144,9 +144,10 @@ network_send_pkt(network_address_t dest_address, int hdr_len,
 {
 
     if (synthetic_network) {
-        if(genrand() < loss_rate)
+        if(genrand() < loss_rate) {
+printf("Loss by network_send_pkt.\n");
             return (hdr_len+data_len);
-
+        }
         if(genrand() < duplication_rate)
             send_pkt(dest_address, hdr_len, hdr, data_len, data);
     }

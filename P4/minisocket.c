@@ -24,9 +24,11 @@ minisocket_client_init_from_input(network_address_t addr, int port,
 static int
 minisocket_transmit(minisocket_t socket, char msg_type, char *buf, int len);
 static void
-minisocket_acknowlege(minisocket_t socket);
+minisocket_acknowledge(minisocket_t socket);
 static void
 minisocket_retry_wait(minisocket_t socket, int delay);
+static void
+minisocket_retry_wakeup(void *socket);
 static void
 minisocket_retry_cancel(minisocket_t socket, minisocket_alarm_status sig);
 static void
@@ -593,7 +595,7 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
         network_send_pkt(remote, MINISOCKET_HDRSIZE, (char*)&header, len, msg);
         minisocket_retry_wait(socket, retry_delay[i]);
-printf("Wait %d, delay %d, current tick %ld.\n", i, retry_delay[i], ticks);
+//printf("Wait %d, delay %d, current tick %ld.\n", i, retry_delay[i], ticks);
         /* Alarm disabled because ACK received. */
         if (ALARM_SUCCESS == socket->alarm) {
 printf("Message type %d. Transmit success at try %d\n", msg_type, i);
@@ -626,26 +628,41 @@ minisocket_packhdr(mini_header_reliable_t header, minisocket_t socket,
 static void
 minisocket_retry_wait(minisocket_t socket, int delay)
 {
-    socket->alarm = register_alarm(delay, semaphore_Signal, socket->retry);
+    socket->alarm = register_alarm(delay, minisocket_retry_wakeup, socket);
+//printf("Registered alarm: %d\n", socket->alarm);
     semaphore_P(socket->retry);
+}
+
+/* Wake the thread waiting on retry on 'socket' */
+static void
+minisocket_retry_wakeup(void *socket)
+{
+    minisocket_t skt = socket;
+    skt->alarm = ALARM_WAKEUP;
+    semaphore_V(skt->retry);
 }
 
 /* Cancel retransmission */
 static void
 minisocket_retry_cancel(minisocket_t socket, minisocket_alarm_status sig)
 {
-    deregister_alarm(socket->alarm);
-    socket->alarm = sig;
-    semaphore_V(socket->retry);
+    if (socket->alarm > -1) {
+        deregister_alarm(socket->alarm);
+//printf("Deregistered alarm: %d\n", socket->alarm);
+        socket->alarm = sig;
+        semaphore_V(socket->retry);
+    }
 }
 
 /* Acknowledge package received */
 static void
-minisocket_acknowlege(minisocket_t local)
+minisocket_acknowledge(minisocket_t local)
 {
     struct mini_header_reliable header;
     minisocket_packhdr(&header, local, MSG_ACK);
-    network_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
+//printf("Acknowledgement sent.\n");
+    network_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
+                     0, NULL);
 }
 
 /* Server already in connection. Reply to SYN with FIN. */
@@ -811,7 +828,7 @@ minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
             return INTERRUPT_PROCESSED;
         } else {
             local->ack = seq;
-            minisocket_acknowlege(local);
+            minisocket_acknowledge(local);
         }
         break;
     default:
@@ -851,7 +868,9 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     semaphore_P(local->state_mutex);
     /* The packet acknowledges previously sent packet. */
     if (local->seq == ack) {
-        minisocket_retry_cancel(local, ALARM_SUCCESS);
+        if (local->alarm > -1) {
+            minisocket_retry_cancel(local, ALARM_SUCCESS);
+        }
         switch (local->state) {
         case ESTABLISHED:
             break;
@@ -884,7 +903,7 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
                 semaphore_V(local->receive);
                 /* Acknowlege data received */
                 local->ack++;
-                minisocket_acknowlege(local);
+                minisocket_acknowledge(local);
                 semaphore_V(local->state_mutex);
                 intrpt_status = INTERRUPT_STORED;
             }
@@ -918,7 +937,7 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
         if (local->ack + 1 == seq) {
             local->state = TIMEWAIT;
             local->ack++;
-            minisocket_acknowlege(local);
+            minisocket_acknowledge(local);
             minisocket_cleanup_prepare(local);
             register_alarm(MINISOCKET_FIN_TIMEOUT, semaphore_Signal, cleanup_sem);
             minisocket_cleanup_enqueue(local);
@@ -928,13 +947,13 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
     case LASTACK:
         if (local->ack + 1 == seq) {
             local->ack++;
-            minisocket_acknowlege(local);
+            minisocket_acknowledge(local);
         }
         break;
 
     case TIMEWAIT:
         if (local->ack == seq) {
-            minisocket_acknowlege(local);
+            minisocket_acknowledge(local);
         }
         break;
 

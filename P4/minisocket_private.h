@@ -20,7 +20,8 @@ typedef enum minisocket_interrupt_status {
 
 typedef enum minisocket_alarm_status {
     ALARM_SUCCESS = -1,
-    ALARM_CANCELED = -2
+    ALARM_CANCELED = -2,
+    ALARM_WAKEUP = -3
 } minisocket_alarm_status;
 
 struct minisocket {

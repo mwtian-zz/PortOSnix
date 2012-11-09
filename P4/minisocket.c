@@ -561,8 +561,9 @@ minisocket_cleanup_enqueue(minisocket_t socket)
 static void
 minisocket_cleanup_prepare(minisocket_t socket)
 {
-    if (ALARM_SUCCESS != socket->alarm)
+    /* if (ALARM_SUCCESS != socket->alarm)
         minisocket_retry_cancel(socket, ALARM_CANCELED);
+    */
     minisocket_receive_unblock(socket);
 }
 
@@ -598,14 +599,16 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
 //printf("Wait %d, delay %d, current tick %ld.\n", i, retry_delay[i], ticks);
         /* Alarm disabled because ACK received. */
         if (ALARM_SUCCESS == socket->alarm) {
-printf("Message type %d. Transmit success at try %d\n", msg_type, i);
+            if (MINISOCKET_DEBUG == 1)
+                printf("Message type %d. Success at try %d\n", msg_type, i);
             return len;
         }
         /* Alarm disabled because socket is closing. */
         else if (ALARM_CANCELED == socket->alarm)
             break;
     }
-printf("Message type %d. Transmit failure at try %d\n", msg_type, i);
+    if (MINISOCKET_DEBUG == 1)
+        printf("Message type %d. Failure at try %d\n", msg_type, i);
     socket->alarm = ALARM_SUCCESS;
     return -1;
 }
@@ -660,7 +663,8 @@ minisocket_acknowledge(minisocket_t local)
 {
     struct mini_header_reliable header;
     minisocket_packhdr(&header, local, MSG_ACK);
-//printf("Acknowledgement sent.\n");
+    if (MINISOCKET_DEBUG == 1)
+        printf("Acknowledgement sent.\n");
     network_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
                      0, NULL);
 }
@@ -834,6 +838,8 @@ minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
     default:
         if (minisocket_validate_source(intrpt, local) == -1) {
             minisocket_signal_busy(intrpt);
+        } else {
+            minisocket_acknowledge(local);
         }
     }
     semaphore_V(local->state_mutex);
@@ -894,7 +900,10 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
             ;
         }
     }
-    /* The packet contains data that has not been seen before */
+    /* Notify remote to stop retransmitting packets that have been received */
+    if (intrpt->size > MINISOCKET_HDRSIZE && local->ack == seq)
+        minisocket_acknowledge(local);
+    /* Store the packet that has not been seen before */
     if (ESTABLISHED == local->state && local->ack + 1 == seq) {
         /* Enqueue data and signal the thread waiting for data */
         semaphore_P(local->data_mutex);

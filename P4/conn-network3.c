@@ -17,7 +17,7 @@
 
 
 #define BUFFER_SIZE 100000
-#define THREAD_COUNTER 1
+#define THREAD_COUNTER 10
 
 int port[THREAD_COUNTER] = {80,81,82,83,84,85,86,87,88,89}; /* ports on which we do the communication */
 char* hostname;
@@ -83,11 +83,14 @@ int sender(int* arg)
     minisocket_error error;
 
     id = *arg;
+    //printf("*****GRADING: thread %d. Starting the server.\n", id);
     socket = minisocket_server_create(port[id],&error);
     if (socket==NULL) {
         printf("*****GRADING: thread %d.Can't create the server.\
                Error code: %s.\n", id, GetErrorDescription(error));
         return 0;
+    } else {
+        printf("*****GRADING: thread %d. Created the server.\n", id);
     }
 
     /* Fill in the buffer with numbers from 0 to BUFFER_SIZE-1 */
@@ -117,7 +120,7 @@ int sender(int* arg)
 int client(int* arg)
 {
     int i;
-//network_synthetic_params(0.1, 0.1);
+network_synthetic_params(0.1, 0.1);
 
     for (i=0; i<THREAD_COUNTER; i++) {
         minithread_fork(receiver,&thread_id[i]);
@@ -131,6 +134,7 @@ int receiver(int* arg)
     char buffer[BUFFER_SIZE];
     int i;
     int id;
+    int flag_wrong = 0;
     int bytes_received;
     network_address_t address;
     minisocket_t socket;
@@ -146,7 +150,7 @@ int receiver(int* arg)
         printf("can't create the client port, error: %s.\n", GetErrorDescription(error));
         return 0;
     } else {
-        printf("*****GRADING: thread %d. Server (receiver) starts. \n", id);
+        printf("*****GRADING: thread %d. Client (receiver) started. \n", id);
     }
 
     /* receive the message */
@@ -162,14 +166,16 @@ int receiver(int* arg)
         for (i=0; i<received_bytes; i++) {
             if (buffer[bytes_received+i]!=((bytes_received+i)%128)) {
                 printf("*****GRADING: thread %d. The %d'th byte received is wrong.\n", id, bytes_received+i);
+                flag_wrong = 1;
             }
         }
         bytes_received+=received_bytes;
     }
 
     printf("*****GRADING: thread %d. All bytes received.\n",id);
-
-printf("Receiver %d closing socket.\n", id);
+    if (0 == flag_wrong)
+        printf("    All bytes correct.\n");
+    //printf("Receiver %d closing socket.\n", id);
 
     minisocket_close(socket);
 

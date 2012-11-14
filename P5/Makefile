@@ -20,6 +20,7 @@ MAIN = conn-network3
 OBJ = \
     alarm.o \
     alarm_queue.o \
+	cache.o \
     interrupts.o \
     machineprimitives_x86_64_asm.o \
     machineprimitives_x86_64.o \
@@ -28,6 +29,7 @@ OBJ = \
     miniheader.o \
     minimsg.o \
     minisocket.o \
+	miniroute.o \
     minithread.o \
     multilevel_queue.o \
     network.o \

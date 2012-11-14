@@ -14,6 +14,7 @@
 
 #include "alarm.h"
 #include "interrupts.h"
+#include "miniroute.h"
 #include "miniheader.h"
 #include "minimsg.h"
 #include "minisocket.h"
@@ -436,13 +437,13 @@ minithread_sleep_with_timeout(int delay)
 void
 clock_handler(void* arg)
 {
-    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+    set_interrupt_level(DISABLED);
     ticks++;
     if (alarm_time > -1 && ticks >= alarm_time)
         alarm_signal();
     if (ticks >= expire)
         minithread_yield();
-    set_interrupt_level(oldlevel);
+    set_interrupt_level(ENABLED);
 }
 
 /* Interrupts are disabled in the respective processing functions */
@@ -450,17 +451,19 @@ void
 network_handler(void* arg)
 {
     network_interrupt_arg_t *intrpt = arg;
-    mini_header_t header = (mini_header_t) intrpt->buffer;
-    if (intrpt->size >= MINIMSG_HDRSIZE) {
-        if (PROTOCOL_MINIDATAGRAM == header->protocol) {
-            minimsg_process(intrpt);
-            return;
-        }
-    }
-    if (intrpt->size >= MINISOCKET_HDRSIZE) {
-        if (PROTOCOL_MINISTREAM == header->protocol) {
-            minisocket_process(intrpt);
-            return;
-        }
-    }
+    set_interrupt_level(DISABLED);
+    miniroute_buffer_intrpt(intrpt);
+//    if (intrpt->size >= MINIMSG_HDRSIZE) {
+//        if (PROTOCOL_MINIDATAGRAM == header->protocol) {
+//            minimsg_process(intrpt);
+//            return;
+//        }
+//    }
+//    if (intrpt->size >= MINISOCKET_HDRSIZE) {
+//        if (PROTOCOL_MINISTREAM == header->protocol) {
+//            minisocket_process(intrpt);
+//            return;
+//        }
+//    }
+    set_interrupt_level(ENABLED);
 }

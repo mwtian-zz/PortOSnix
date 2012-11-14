@@ -790,9 +790,12 @@ minisocket_process_packet(network_interrupt_arg_t *intrpt)
 int
 minisocket_process(network_interrupt_arg_t *intrpt)
 {
-    queue_wrap_enqueue(packet_buffer, intrpt);
-    semaphore_V(control_sem);
-    return 0;
+    if (queue_wrap_enqueue(packet_buffer, intrpt) == 0) {
+        semaphore_V(control_sem);
+        return 0;
+    }
+
+    return -1;
 }
 
 static int

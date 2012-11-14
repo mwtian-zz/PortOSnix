@@ -108,6 +108,27 @@ cache_put_item(cache_t cache, cache_item_t item) {
 	return 0;
 }
 
+/*
+ * Put an item into cache by header
+ * If the cache is full, find a victim to evict
+ * Return 0 on success, -1 on failure
+ */
+int 
+cache_put_header(cache_t cache, struct routing_header header) {
+	cache_item_t item;
+	int val;
+	
+	item = item_new(header);
+	if (item == NULL) {
+		return -1;
+	}
+	val = cache_put_item(cache, item);
+	if (val == -1) {
+		free(item);
+	}
+	return val;
+}
+
 /* 
  * Delete an item from cache
  * Return 0 on success, -1 on failure

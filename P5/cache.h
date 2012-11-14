@@ -28,6 +28,13 @@ extern int cache_get_by_addr(cache_t cache, network_address_t addr, cache_item_t
  */
 extern int cache_put_item(cache_t cache, cache_item_t item);
 
+/*
+ * Put an item into cache by header
+ * If the cache is full, find a victim to evict
+ * Return 0 on success, -1 on failure
+ */
+extern int cache_put_header(cache_t cache, struct routing_header header);
+
 /* 
  * Delete an item from cache
  * Return 0 on success, -1 on failure

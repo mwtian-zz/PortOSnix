@@ -81,7 +81,7 @@ cache_put_item(cache_t cache, cache_item_t item) {
 	int hash_num;
 	
 	if (cache->item_num >= cache->max_item_num) {
-		item_to_evict = cache->list_tail;
+		item_to_evict = cache->list_head;
 		/* This shouldn't happen */
 		if (item_to_evict == NULL) {
 			return -1;
@@ -91,10 +91,14 @@ cache_put_item(cache_t cache, cache_item_t item) {
 	
 	hash_num = hash_address(item->addr) % cache->table_size;
 	item->hash_next = cache->items[hash_num];
+	if (cache->items[hash_num] != NULL) {
+		cache->items[hash_num]->hash_prev = item;
+	}
     cache->items[hash_num] = item;
 	if (cache->list_tail != NULL) {
 		cache->list_tail->list_next = item;
 		item->list_prev = cache->list_tail;
+		cache->list_tail = item;
 	} else {
 		cache->list_tail = item;
 		cache->list_head = item;
@@ -102,6 +106,27 @@ cache_put_item(cache_t cache, cache_item_t item) {
 	cache->item_num++;
 	
 	return 0;
+}
+
+/*
+ * Put an item into cache by header
+ * If the cache is full, find a victim to evict
+ * Return 0 on success, -1 on failure
+ */
+int 
+cache_put_header(cache_t cache, struct routing_header header) {
+	cache_item_t item;
+	int val;
+	
+	item = item_new(header);
+	if (item == NULL) {
+		return -1;
+	}
+	val = cache_put_item(cache, item);
+	if (val == -1) {
+		free(item);
+	}
+	return val;
 }
 
 /* 
@@ -181,8 +206,7 @@ cache_print(cache_t cache) {
 		}
 	}
 	
-	printf("\n\n");
-	printf("List is:\n");
+	printf("\nList is:\n");
 	head = cache->list_head;
 	while (head) {
 		network_printaddr(head->addr);

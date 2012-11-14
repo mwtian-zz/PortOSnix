@@ -15,7 +15,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 
-MAIN = conn-network3
+MAIN = cache_test
 
 OBJ = \
     alarm.o \

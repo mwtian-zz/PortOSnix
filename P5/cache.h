@@ -12,7 +12,7 @@ extern cache_t cache_new(size_t size);
  * Return -1 if the destination is not found
  * Return 0 if the destination is found and put it in item
  */
-extern int cache_get_dest(cache_t cache, char dest[], cache_item_t *item);
+extern int cache_get_by_dest(cache_t cache, char dest[], cache_item_t *item);
 
 /*
  * Get an item with network address from cache
@@ -28,6 +28,12 @@ extern int cache_get_by_addr(cache_t cache, network_address_t addr, cache_item_t
  */
 extern int cache_put_item(cache_t cache, cache_item_t item);
 
+/* 
+ * Delete an item from cache
+ * Return 0 on success, -1 on failure
+ */
+extern int cache_delete_item(cache_t cache, cache_item_t item);
+
 /* Set the maximum item number of cache */
 extern void cache_set_max_num(cache_t cache, int num);
 
@@ -40,5 +46,7 @@ extern void cache_destroy(cache_t cache);
 /* Construct a new item from a header*/
 extern cache_item_t item_new(struct routing_header header);
 
+/* Print whole cache, for debugging */
+extern void cache_print(cache_t cache);
 
 #endif

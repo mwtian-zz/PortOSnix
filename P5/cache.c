@@ -86,22 +86,7 @@ cache_put_item(cache_t cache, cache_item_t item) {
 		if (item_to_evict == NULL) {
 			return -1;
 		}
-		cache->list_tail = item_to_evict->list_prev;
-		if (cache->list_head == item_to_evict) {
-			cache->list_head = NULL;
-		}
-		hash_num = hash_address(item_to_evict->addr) % cache->table_size;
-		if (cache->items[hash_num] == item_to_evict) {
-			cache->items[hash_num] = item_to_evict->hash_next;
-		}
-		if (item_to_evict->hash_next != NULL) {
-			item_to_evict->hash_next->hash_prev = item_to_evict->hash_prev;
-		}
-		if (item_to_evict->hash_prev != NULL) {
-			item_to_evict->hash_prev->hash_next = item_to_evict->hash_next;
-		}
-		free(item_to_evict);
-		cache->item_num--;
+		cache_delete_item(cache, item_to_evict);
 	}
 	
 	hash_num = hash_address(item->addr) % cache->table_size;
@@ -119,6 +104,43 @@ cache_put_item(cache_t cache, cache_item_t item) {
 	return 0;
 }
 
+/* 
+ * Delete an item from cache
+ * Return 0 on success, -1 on failure
+ */
+int 
+cache_delete_item(cache_t cache, cache_item_t item) {
+	int hash_num;
+	
+	if (item == NULL) {
+		return -1;
+	}
+	if (item == cache->list_head) {
+		cache->list_head = item->list_next;
+	}
+	if (item == cache->list_tail) {
+		cache->list_tail = item->list_prev;
+	}
+	if (item->list_next != NULL) {
+		item->list_next->list_prev = item->list_prev;
+	}
+	if (item->list_prev != NULL) {
+		item->list_prev->list_next = item->list_next;
+	}
+	hash_num = hash_address(item->addr) % cache->table_size;
+	if (cache->items[hash_num] == item) {
+		cache->items[hash_num] = item->hash_next;
+	}
+	if (item->hash_next != NULL) {
+		item->hash_next->hash_prev = item->hash_prev;
+	}
+	if (item->hash_prev != NULL) {
+		item->hash_prev->hash_next = item->hash_next;
+	}
+	free(item);
+	cache->item_num--;
+	return 0;
+}
 
 /* Set the maximum item number of cache */
 void 
@@ -134,6 +156,42 @@ int
 cache_is_expired(cache_item_t item) {
 	return item->exp_time >= ticks ? 0 : -1;
 }
+
+/* Print whole cache, for debugging */
+void 
+cache_print(cache_t cache) {
+	cache_item_t head;
+	int i;
+	
+	printf("Total number of item: %d\n", cache->item_num);
+	printf("Table size: %d\n", cache->table_size);
+	printf("Maximum number of items: %d\n", cache->max_item_num);
+	printf("Hash table is:\n");
+	
+	for (i = 0; i < cache->table_size; i++) {
+		head = cache->items[i];
+		if (head) {
+			printf("Row %d: ", i);
+			while (head) {
+				network_printaddr(head->addr);
+				printf(" ");
+				head = head->hash_next;
+			}
+			printf("\n");
+		}
+	}
+	
+	printf("\n\n");
+	printf("List is:\n");
+	head = cache->list_head;
+	while (head) {
+		network_printaddr(head->addr);
+		printf(" ");
+		head = head->list_next;
+	}
+	printf("\n");
+}
+
 
 /* Construct a new item from a header*/
 cache_item_t
@@ -161,6 +219,7 @@ item_new(struct routing_header header) {
 	item->exp_time = ticks + (3 * (SECOND / PERIOD));
 	return item;
 }
+
 
 /* Destroy a cache */
 void 

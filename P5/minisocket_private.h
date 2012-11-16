@@ -2,10 +2,12 @@
 #define __MINISOCKETS_PRIVATE_H_
 
 #include "network.h"
+#include "miniroute.h"
 #include "queue.h"
 #include "synch.h"
 
-#define MINISOCKET_MAX_MSG_SIZE (MAX_NETWORK_PKT_SIZE - MINISOCKET_HDRSIZE)
+#define MINISOCKET_MAX_MSG_SIZE (MAX_NETWORK_PKT_SIZE \
+                                 - MINIROUTE_HDRSIZE - MINISOCKET_HDRSIZE)
 #define MINISOCKET_MIN_PORT 0
 #define MINISOCKET_MAX_PORT 65535
 #define MINISOCKET_PORT_NUM (MINISOCKET_MAX_PORT - MINISOCKET_MIN_PORT + 1)

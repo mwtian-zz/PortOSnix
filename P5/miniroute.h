@@ -5,7 +5,7 @@
 
 #define MAX_ROUTE_LENGTH 20
 #define SIZE_OF_ROUTE_CACHE 20
-#define MINIROUTE_HDRSIZE sizeof(struct routing_header)
+#define MINIROUTE_HDRSIZE (sizeof(struct routing_header))
 
 enum routing_packet_type {
     ROUTING_DATA=0,

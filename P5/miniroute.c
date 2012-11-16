@@ -192,11 +192,12 @@ miniroute_process_data(network_interrupt_arg_t *intrpt)
     oldlevel = set_interrupt_level(DISABLED);
     switch (transport_hdr->protocol) {
     case PROTOCOL_MINIDATAGRAM:
-        minimsg_process(intrpt);
+        if (intrpt->size >= MINIMSG_HDRSIZE)
+            minimsg_process(intrpt);
         break;
     case PROTOCOL_MINISTREAM:
-        if (intrpt->size >= MINIROUTE_HDRSIZE + MINISOCKET_HDRSIZE)
-            minimsg_process(intrpt);
+        if (intrpt->size >= MINISOCKET_HDRSIZE)
+            minisocket_process(intrpt);
         break;
     default:
         free(intrpt);

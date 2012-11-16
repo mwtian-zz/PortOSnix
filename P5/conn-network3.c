@@ -65,7 +65,7 @@ int receiver(int* arg);		/* forward definitioan */
 int server(int* arg)
 {
     int i;
-network_synthetic_params(0.1, 0.1);
+//network_synthetic_params(0.1, 0.1);
 
     for (i=0; i<THREAD_COUNTER; i++) {
         minithread_fork(sender,&thread_id[i]);
@@ -120,7 +120,7 @@ int sender(int* arg)
 int client(int* arg)
 {
     int i;
-network_synthetic_params(0.1, 0.1);
+//network_synthetic_params(0.1, 0.1);
 
     for (i=0; i<THREAD_COUNTER; i++) {
         minithread_fork(receiver,&thread_id[i]);

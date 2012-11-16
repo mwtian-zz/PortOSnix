@@ -442,10 +442,8 @@ clock_handler(void* arg)
     ticks++;
     if (alarm_time > -1 && ticks >= alarm_time)
         alarm_signal();
-    if (ticks >= expire) {
-        printf("Thread %d Preempted.\n", context->id);
+    if (ticks >= expire)
         minithread_yield();
-    }
     set_interrupt_level(oldlevel);
 }
 

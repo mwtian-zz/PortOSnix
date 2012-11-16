@@ -14,7 +14,7 @@
 #include "queue_wrap.h"
 #include "queue.h"
 #include "synch.h"
-#include "minithread_private.h"
+
 /* File scope function, explained before each implementation. */
 static int
 minisocket_server_init_from_intrpt(network_interrupt_arg_t *intrpt,
@@ -113,9 +113,7 @@ minisocket_initialize()
     semaphore_initialize(cleanup_queue_mutex, 1);
 
     minithread_fork(minisocket_control, NULL);
-    //minithread_fork(minisocket_cleanup, NULL);
-printf("Minisocket cleanup thread %d.\n", minithread_fork(minisocket_cleanup, NULL)->id);
-
+    minithread_fork(minisocket_cleanup, NULL);
 }
 
 /*
@@ -726,9 +724,11 @@ minisocket_cleanup(int *arg)
     minisocket_t socket;
     int i, qlen;
     while (1) {
+        semaphore_P(cleanup_sem);
         semaphore_P(cleanup_queue_mutex);
         qlen = queue_length(closing_sockets);
         semaphore_V(cleanup_queue_mutex);
+        semaphore_V(cleanup_sem);
 
         for (i = 0; i < qlen; ++i) {
             semaphore_P(cleanup_sem);

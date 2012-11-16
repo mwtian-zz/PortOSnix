@@ -6,7 +6,7 @@
  *	Low-level network interface.
  *
  *	This interface defines a low-level network interface for sending and
- *	receiving packets between pseudo-network interfaces located on the 
+ *	receiving packets between pseudo-network interfaces located on the
  *      same or different hosts.
  */
 
@@ -36,6 +36,9 @@ typedef struct {
   int size;
 } network_interrupt_arg_t;
 
+/* Address of local machine */
+extern network_address_t hostaddr;
+
 /* Copy address "original" to address "copy".  We added this function
 * to network.c so that we can treat network_address_t as "opaque" outside
 * of network.h and network.c. */
@@ -54,17 +57,17 @@ network_address_same(network_address_t a, network_address_t b);
 void
 network_printaddr(network_address_t addr);
 
-void 
+void
 network_address_to_sockaddr(network_address_t addr, struct sockaddr_in *sin);
 
-void 
+void
 sockaddr_to_network_address(struct sockaddr_in *sin, network_address_t addr);
 
 /*
  * network_initialize should be called before clock interrupts start
  * happening (or with clock interrupts disabled).  The initialization
  * procedure returns 0 on success, -1 on failure.  The function
- * handler(data) is called when a network packet arrives. 
+ * handler(data) is called when a network packet arrives.
  *
  * n.b. you must call this function before you call any other network
  * functions, including network_translate_hostname().
@@ -98,10 +101,10 @@ int
 network_translate_hostname(char* hostname, network_address_t address);
 
 /*
- * Compares network addresses. Returns 0 if different and 
- * nonzero if identical. 
+ * Compares network addresses. Returns 0 if different and
+ * nonzero if identical.
  */
-int 
+int
 network_compare_network_addresses(network_address_t addr1,
 				  network_address_t addr2);
 
@@ -109,14 +112,14 @@ network_compare_network_addresses(network_address_t addr1,
  * write the network address in a human-readable way, into a buffer of length
  * "length"; will return -1 if the string is too short, else 0. the address
  * will be in the form "the.text.ip.address:port", e.g. "128.84.223.105:20".
- * n.b. the port is the NT port, not a miniport! 
- * 
+ * n.b. the port is the NT port, not a miniport!
+ *
  * for debugging.
 */
 int
 network_format_address(network_address_t address, char* string, int length);
 
-/* 
+/*
  * only used for testing; normally, you should not have to call this
  * function. it should be called before network_initialize, and sets
  * the local UDP port to use for miniports, as well as the port number
@@ -127,9 +130,9 @@ network_format_address(network_address_t address, char* string, int length);
 void
 network_udp_ports(short myportnum, short otherportnum);
 
-/* 
+/*
  * set synthetic parameters for the network, used in network_send_pkt
- * to determine whether to drop or duplicate the packet to be sent 
+ * to determine whether to drop or duplicate the packet to be sent
  */
 void
 network_synthetic_params(double loss, double duplication);

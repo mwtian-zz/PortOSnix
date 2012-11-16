@@ -37,7 +37,6 @@ typedef struct {
     int me;
 } bcast_t;
 
-
 bcast_t topology;
 
 short my_udp_port = MINIMSG_PORT;
@@ -56,6 +55,7 @@ struct address_info {
 
 struct address_info if_info;
 static network_address_t broadcast_addr = { 0 };
+network_address_t hostaddr;
 
 /* forward definition */
 void start_network_poll(interrupt_handler_t, int*);
@@ -537,6 +537,8 @@ network_initialize(interrupt_handler_t network_handler)
      */
 
     start_network_poll(network_handler, &if_info.sock);
+
+    network_get_my_address(hostaddr);
 
     return 0;
 }

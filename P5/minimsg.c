@@ -3,6 +3,8 @@
  */
 #include "defs.h"
 #include "interrupts.h"
+
+#include "miniroute.h"
 #include "miniheader.h"
 #include "minimsg.h"
 #include "minimsg_private.h"
@@ -17,8 +19,6 @@ static miniport_t port[MAX_BOUNDED - MIN_UNBOUNDED + 1];
 static int bound_count = 0;
 /* Has the bounded port number wrapped around yet or not */
 static char bound_wrap = 0;
-/* Address of the current system */
-static network_address_t hostaddr;
 /*
  * Makes port creation and destroy minithread safe.
  * Avoiding destroying ports during send/receive of another thread
@@ -36,7 +36,6 @@ minimsg_packhdr(mini_header_t hdr, miniport_t unbound, miniport_t bound);
 void
 minimsg_initialize()
 {
-    network_get_my_address(hostaddr);
     if ((port_mutex = semaphore_create()) != NULL)
         semaphore_initialize(port_mutex, 1);
 }
@@ -181,7 +180,7 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port,
 
     minimsg_packhdr(&hdr, local_unbound_port, local_bound_port);
     network_address_copy(local_bound_port->bound.addr, dest);
-    sent = network_send_pkt(dest, MINIMSG_HDRSIZE, (char*)&hdr, len, msg);
+    sent = miniroute_send_pkt(dest, MINIMSG_HDRSIZE, (char*)&hdr, len, msg);
 
     return sent - MINIMSG_HDRSIZE < 0 ? -1 : sent - MINIMSG_HDRSIZE;
 }

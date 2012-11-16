@@ -5,6 +5,8 @@
 #include "defs.h"
 
 #include "alarm.h"
+#include "miniheader.h"
+#include "miniroute.h"
 #include "minisocket.h"
 #include "minisocket_private.h"
 #include "minithread.h"
@@ -12,8 +14,7 @@
 #include "queue_wrap.h"
 #include "queue.h"
 #include "synch.h"
-#include "miniheader.h"
-
+#include "minithread_private.h"
 /* File scope function, explained before each implementation. */
 static int
 minisocket_server_init_from_intrpt(network_interrupt_arg_t *intrpt,
@@ -69,7 +70,6 @@ minisocket_signal_busy(network_interrupt_arg_t *intrpt);
 static minisocket_t minisocket[MINISOCKET_PORT_NUM];
 static int socket_count = 0;
 static int retry_delay[MINISOCKET_MAX_TRY];
-static network_address_t hostaddr;
 static semaphore_t port_count_mutex = NULL;
 static semaphore_t port_array_mutex = NULL;
 static semaphore_t control_sem = NULL;
@@ -86,7 +86,6 @@ void
 minisocket_initialize()
 {
     int i;
-    network_get_my_address(hostaddr);
 
     retry_delay[0] = MINISOCKET_INITIAL_TIMEOUT;
     for (i = 1; i < MINISOCKET_MAX_TRY; ++i) {
@@ -114,7 +113,9 @@ minisocket_initialize()
     semaphore_initialize(cleanup_queue_mutex, 1);
 
     minithread_fork(minisocket_control, NULL);
-    minithread_fork(minisocket_cleanup, NULL);
+    //minithread_fork(minisocket_cleanup, NULL);
+printf("Minisocket cleanup thread %d.\n", minithread_fork(minisocket_cleanup, NULL)->id);
+
 }
 
 /*
@@ -369,8 +370,10 @@ minisocket_destroy(minisocket_t *p_socket)
         free(socket);
         semaphore_P(port_count_mutex);
         socket_count--;
-        if (MINISOCKET_DEBUG == 1)
-            printf("socket count: %d\n", socket_count);
+
+#if MINISOCKET_DEBUG == 1
+    printf("socket count: %d\n", socket_count);
+#endif
         semaphore_V(port_count_mutex);
     }
 }
@@ -594,21 +597,23 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
     semaphore_V(socket->state_mutex);
 
     for (i = 0; i < MINISOCKET_MAX_TRY; ++i) {
-        network_send_pkt(remote, MINISOCKET_HDRSIZE, (char*)&header, len, msg);
+        miniroute_send_pkt(remote, MINISOCKET_HDRSIZE, (char*)&header, len, msg);
         minisocket_retry_wait(socket, retry_delay[i]);
 //printf("Wait %d, delay %d, current tick %ld.\n", i, retry_delay[i], ticks);
         /* Alarm disabled because ACK received. */
         if (ALARM_SUCCESS == socket->alarm) {
-            if (MINISOCKET_DEBUG == 1)
-                printf("Message type %d. Success at try %d\n", msg_type, i);
+#if MINISOCKET_DEBUG == 1
+    printf("Message type %d. Success at try %d\n", msg_type, i);
+#endif
             return len;
         }
         /* Alarm disabled because socket is closing. */
         else if (ALARM_CANCELED == socket->alarm)
             break;
     }
-    if (MINISOCKET_DEBUG == 1)
-        printf("Message type %d. Failure at try %d\n", msg_type, i);
+#if MINISOCKET_DEBUG == 1
+    printf("Message type %d. Failure at try %d\n", msg_type, i);
+#endif
     socket->alarm = ALARM_SUCCESS;
     return -1;
 }
@@ -663,9 +668,10 @@ minisocket_acknowledge(minisocket_t local)
 {
     struct mini_header_reliable header;
     minisocket_packhdr(&header, local, MSG_ACK);
-    if (MINISOCKET_DEBUG == 1)
-        printf("Acknowledgement sent.\n");
-    network_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
+#if MINISOCKET_DEBUG == 1
+    printf("Acknowledgement sent.\n");
+#endif
+    miniroute_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
                      0, NULL);
 }
 
@@ -693,7 +699,7 @@ minisocket_signal_busy(network_interrupt_arg_t *intrpt)
     pack_unsigned_int(header.seq_number, 1);
     pack_unsigned_int(header.ack_number, 1);
 
-    network_send_pkt(remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
+    miniroute_send_pkt(remote_addr, MINISOCKET_HDRSIZE, (char*)&header, 0, NULL);
 }
 
 /* Independent thread handling control messages and sorting data packets. */
@@ -819,9 +825,9 @@ minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
 
-    if (MINISOCKET_DEBUG == 1)
-        printf("SYN received. State: %d.\n", local->state);
-
+#if (MINISOCKET_DEBUG == 1)
+    printf("SYN received. State: %d.\n", local->state);
+#endif
     semaphore_P(local->state_mutex);
     switch (local->state) {
     case LISTEN:
@@ -853,9 +859,9 @@ minisocket_process_syn(network_interrupt_arg_t *intrpt, minisocket_t local)
 static int
 minisocket_process_synack(network_interrupt_arg_t *intrpt, minisocket_t local)
 {
-    if (MINISOCKET_DEBUG == 1)
-        printf("SYNACK received. State: %d.\n", local->state);
-
+#if (MINISOCKET_DEBUG == 1)
+    printf("SYNACK received. State: %d.\n", local->state);
+#endif
     minisocket_process_syn(intrpt, local);
     return minisocket_process_ack(intrpt, local);
 }
@@ -868,8 +874,9 @@ minisocket_process_ack(network_interrupt_arg_t *intrpt, minisocket_t local)
     int ack = unpack_unsigned_int(header->ack_number);
     minisocket_interrupt_status intrpt_status = INTERRUPT_PROCESSED;
 
-    if (MINISOCKET_DEBUG == 1)
-        printf("ACK received. State: %d.\n", local->state);
+#if (MINISOCKET_DEBUG == 1)
+    printf("ACK received. State: %d.\n", local->state);
+#endif
 
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
@@ -933,9 +940,9 @@ minisocket_process_fin(network_interrupt_arg_t *intrpt, minisocket_t local)
     mini_header_reliable_t header = (mini_header_reliable_t) intrpt->buffer;
     int seq = unpack_unsigned_int(header->seq_number);
 
-    if (MINISOCKET_DEBUG == 1)
-        printf("FIN received. State: %d.\n", local->state);
-
+#if (MINISOCKET_DEBUG == 1)
+    printf("FIN received. State: %d.\n", local->state);
+#endif
     if (minisocket_validate_source(intrpt, local) == -1)
         return INTERRUPT_PROCESSED;
 

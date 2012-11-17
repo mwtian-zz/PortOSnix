@@ -9,6 +9,7 @@
 #include "minimsg.h"
 #include "minisocket.h"
 
+/* File scope functions. Explained before each implementation. */
 static void
 miniroute_relay(network_interrupt_arg_t *intrpt);
 static int
@@ -20,6 +21,8 @@ static void
 miniroute_wait_for_intrpt(network_interrupt_arg_t **p_intrpt);
 static void
 miniroute_process_data(network_interrupt_arg_t *intrpt);
+static int
+miniroute_sort_data(network_interrupt_arg_t *intrpt);
 static void
 miniroute_process_discovery(network_interrupt_arg_t *intrpt);
 static void
@@ -29,6 +32,8 @@ miniroute_process_reply(network_interrupt_arg_t *intrpt);
 static queue_t intrpt_buffer;
 /* Signals when network interrupts need to be processed */
 static semaphore_t intrpt_sig;
+/* Serial number of originating discovery packets */
+static int discovery_id;
 
 /* Performs any initialization of the miniroute layer, if required. */
 void
@@ -36,9 +41,11 @@ miniroute_initialize()
 {
     intrpt_buffer = queue_new();
     intrpt_sig = semaphore_create();
-    if (NULL == intrpt_buffer || NULL == intrpt_sig)
+    if (NULL == intrpt_buffer || NULL == intrpt_sig) {
+        queue_free(intrpt_buffer);
+        semaphore_destroy(intrpt_sig);
         return;
-
+    }
     semaphore_initialize(intrpt_sig, 0);
 
     minithread_fork(miniroute_control, NULL);
@@ -69,18 +76,23 @@ miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr,
 #if MINIROUTE_DEBUG == 1
     printf("Network packet sent.\n");
 #endif
+
     if (sent_len < hdr_len)
         return -1;
     else
         return sent_len - hdr_len;
 }
 
+/* Pack the header of an outgoing data packet */
 static int
 miniroute_pack_data_hdr(miniroute_header_t hdr, network_address_t dest_address,
                         network_address_t next_hop_addr)
 {
     hdr->routing_packet_type = ROUTING_DATA;
     pack_address(hdr->destination, dest_address);
+    pack_unsigned_int(hdr->id, 0);
+    pack_unsigned_int(hdr->ttl, MAX_ROUTE_LENGTH);
+
     network_address_copy(dest_address, next_hop_addr);
     return 0;
 }
@@ -90,20 +102,6 @@ miniroute_relay(network_interrupt_arg_t *intrpt)
 {
 
 }
-
-/* hashes a network_address_t into a 16 bit unsigned int */
-unsigned short
-hash_address(network_address_t address)
-{
-    unsigned int result = 0;
-    int counter;
-
-    for (counter = 0; counter < 3; counter++)
-        result ^= ((unsigned short*)address)[counter];
-
-    return result % 65521;
-}
-
 
 int
 miniroute_buffer_intrpt(network_interrupt_arg_t *intrpt)
@@ -166,11 +164,10 @@ static void
 miniroute_process_data(network_interrupt_arg_t *intrpt)
 {
     int i;
-    interrupt_level_t oldlevel;
     miniroute_header_t routing_hdr = (miniroute_header_t) intrpt->buffer;
-    mini_header_t transport_hdr = (mini_header_t) (routing_hdr + 1);
     network_address_t destaddr;
     unpack_address(routing_hdr->destination, destaddr);
+
 #if MINIROUTE_DEBUG == 1
     printf("Processing data in Network packet.\n");
 #endif
@@ -189,7 +186,24 @@ miniroute_process_data(network_interrupt_arg_t *intrpt)
             intrpt->buffer[i] = intrpt->buffer[MINIROUTE_HDRSIZE + i];
     }
 
-    oldlevel = set_interrupt_level(DISABLED);
+    /* Free the interrupt if no protocol can handle it. */
+    if (miniroute_sort_data(intrpt) == 1)
+        free(intrpt);
+
+    return;
+}
+
+/*
+ * Pass the interrupt to the respective transport layer protocol.
+ * Miniroute header in the interrupt should be stripped before it is passed
+ * to this function.
+ */
+static int
+miniroute_sort_data(network_interrupt_arg_t *intrpt)
+{
+    int status = 0;
+    mini_header_t transport_hdr = (mini_header_t) intrpt->buffer;
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     switch (transport_hdr->protocol) {
     case PROTOCOL_MINIDATAGRAM:
         if (intrpt->size >= MINIMSG_HDRSIZE)
@@ -200,21 +214,78 @@ miniroute_process_data(network_interrupt_arg_t *intrpt)
             minisocket_process(intrpt);
         break;
     default:
-        free(intrpt);
+        status = 1;
     }
     set_interrupt_level(oldlevel);
 
-    return;
+    return status;
 }
 
+/* Process a route discovery packet */
 static void
 miniroute_process_discovery(network_interrupt_arg_t *intrpt)
 {
 
 }
 
+/* Process a reply packet */
 static void
 miniroute_process_reply(network_interrupt_arg_t *intrpt)
 {
 
+}
+
+/* Print the miniroute header in a readable way for debugging */
+int
+miniroute_print_hdr(miniroute_header_t hdr)
+{
+    int i;
+    int len;
+    network_address_t dest;
+    network_address_t hop;
+
+    switch (hdr->routing_packet_type) {
+    case ROUTING_ROUTE_DISCOVERY:
+        printf("Discovery: ");
+        break;
+    case ROUTING_ROUTE_REPLY:
+        printf("Reply    : ");
+        break;
+    case ROUTING_DATA:
+        printf("Data     : ");
+        break;
+    default:
+        printf("Unknown %d: ");
+    }
+
+    printf("id = %d, ", unpack_unsigned_int(hdr->id));
+    printf("ttl = %d, ", unpack_unsigned_int(hdr->ttl));
+    printf("len = %d\n", len = unpack_unsigned_int(hdr->path_len));
+
+    unpack_address(hdr->destination, dest);
+    printf("Destination: ");
+    network_printaddr(dest);
+    printf("\n");
+
+    for (i = 0; i < len; ++i) {
+        unpack_address(hdr->path[i], hop);
+        printf("Hop %d: ", i);
+        network_printaddr(hop);
+        printf("\n");
+    }
+
+    return 0;
+}
+
+/* hashes a network_address_t into a 16 bit unsigned int */
+unsigned short
+hash_address(network_address_t address)
+{
+    unsigned int result = 0;
+    int counter;
+
+    for (counter = 0; counter < 3; counter++)
+        result ^= ((unsigned short*)address)[counter];
+
+    return result % 65521;
 }

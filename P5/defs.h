@@ -13,7 +13,7 @@
 /* if debuging is desired set value to 1 */
 #define DEBUG 0
 #define NETWORK_DEBUG 0
-#define MINISOCKET_DEBUG 1
+#define MINISOCKET_DEBUG 0
 #define MINIROUTE_DEBUG 0
 
 #define INTERRUPT_DEFER 0

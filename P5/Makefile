@@ -14,8 +14,8 @@ OUTPUT = minithread
 # dropping the ".c": so to use "sieve.c", change to "MAIN = sieve".
 #
 # Note that you must write your own test programs.
-
-MAIN = conn-network3
+#conn-network3
+MAIN =  network6_mod
 
 OBJ = \
     alarm.o \

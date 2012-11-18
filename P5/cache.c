@@ -21,7 +21,7 @@ cache_new(size_t size)
     if (new_cache == NULL) {
         return NULL;
     }
-    new_cache->items = malloc(sizeof(cache_item_t) * size);
+    new_cache->items = malloc(sizeof(miniroute_path_t) * size);
     if (new_cache->items == NULL) {
         free(new_cache);
         return NULL;
@@ -41,7 +41,7 @@ cache_new(size_t size)
  * Return 0 if the destination is found and put it in item
  */
 int
-cache_get_by_dest(cache_t cache, char dest[], cache_item_t *item)
+cache_get_by_dest(cache_t cache, char dest[], miniroute_path_t *item)
 {
     network_address_t addr;
     unpack_address(dest, addr);
@@ -54,10 +54,10 @@ cache_get_by_dest(cache_t cache, char dest[], cache_item_t *item)
  * Return 0 if found and put it in item
  */
 int
-cache_get_by_addr(cache_t cache, network_address_t addr, cache_item_t *item)
+cache_get_by_addr(cache_t cache, network_address_t addr, miniroute_path_t *item)
 {
     int hash_num;
-    cache_item_t head;
+    miniroute_path_t head;
 
     if (item == NULL || cache == NULL) {
         return -1;
@@ -79,9 +79,9 @@ cache_get_by_addr(cache_t cache, network_address_t addr, cache_item_t *item)
  * Return 0 on success, -1 on failure
  */
 int
-cache_put_item(cache_t cache, cache_item_t item)
+cache_put_item(cache_t cache, miniroute_path_t item)
 {
-    cache_item_t item_to_evict;
+    miniroute_path_t item_to_evict;
     int hash_num;
 
     if (cache->item_num >= cache->max_item_num) {
@@ -120,7 +120,7 @@ cache_put_item(cache_t cache, cache_item_t item)
 int
 cache_put_header(cache_t cache, struct routing_header header)
 {
-    cache_item_t item;
+    miniroute_path_t item;
     int val;
 
     item = item_new(header);
@@ -139,7 +139,7 @@ cache_put_header(cache_t cache, struct routing_header header)
  * Return 0 on success, -1 on failure
  */
 int
-cache_delete_item(cache_t cache, cache_item_t item)
+cache_delete_item(cache_t cache, miniroute_path_t item)
 {
     int hash_num;
 
@@ -185,7 +185,7 @@ cache_set_max_num(cache_t cache, int num)
 
 /* If a item has expired. Return -1 if not, 0 if yes */
 int
-cache_is_expired(cache_item_t item)
+cache_is_expired(miniroute_path_t item)
 {
     return item->exp_time >= ticks ? 0 : -1;
 }
@@ -194,7 +194,7 @@ cache_is_expired(cache_item_t item)
 void
 cache_print(cache_t cache)
 {
-    cache_item_t head;
+    miniroute_path_t head;
     int i;
 
     printf("Total number of item: %d\n", cache->item_num);
@@ -215,37 +215,40 @@ cache_print(cache_t cache)
         }
     }
 
-    printf("\nList is:\n");
+    printf("List is:\n");
     head = cache->list_head;
     while (head) {
         network_printaddr(head->addr);
         printf(" ");
         head = head->list_next;
     }
-    printf("\n");
+    printf("\n\n");
 }
 
-
-/* Construct a new item from a header*/
-cache_item_t
+/*
+ * Construct a new miniroute cache item from a header.
+ * The cached route reverses the path in the header.
+ */
+miniroute_path_t
 item_new(struct routing_header header)
 {
-    cache_item_t item;
+    miniroute_path_t item;
     network_address_t addr;
-    unsigned int len;
     int i;
 
-    item = malloc(sizeof(struct cache_item));
+    item = malloc(sizeof(struct miniroute_path));
     if (item == NULL) {
         return NULL;
     }
     unpack_address(header.destination, addr);
     network_address_copy(addr, item->addr);
-    memcpy(item->path_len, header.path_len, 4);
-    len = unpack_unsigned_int(header.path_len);
-    for (i = 0; i < len; i++) {
-        memcpy(item->path[i], header.path[i], 8);
+    item->path_len = unpack_unsigned_int(header.path_len);
+
+    /* Reverse path in header */
+    for (i = 0; i < item->path_len; i++) {
+        memcpy(item->path[i], header.path[item->path_len - i - 1], 8);
     }
+
     item->hash_next = NULL;
     item->hash_prev = NULL;
     item->list_next = NULL;
@@ -253,7 +256,6 @@ item_new(struct routing_header header)
     item->exp_time = ticks + (3 * (SECOND / PERIOD));
     return item;
 }
-
 
 /* Destroy a cache */
 void

@@ -8,6 +8,8 @@
 #include "miniheader.h"
 #include "minimsg.h"
 #include "minisocket.h"
+#include "cache.h"
+#include "cache_private.h"
 
 /* File scope functions. Explained before each implementation. */
 static void
@@ -27,11 +29,15 @@ static void
 miniroute_process_discovery(network_interrupt_arg_t *intrpt);
 static void
 miniroute_process_reply(network_interrupt_arg_t *intrpt);
+int
+miniroute_print_hdr(miniroute_header_t hdr);
 
 /* Store network interrupts. Protected by disabling interrupts. */
 static queue_t intrpt_buffer;
 /* Signals when network interrupts need to be processed */
 static semaphore_t intrpt_sig;
+/* Caching routes */
+static cache_t route_cache;
 /* Serial number of originating discovery packets */
 static int discovery_id;
 
@@ -41,7 +47,8 @@ miniroute_initialize()
 {
     intrpt_buffer = queue_new();
     intrpt_sig = semaphore_create();
-    if (NULL == intrpt_buffer || NULL == intrpt_sig) {
+    route_cache = cache_new(SIZE_OF_ROUTE_CACHE);
+    if (NULL == intrpt_buffer || NULL == intrpt_sig || NULL == route_cache) {
         queue_free(intrpt_buffer);
         semaphore_destroy(intrpt_sig);
         return;
@@ -76,6 +83,10 @@ miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr,
 #if MINIROUTE_DEBUG == 1
     printf("Network packet sent.\n");
 #endif
+#if MINIROUTE_CACHE_DEBUG == 1
+    printf("Sending packing with header: \n");
+    miniroute_print_hdr(&routing_hdr);
+#endif
 
     if (sent_len < hdr_len)
         return -1;
@@ -88,11 +99,16 @@ static int
 miniroute_pack_data_hdr(miniroute_header_t hdr, network_address_t dest_address,
                         network_address_t next_hop_addr)
 {
+    miniroute_path_t item;
     hdr->routing_packet_type = ROUTING_DATA;
     pack_address(hdr->destination, dest_address);
     pack_unsigned_int(hdr->id, 0);
     pack_unsigned_int(hdr->ttl, MAX_ROUTE_LENGTH);
-
+printf("Packing path.\n");
+    cache_get_by_addr(route_cache,  dest_address, &item);
+    pack_unsigned_int(hdr->path_len, item->path_len);
+    memcpy(hdr->path, item->path, 8 * item->path_len);
+printf("Finished packing path.\n");
     network_address_copy(dest_address, next_hop_addr);
     return 0;
 }
@@ -255,7 +271,7 @@ miniroute_print_hdr(miniroute_header_t hdr)
         printf("Data     : ");
         break;
     default:
-        printf("Unknown %d: ");
+        printf("Unknown %d: ", hdr->routing_packet_type);
     }
 
     printf("id = %d, ", unpack_unsigned_int(hdr->id));
@@ -289,3 +305,5 @@ hash_address(network_address_t address)
 
     return result % 65521;
 }
+
+

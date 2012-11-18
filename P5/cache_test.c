@@ -9,14 +9,14 @@
 int main() {
 	struct routing_header header;
 	network_address_t addr;
-	cache_item_t item;
+	miniroute_path_t item;
 	cache_t cache;
 	char hosts[10][20] = {"www.google.com", "www.cnn.com", "localhost", "www.baidu.com", "www.cornell.edu", "www.cs.cornell.edu", "www.yahoo.com", "www.msn.com", "www.apple.com", "www.ibm.com"};
 	int i;
-	
+
 	cache = cache_new(20);
 	cache_set_max_num(cache, 5);
-	
+
 	for (i = 0; i < 10; i++) {
 		network_translate_hostname(hosts[i], addr);
 		pack_address(header.destination, addr);
@@ -26,7 +26,7 @@ int main() {
 		cache_print(cache);
 		printf("\n\n");
 	}
-	
+
 	for (i = 0; i < 10; i++) {
 		network_translate_hostname(hosts[i], addr);
 		if (cache_get_by_addr(cache, addr, &item) == 0) {
@@ -35,6 +35,6 @@ int main() {
 			cache_print(cache);
 		}
 	}
-	
+
 	return 0;
 }

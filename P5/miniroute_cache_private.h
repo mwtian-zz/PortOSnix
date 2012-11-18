@@ -1,7 +1,8 @@
-#ifndef __CACHE_PRIVATE__
-#define __CACHE_PRIVATE__
+#ifndef __MINIROUTE_CACHE_PRIVATE__
+#define __MINIROUTE_CACHE_PRIVATE__
 
 #include "miniroute.h"
+#include "miniroute_cache.h"
 
 struct miniroute_path {
 	network_address_t addr;          /* Destinatioin going to find */
@@ -16,10 +17,9 @@ struct miniroute_path {
 	long exp_time;                   /* Expiration time */
 };
 
-typedef struct miniroute_path *miniroute_path_t;
 
 /* Maybe we can use void* to make it more generic... */
-struct cache {
+struct miniroute_cache {
 	miniroute_path_t *items;                   /* Hash table, using chaining */
 	miniroute_path_t list_head;                /* Eviction list head */
 	miniroute_path_t list_tail;                /* Eviction list tail */
@@ -28,6 +28,5 @@ struct cache {
 	int max_item_num;                /* Maximum item which can be in the cached */
 };
 
-typedef struct cache *cache_t;
 
-#endif
+#endif /* __MINIROUTE_CACHE_PRIVATE__ */

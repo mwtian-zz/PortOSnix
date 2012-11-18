@@ -10,10 +10,9 @@ alarmtest1_mod.o: alarmtest1_mod.c minithread.h machineprimitives.h \
  defs.h
 alarmtest2.o: alarmtest2.c minithread.h machineprimitives.h defs.h
 buffer.o: buffer.c minithread.h machineprimitives.h defs.h synch.h
-cache.o: cache.c cache.h cache_private.h miniroute.h minimsg.h network.h \
- interrupts_private.h interrupts.h defs.h miniheader.h
-cache_test.o: cache_test.c cache.h cache_private.h miniroute.h minimsg.h \
- network.h interrupts_private.h interrupts.h defs.h miniheader.h
+cache_test.o: cache_test.c miniroute_cache.h miniroute_cache_private.h \
+ miniroute.h minimsg.h network.h interrupts_private.h interrupts.h defs.h \
+ miniheader.h
 conn-network1.o: conn-network1.c defs.h minithread.h machineprimitives.h \
  minisocket.h network.h interrupts_private.h interrupts.h minimsg.h \
  synch.h
@@ -41,7 +40,11 @@ minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
  interrupts_private.h interrupts.h defs.h synch.h queue.h
 miniroute.o: miniroute.c defs.h queue.h queue_wrap.h queue_private.h \
  synch.h minithread.h machineprimitives.h miniroute.h minimsg.h network.h \
- interrupts_private.h interrupts.h miniheader.h minisocket.h
+ interrupts_private.h interrupts.h miniheader.h minisocket.h \
+ miniroute_cache.h miniroute_cache_private.h
+miniroute_cache.o: miniroute_cache.c miniroute_cache.h \
+ miniroute_cache_private.h miniroute.h minimsg.h network.h \
+ interrupts_private.h interrupts.h defs.h miniheader.h
 minisocket.o: minisocket.c defs.h alarm.h miniheader.h network.h \
  interrupts_private.h interrupts.h miniroute.h minimsg.h minisocket.h \
  minisocket_private.h queue.h synch.h minithread.h machineprimitives.h \

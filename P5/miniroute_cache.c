@@ -1,4 +1,4 @@
-#include "cache.h"
+#include "miniroute_cache.h"
 #include "miniroute.h"
 #include "network.h"
 #include "interrupts.h"
@@ -8,16 +8,16 @@
 extern long ticks;
 
 /* Create a cache with size as table size, return NULL if fails */
-cache_t
-cache_new(size_t size)
+miniroute_cache_t
+miniroute_cache_new(size_t size)
 {
-    cache_t new_cache;
+    miniroute_cache_t new_cache;
 
     if (size <= 0) {
         return NULL;
     }
 
-    new_cache = malloc(sizeof(struct cache));
+    new_cache = malloc(sizeof(struct miniroute_cache));
     if (new_cache == NULL) {
         return NULL;
     }
@@ -41,11 +41,11 @@ cache_new(size_t size)
  * Return 0 if the destination is found and put it in item
  */
 int
-cache_get_by_dest(cache_t cache, char dest[], miniroute_path_t *item)
+miniroute_cache_get_by_dest(miniroute_cache_t cache, char dest[], miniroute_path_t *item)
 {
     network_address_t addr;
     unpack_address(dest, addr);
-    return cache_get_by_addr(cache, addr, item);
+    return miniroute_cache_get_by_addr(cache, addr, item);
 }
 
 /*
@@ -54,7 +54,7 @@ cache_get_by_dest(cache_t cache, char dest[], miniroute_path_t *item)
  * Return 0 if found and put it in item
  */
 int
-cache_get_by_addr(cache_t cache, network_address_t addr, miniroute_path_t *item)
+miniroute_cache_get_by_addr(miniroute_cache_t cache, network_address_t addr, miniroute_path_t *item)
 {
     int hash_num;
     miniroute_path_t head;
@@ -79,7 +79,7 @@ cache_get_by_addr(cache_t cache, network_address_t addr, miniroute_path_t *item)
  * Return 0 on success, -1 on failure
  */
 int
-cache_put_item(cache_t cache, miniroute_path_t item)
+miniroute_cache_put_path(miniroute_cache_t cache, miniroute_path_t item)
 {
     miniroute_path_t item_to_evict;
     int hash_num;
@@ -90,7 +90,7 @@ cache_put_item(cache_t cache, miniroute_path_t item)
         if (item_to_evict == NULL) {
             return -1;
         }
-        cache_delete_item(cache, item_to_evict);
+        miniroute_cache_delete_path(cache, item_to_evict);
     }
 
     hash_num = hash_address(item->addr) % cache->table_size;
@@ -118,16 +118,16 @@ cache_put_item(cache_t cache, miniroute_path_t item)
  * Return 0 on success, -1 on failure
  */
 int
-cache_put_header(cache_t cache, struct routing_header header)
+miniroute_cache_put_header(miniroute_cache_t cache, miniroute_header_t header)
 {
     miniroute_path_t item;
     int val;
 
-    item = item_new(header);
+    item = miniroute_path_from_hdr(header);
     if (item == NULL) {
         return -1;
     }
-    val = cache_put_item(cache, item);
+    val = miniroute_cache_put_path(cache, item);
     if (val == -1) {
         free(item);
     }
@@ -139,7 +139,7 @@ cache_put_header(cache_t cache, struct routing_header header)
  * Return 0 on success, -1 on failure
  */
 int
-cache_delete_item(cache_t cache, miniroute_path_t item)
+miniroute_cache_delete_path(miniroute_cache_t cache, miniroute_path_t item)
 {
     int hash_num;
 
@@ -175,7 +175,7 @@ cache_delete_item(cache_t cache, miniroute_path_t item)
 
 /* Set the maximum item number of cache */
 void
-cache_set_max_num(cache_t cache, int num)
+miniroute_cache_set_max_num(miniroute_cache_t cache, int num)
 {
     if (num <= 0) {
         return;
@@ -185,14 +185,14 @@ cache_set_max_num(cache_t cache, int num)
 
 /* If a item has expired. Return -1 if not, 0 if yes */
 int
-cache_is_expired(miniroute_path_t item)
+miniroute_cache_is_expired(miniroute_path_t item)
 {
     return item->exp_time >= ticks ? 0 : -1;
 }
 
 /* Print whole cache, for debugging */
 void
-cache_print(cache_t cache)
+miniroute_cache_print(miniroute_cache_t cache)
 {
     miniroute_path_t head;
     int i;
@@ -230,7 +230,7 @@ cache_print(cache_t cache)
  * The cached route reverses the path in the header.
  */
 miniroute_path_t
-item_new(struct routing_header header)
+miniroute_path_from_hdr(miniroute_header_t header)
 {
     miniroute_path_t item;
     network_address_t addr;
@@ -240,13 +240,13 @@ item_new(struct routing_header header)
     if (item == NULL) {
         return NULL;
     }
-    unpack_address(header.destination, addr);
+    unpack_address(header->destination, addr);
     network_address_copy(addr, item->addr);
-    item->path_len = unpack_unsigned_int(header.path_len);
+    item->path_len = unpack_unsigned_int(header->path_len);
 
     /* Reverse path in header */
     for (i = 0; i < item->path_len; i++) {
-        memcpy(item->path[i], header.path[item->path_len - i - 1], 8);
+        memcpy(item->path[i], header->path[item->path_len - i - 1], 8);
     }
 
     item->hash_next = NULL;
@@ -259,7 +259,7 @@ item_new(struct routing_header header)
 
 /* Destroy a cache */
 void
-cache_destroy(cache_t cache)
+miniroute_cache_destroy(miniroute_cache_t cache)
 {
     free(cache->items);
     free(cache);

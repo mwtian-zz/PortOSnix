@@ -15,12 +15,12 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 #conn-network3
-MAIN =  network6_mod
+MAIN =  cache_test
 
 OBJ = \
     alarm.o \
     alarm_queue.o \
-	cache.o \
+	miniroute_cache.o \
     interrupts.o \
     machineprimitives_x86_64_asm.o \
     machineprimitives_x86_64.o \

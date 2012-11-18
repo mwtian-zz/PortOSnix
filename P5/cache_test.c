@@ -22,17 +22,17 @@ int main() {
 		pack_address(header.destination, addr);
 		pack_unsigned_int(header.path_len, 4);
 		item = miniroute_path_from_hdr(&header);
-		miniroute_cache_put_path(cache, item);
-		miniroute_cache_print(cache);
+		miniroute_cache_put_item(cache, item);
+		miniroute_cache_print_path(cache);
 		printf("\n\n");
 	}
 
 	for (i = 0; i < 10; i++) {
 		network_translate_hostname(hosts[i], addr);
-		if (miniroute_cache_get_by_addr(cache, addr, &item) == 0) {
+		if (miniroute_cache_get_by_addr(cache, addr, (void**)&item) == 0) {
 			printf("Found host %s\n", hosts[i]);
-			miniroute_cache_delete_path(cache, item);
-			miniroute_cache_print(cache);
+			miniroute_cache_delete_item(cache, item);
+			miniroute_cache_print_path(cache);
 		}
 	}
 

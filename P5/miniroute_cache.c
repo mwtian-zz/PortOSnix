@@ -21,7 +21,7 @@ miniroute_cache_new(size_t size)
     if (new_cache == NULL) {
         return NULL;
     }
-    new_cache->items = malloc(sizeof(miniroute_path_t) * size);
+    new_cache->items = malloc(sizeof(miniroute_item_t) * size);
     if (new_cache->items == NULL) {
         free(new_cache);
         return NULL;
@@ -41,11 +41,11 @@ miniroute_cache_new(size_t size)
  * Return 0 if the destination is found and put it in item
  */
 int
-miniroute_cache_get_by_dest(miniroute_cache_t cache, char dest[], miniroute_path_t *item)
+miniroute_cache_get_by_dest(miniroute_cache_t cache, char dest[], void **it)
 {
     network_address_t addr;
     unpack_address(dest, addr);
-    return miniroute_cache_get_by_addr(cache, addr, item);
+    return miniroute_cache_get_by_addr(cache, addr, it);
 }
 
 /*
@@ -54,11 +54,11 @@ miniroute_cache_get_by_dest(miniroute_cache_t cache, char dest[], miniroute_path
  * Return 0 if found and put it in item
  */
 int
-miniroute_cache_get_by_addr(miniroute_cache_t cache, network_address_t addr, miniroute_path_t *item)
+miniroute_cache_get_by_addr(miniroute_cache_t cache, network_address_t addr, void **it)
 {
     int hash_num;
-    miniroute_path_t head;
-
+    miniroute_item_t head;
+    miniroute_item_t *item = (miniroute_item_t*) it;
     if (item == NULL || cache == NULL) {
         return -1;
     }
@@ -71,6 +71,8 @@ miniroute_cache_get_by_addr(miniroute_cache_t cache, network_address_t addr, min
         }
         head = head->hash_next;
     }
+
+    *item = NULL;
     return -1;
 }
 /*
@@ -79,9 +81,10 @@ miniroute_cache_get_by_addr(miniroute_cache_t cache, network_address_t addr, min
  * Return 0 on success, -1 on failure
  */
 int
-miniroute_cache_put_path(miniroute_cache_t cache, miniroute_path_t item)
+miniroute_cache_put_item(miniroute_cache_t cache, void *it)
 {
-    miniroute_path_t item_to_evict;
+    miniroute_item_t item = it;
+    miniroute_item_t item_to_evict;
     int hash_num;
 
     if (cache->item_num >= cache->max_item_num) {
@@ -90,7 +93,7 @@ miniroute_cache_put_path(miniroute_cache_t cache, miniroute_path_t item)
         if (item_to_evict == NULL) {
             return -1;
         }
-        miniroute_cache_delete_path(cache, item_to_evict);
+        miniroute_cache_delete_item(cache, item_to_evict);
     }
 
     hash_num = hash_address(item->addr) % cache->table_size;
@@ -118,16 +121,16 @@ miniroute_cache_put_path(miniroute_cache_t cache, miniroute_path_t item)
  * Return 0 on success, -1 on failure
  */
 int
-miniroute_cache_put_header(miniroute_cache_t cache, miniroute_header_t header)
+miniroute_cache_put_path_from_hdr(miniroute_cache_t cache, miniroute_header_t header)
 {
-    miniroute_path_t item;
+    miniroute_item_t item;
     int val;
 
-    item = miniroute_path_from_hdr(header);
+    item = (miniroute_item_t) miniroute_path_from_hdr(header);
     if (item == NULL) {
         return -1;
     }
-    val = miniroute_cache_put_path(cache, item);
+    val = miniroute_cache_put_item(cache, item);
     if (val == -1) {
         free(item);
     }
@@ -139,9 +142,10 @@ miniroute_cache_put_header(miniroute_cache_t cache, miniroute_header_t header)
  * Return 0 on success, -1 on failure
  */
 int
-miniroute_cache_delete_path(miniroute_cache_t cache, miniroute_path_t item)
+miniroute_cache_delete_item(miniroute_cache_t cache, void *it)
 {
     int hash_num;
+    miniroute_item_t item = it;
 
     if (item == NULL) {
         return -1;
@@ -185,14 +189,14 @@ miniroute_cache_set_max_num(miniroute_cache_t cache, int num)
 
 /* If a item has expired. Return -1 if not, 0 if yes */
 int
-miniroute_cache_is_expired(miniroute_path_t item)
+miniroute_cache_is_expired(miniroute_item_t item)
 {
     return item->exp_time >= ticks ? 0 : -1;
 }
 
 /* Print whole cache, for debugging */
 void
-miniroute_cache_print(miniroute_cache_t cache)
+miniroute_cache_print_path(miniroute_cache_t cache)
 {
     miniroute_path_t head;
     int i;
@@ -203,7 +207,7 @@ miniroute_cache_print(miniroute_cache_t cache)
     printf("Hash table is:\n");
 
     for (i = 0; i < cache->table_size; i++) {
-        head = cache->items[i];
+        head = (miniroute_path_t) cache->items[i];
         if (head) {
             printf("Row %d: ", i);
             while (head) {
@@ -216,7 +220,7 @@ miniroute_cache_print(miniroute_cache_t cache)
     }
 
     printf("List is:\n");
-    head = cache->list_head;
+    head = (miniroute_path_t) cache->list_head;
     while (head) {
         network_printaddr(head->addr);
         printf(" ");
@@ -246,7 +250,7 @@ miniroute_path_from_hdr(miniroute_header_t header)
 
     /* Reverse path in header */
     for (i = 0; i < item->path_len; i++) {
-        memcpy(item->path[i], header->path[item->path_len - i - 1], 8);
+        unpack_address(header->path[item->path_len - i - 1], item->hop[i]);
     }
 
     item->hash_next = NULL;

@@ -1,0 +1,20 @@
+Hao Li (hl824) , Mingwei Tian (mt643)
+
+CS4411 Project 5 - Ad-Hoc Networking
+
+The project is finished in Windows to be available for testing.
+It is merged back into this Linux version at the end.
+
+--------------------------------------------------------------------------------
+The progamming is done in the Windows/VS2010 64bit environment.
+
+instant_msg.c implements a simple messenger.
+
+Due to limited availability of machines, this project has not been tested on
+networks with more than 3 nodes.
+
+--------------------------------------------------------------------------------
+Project Description
+http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3
+Frequently Asked Questions
+http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3/faq.html

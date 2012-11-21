@@ -18,14 +18,16 @@ extern miniroute_cache_t miniroute_cache_new(size_t size);
  * Return -1 if the destination is not found
  * Return 0 if the destination is found and put it in item
  */
-extern int miniroute_cache_get_by_dest(miniroute_cache_t cache, char dest[], void **it);
+extern int miniroute_cache_get_by_dest(miniroute_cache_t cache, char dest[],
+                                       void **it);
 
 /*
  * Get an item with network address from cache
  * Return -1 if not found
  * Return 0 if found and put it in item
  */
-extern int miniroute_cache_get_by_addr(miniroute_cache_t cache, network_address_t addr, void **it);
+extern int miniroute_cache_get_by_addr(miniroute_cache_t cache,
+                                       network_address_t addr, void **it);
 
 /*
  * Put an item into cache
@@ -39,7 +41,8 @@ extern int miniroute_cache_put_item(miniroute_cache_t cache, void *item);
  * If the cache is full, find a victim to evict
  * Return 0 on success, -1 on failure
  */
-extern int miniroute_cache_put_path_from_hdr(miniroute_cache_t cache, miniroute_header_t header);
+extern int miniroute_cache_put_path_from_hdr(miniroute_cache_t cache,
+        miniroute_header_t header);
 
 /*
  * Delete an item from cache

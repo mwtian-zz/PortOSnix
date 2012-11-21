@@ -15,7 +15,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 #conn-network3
-MAIN =  cache_test
+MAIN =  instant_msg
 
 OBJ = \
     alarm.o \
@@ -36,6 +36,7 @@ OBJ = \
     queue.o \
     queue_wrap.o \
     random.o \
+    read.o \
     synch.o \
 
 all: minithread

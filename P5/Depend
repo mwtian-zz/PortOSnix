@@ -38,10 +38,10 @@ minimsg.o: minimsg.c defs.h interrupts.h miniroute.h minimsg.h network.h \
  queue_wrap.h queue_private.h
 minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
  interrupts_private.h interrupts.h defs.h synch.h queue.h
-miniroute.o: miniroute.c defs.h queue.h queue_wrap.h queue_private.h \
- synch.h minithread.h machineprimitives.h miniroute.h minimsg.h network.h \
- interrupts_private.h interrupts.h miniheader.h minisocket.h \
- miniroute_cache.h miniroute_cache_private.h
+miniroute.o: miniroute.c defs.h alarm.h queue.h queue_wrap.h \
+ queue_private.h synch.h minithread.h machineprimitives.h miniroute.h \
+ minimsg.h network.h interrupts_private.h interrupts.h miniheader.h \
+ minisocket.h miniroute_cache.h miniroute_cache_private.h
 miniroute_cache.o: miniroute_cache.c miniroute_cache.h \
  miniroute_cache_private.h miniroute.h minimsg.h network.h \
  interrupts_private.h interrupts.h defs.h miniheader.h
@@ -51,8 +51,8 @@ minisocket.o: minisocket.c defs.h alarm.h miniheader.h network.h \
  queue_wrap.h queue_private.h
 minithread.o: minithread.c alarm.h interrupts.h defs.h miniroute.h \
  minimsg.h network.h interrupts_private.h miniheader.h minisocket.h \
- queue.h synch.h minithread.h machineprimitives.h minithread_private.h \
- queue_private.h multilevel_queue.h
+ queue.h read_private.h synch.h minithread.h machineprimitives.h \
+ minithread_private.h queue_private.h multilevel_queue.h
 multilevel_queue.o: multilevel_queue.c queue.h multilevel_queue.h \
  multilevel_queue_private.h
 multilevel_queue_test.o: multilevel_queue_test.c \

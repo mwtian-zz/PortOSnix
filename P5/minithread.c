@@ -20,6 +20,7 @@
 #include "minisocket.h"
 #include "network.h"
 #include "queue.h"
+#include "read_private.h"
 #include "synch.h"
 #include "minithread.h"
 #include "minithread_private.h"
@@ -399,6 +400,7 @@ minithread_initialize_interrupts()
     miniroute_initialize();
     minimsg_initialize();
     minisocket_initialize();
+    miniterm_initialize();
     set_interrupt_level(ENABLED);
     return 0;
 }

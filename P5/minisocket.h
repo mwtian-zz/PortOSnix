@@ -14,6 +14,7 @@
 #include "network.h"
 #include "minimsg.h"
 
+
 typedef struct minisocket* minisocket_t;
 typedef enum minisocket_error minisocket_error;
 

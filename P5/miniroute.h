@@ -6,6 +6,11 @@
 #define MAX_ROUTE_LENGTH 20
 #define SIZE_OF_ROUTE_CACHE 20
 #define MINIROUTE_HDRSIZE (sizeof(struct routing_header))
+#define MINIROUTE_CACHED_ROUTE_EXPIRE (3 * (SECOND / PERIOD))
+
+
+/* Address of local machine */
+extern network_address_t hostaddr;
 
 enum routing_packet_type {
     ROUTING_DATA=0,
@@ -27,6 +32,9 @@ struct routing_header {
 };
 typedef struct routing_header *miniroute_header_t;
 
+
+/* Address of local machine */
+extern network_address_t hostaddr;
 
 /* Performs any initialization of the miniroute layer, if required. */
 void miniroute_initialize();

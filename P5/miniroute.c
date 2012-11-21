@@ -1,6 +1,7 @@
 #include "defs.h"
 
 #include "alarm.h"
+#include "interrupts.h"
 #include "queue.h"
 #include "queue_wrap.h"
 #include "synch.h"
@@ -40,13 +41,8 @@ miniroute_process_reply(network_interrupt_arg_t *intrpt);
 int
 miniroute_print_hdr(miniroute_header_t hdr);
 
-/* Status of discovery process */
-typedef enum discovery_process_status {
-    DISCOVERY_FREE,
-    DISCOVERY_INPROGRESS,
-    DISCOVERY_SUCCESS,
-    DISCOVERY_FAILED
-} discovery_process_status_t;
+/* Address of local machine */
+network_address_t hostaddr;
 
 /* Store network interrupts. Protected by disabling interrupts. */
 static queue_t intrpt_buffer;
@@ -62,8 +58,10 @@ static semaphore_t discovery_sig;
 static int discovery_alarm;
 /* Result of discovery process */
 static miniroute_path_t discovered_path;
-/* Caching routes */
+/* Routes cache*/
 static miniroute_cache_t route_cache;
+/* Network discovery packets cache */
+static miniroute_cache_t disc_cache;
 /* Serial number of originating discovery packets */
 static int discovery_id;
 
@@ -71,13 +69,17 @@ static int discovery_id;
 void
 miniroute_initialize()
 {
+    network_get_my_address(hostaddr);
     discovery_alarm = -1;
 
     intrpt_buffer = queue_new();
     intrpt_sig = semaphore_create();
     discovery_mutex = semaphore_create();
     discovery_sig = semaphore_create();
-    route_cache = miniroute_cache_new(65536);
+
+    route_cache = miniroute_cache_new(65536, SIZE_OF_ROUTE_CACHE, MINIROUTE_CACHED_ROUTE_EXPIRE);
+    disc_cache = miniroute_cache_new(65536, SIZE_OF_ROUTE_CACHE, MINIROUTE_CACHED_ROUTE_EXPIRE * 10);
+
     if (NULL == intrpt_buffer || NULL == intrpt_sig || NULL == route_cache
             || NULL == discovery_mutex || NULL == discovery_sig) {
         queue_free(intrpt_buffer);
@@ -91,6 +93,8 @@ miniroute_initialize()
     semaphore_initialize(intrpt_sig, 0);
     semaphore_initialize(discovery_mutex, 1);
     semaphore_initialize(discovery_sig, 0);
+
+    network_get_my_address(hostaddr);
 
     minithread_fork(miniroute_control, NULL);
 }
@@ -110,15 +114,17 @@ miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr,
 
     /* Find route if it is not in cache */
     semaphore_P(discovery_mutex);
-    if (miniroute_cache_get_by_addr(route_cache,  dest_address, (void**)&path) == -1) {
+    miniroute_cache_get_by_addr(route_cache,  dest_address, (void**)&path);
+
+    if (NULL == path || path->exp_time < ticks) {
 #if MINIROUTE_CACHE_DEBUG == 1
         printf("Address not found, discovering path.\n");
 #endif
         path = miniroute_discover_path(dest_address);
     }
+
     semaphore_V(discovery_mutex);
     if (NULL != path && NULL != (total_data = malloc(total_len))) {
-        miniroute_cache_put_item(route_cache, path);
         /* Pack data and miniroute header */
         memcpy(total_data, hdr, hdr_len);
         memcpy(total_data + hdr_len, data, data_len);
@@ -131,7 +137,7 @@ miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr,
     printf("Network packet sent.\n");
 #endif
 #if MINIROUTE_CACHE_DEBUG == 1
-    printf("Sending packing with header: \n");
+    printf("Sending data with header: \n");
     miniroute_print_hdr(&routing_hdr);
 #endif
 
@@ -150,7 +156,16 @@ miniroute_discover_path(network_address_t dest)
 {
     miniroute_path_t path = NULL;
     struct routing_header routing_hdr;
+    miniroute_disc_hist_t disc;
+
     miniroute_pack_discovery_hdr(&routing_hdr, dest);
+    disc = miniroute_dischist_from_hdr(&routing_hdr);
+    miniroute_cache_put_item(disc_cache, disc);
+
+#if MINIROUTE_CACHE_DEBUG == 1
+    printf("Broadcasting discovery packet with header: \n");
+    miniroute_print_hdr(&routing_hdr);
+#endif
     network_bcast_pkt(MINIROUTE_HDRSIZE, (char*)&routing_hdr, 0, NULL);
     discovery_alarm = register_alarm(12000, semaphore_Signal, discovery_sig);
     semaphore_P(discovery_sig);
@@ -212,7 +227,7 @@ miniroute_pack_data_hdr(miniroute_header_t hdr, miniroute_path_t path)
 static void
 miniroute_pack_hdr_from_path(miniroute_header_t hdr, miniroute_path_t path)
 {
-    int i;
+    unsigned int i;
     pack_unsigned_int(hdr->ttl, MAX_ROUTE_LENGTH);
     pack_unsigned_int(hdr->path_len, path->path_len);
     for (i = 0; i < path->path_len; ++i)
@@ -295,15 +310,19 @@ miniroute_relay(network_interrupt_arg_t *intrpt)
     len = unpack_unsigned_int(routing_hdr->path_len);
     for (i = 0; i < len; ++i) {
         unpack_address(routing_hdr->path[i], hop);
-        if (network_address_same(hostaddr, hop))
+        if (network_address_same(hostaddr, hop) == 1)
             break;
     }
-
     if (i + 1 < len) {
         i++;
         ttl = unpack_unsigned_int(routing_hdr->ttl);
         pack_unsigned_int(routing_hdr->ttl, --ttl);
         unpack_address(routing_hdr->path[i], hop);
+
+#if MINIROUTE_CACHE_DEBUG == 1
+        printf("Relaying header\n");
+        miniroute_print_hdr(routing_hdr);
+#endif
         network_send_pkt(hop, 0, NULL, intrpt->size, intrpt->buffer);
     }
     free(intrpt);
@@ -323,21 +342,22 @@ miniroute_process_data(network_interrupt_arg_t *intrpt)
     /* Relay packets if it is intended for others */
     if (network_address_same(dest, hostaddr) != 1)
         miniroute_relay(intrpt);
+    else {
+        /* Drop packets with incomplete header */
+        if (intrpt->size < MINIROUTE_HDRSIZE + MINIMSG_HDRSIZE) {
+            free(intrpt);
+            return;
+        } else {
+            /* Strip header */
+            intrpt->size -= MINIROUTE_HDRSIZE;
+            for (i = 0; i < intrpt->size; ++i)
+                intrpt->buffer[i] = intrpt->buffer[MINIROUTE_HDRSIZE + i];
+        }
 
-    /* Drop packets with incomplete header */
-    if (intrpt->size < MINIROUTE_HDRSIZE + MINIMSG_HDRSIZE) {
-        free(intrpt);
-        return;
-    } else {
-        /* Strip header */
-        intrpt->size -= MINIROUTE_HDRSIZE;
-        for (i = 0; i < intrpt->size; ++i)
-            intrpt->buffer[i] = intrpt->buffer[MINIROUTE_HDRSIZE + i];
+        /* Free the interrupt if no protocol can handle it. */
+        if (miniroute_sort_data(intrpt) == 1)
+            free(intrpt);
     }
-
-    /* Free the interrupt if no protocol can handle it. */
-    if (miniroute_sort_data(intrpt) == 1)
-        free(intrpt);
 
     return;
 }
@@ -375,25 +395,42 @@ static void
 miniroute_process_discovery(network_interrupt_arg_t *intrpt)
 {
     miniroute_header_t hdr = (miniroute_header_t) intrpt->buffer;
+    network_address_t orig;
     network_address_t dest;
     int id;
     int len;
     int ttl;
     miniroute_path_t path;
+    miniroute_disc_hist_t disc;
+
+#if MINIROUTE_CACHE_DEBUG == 1
+    printf("Received discovery packet with header: \n");
+    miniroute_print_hdr(hdr);
+#endif
+    id = unpack_unsigned_int(hdr->id);
+    len = unpack_unsigned_int(hdr->path_len);
+    pack_unsigned_int(hdr->path_len, ++len);
+    pack_address(hdr->path[len - 1], hostaddr);
+    unpack_address(hdr->path[0], orig);
     unpack_address(hdr->destination, dest);
 
     if (network_address_same(dest, hostaddr) != 1) {
-        ttl = unpack_unsigned_int(hdr->ttl);
-        len = unpack_unsigned_int(hdr->path_len);
-        pack_unsigned_int(hdr->ttl, --ttl);
-        pack_unsigned_int(hdr->path_len, ++len);
-        pack_address(hdr->path[len], hostaddr);
-        network_bcast_pkt(0, NULL, intrpt->size, intrpt->buffer);
+        miniroute_cache_get_by_addr(disc_cache, orig, (void**)&disc);
+        if (!(NULL != disc && disc->id ==  id)) {
+            disc = miniroute_dischist_from_hdr(hdr);
+            miniroute_cache_put_item(disc_cache, disc);
+            ttl = unpack_unsigned_int(hdr->ttl);
+            pack_unsigned_int(hdr->ttl, --ttl);
+            network_bcast_pkt(0, NULL, intrpt->size, intrpt->buffer);
+        }
     } else {
-        id = unpack_unsigned_int(hdr->id);
         path = miniroute_path_from_hdr(hdr);
-        miniroute_cache_put_item(route_cache, hdr);
+        miniroute_cache_put_item(route_cache, path);
         miniroute_pack_reply_hdr(hdr, id, path);
+#if MINIROUTE_CACHE_DEBUG == 1
+        printf("Processed discovery packet, replying with header: \n");
+        miniroute_print_hdr(hdr);
+#endif
         network_send_pkt(path->hop[1], MINIROUTE_HDRSIZE, (char*)hdr, 0, NULL);
     }
 
@@ -409,12 +446,14 @@ miniroute_process_reply(network_interrupt_arg_t *intrpt)
     unpack_address(hdr->destination, dest);
 
     /* Relay packets if it is intended for others */
-    if (network_address_same(dest, hostaddr) != 1)
+    if (network_address_same(dest, hostaddr) != 1) {
         miniroute_relay(intrpt);
-    discovered_path = miniroute_path_from_hdr(hdr);
-    miniroute_cache_put_item(route_cache, (miniroute_item_t*)discovered_path);
-    free(intrpt);
-    miniroute_discovery_cancel();
+    } else {
+        discovered_path = miniroute_path_from_hdr(hdr);
+        miniroute_cache_put_item(route_cache, (miniroute_item_t*)discovered_path);
+        free(intrpt);
+        miniroute_discovery_cancel();
+    }
 }
 
 /* Print the miniroute header in a readable way for debugging */

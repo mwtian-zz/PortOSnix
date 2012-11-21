@@ -36,9 +36,6 @@ typedef struct {
   int size;
 } network_interrupt_arg_t;
 
-/* Address of local machine */
-extern network_address_t hostaddr;
-
 /* Copy address "original" to address "copy".  We added this function
 * to network.c so that we can treat network_address_t as "opaque" outside
 * of network.h and network.c. */

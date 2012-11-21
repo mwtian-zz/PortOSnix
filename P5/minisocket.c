@@ -353,11 +353,9 @@ minisocket_destroy(minisocket_t *p_socket)
         semaphore_P(port_array_mutex);
         minisocket[socket->local_port_num] = NULL;
         semaphore_V(port_array_mutex);
-
         while (queue_wrap_dequeue(socket->data, (void**)&intrpt) == 0)
             free(intrpt);
         queue_free(socket->data);
-
         semaphore_destroy(socket->receive);
         semaphore_destroy(socket->send_mutex);
         semaphore_destroy(socket->data_mutex);
@@ -366,13 +364,13 @@ minisocket_destroy(minisocket_t *p_socket)
         semaphore_destroy(socket->synchonize);
         semaphore_destroy(socket->retry);
         free(socket);
+
         semaphore_P(port_count_mutex);
         socket_count--;
-
-#if MINISOCKET_DEBUG == 1
-    printf("socket count: %d\n", socket_count);
-#endif
         semaphore_V(port_count_mutex);
+#if MINISOCKET_DEBUG == 1
+        printf("socket count: %d\n", socket_count);
+#endif
     }
 }
 
@@ -601,7 +599,7 @@ minisocket_transmit(minisocket_t socket, char msg_type, minimsg_t msg, int len)
         /* Alarm disabled because ACK received. */
         if (ALARM_SUCCESS == socket->alarm) {
 #if MINISOCKET_DEBUG == 1
-    printf("Message type %d. Success at try %d\n", msg_type, i);
+            printf("Message type %d. Success at try %d\n", msg_type, i);
 #endif
             return len;
         }
@@ -670,7 +668,7 @@ minisocket_acknowledge(minisocket_t local)
     printf("Acknowledgement sent.\n");
 #endif
     miniroute_send_pkt(local->remote_addr, MINISOCKET_HDRSIZE, (char*)&header,
-                     0, NULL);
+                       0, NULL);
 }
 
 /* Server already in connection. Reply to SYN with FIN. */
@@ -724,11 +722,13 @@ minisocket_cleanup(int *arg)
     minisocket_t socket;
     int i, qlen;
     while (1) {
+
         semaphore_P(cleanup_sem);
+        semaphore_V(cleanup_sem);
+
         semaphore_P(cleanup_queue_mutex);
         qlen = queue_length(closing_sockets);
         semaphore_V(cleanup_queue_mutex);
-        semaphore_V(cleanup_sem);
 
         for (i = 0; i < qlen; ++i) {
             semaphore_P(cleanup_sem);
@@ -737,19 +737,25 @@ minisocket_cleanup(int *arg)
             queue_wrap_dequeue(closing_sockets, (void**)&socket);
             semaphore_V(cleanup_queue_mutex);
 
-            semaphore_P(socket->receive_count_mutex);
-            if (socket->receive_count > 0) {
-                semaphore_V(cleanup_sem);
-                semaphore_P(cleanup_queue_mutex);
-                queue_wrap_enqueue(closing_sockets, socket);
-                semaphore_V(cleanup_queue_mutex);
-            } else {
-                minisocket_set_state(socket, CLOSED);
-                minisocket_destroy(&minisocket[socket->local_port_num]);
+            if (NULL != socket) {
+                semaphore_P(socket->receive_count_mutex);
+
+                if (socket->receive_count > 0) {
+                    semaphore_V(socket->receive_count_mutex);
+                    semaphore_V(cleanup_sem);
+                    minisocket_receive_unblock(socket);
+                    semaphore_P(cleanup_queue_mutex);
+                    queue_wrap_enqueue(closing_sockets, socket);
+                    semaphore_V(cleanup_queue_mutex);
+                } else {
+                    semaphore_V(socket->receive_count_mutex);
+                    minisocket_set_state(socket, CLOSED);
+                    minisocket_destroy(&minisocket[socket->local_port_num]);
+                }
             }
-            semaphore_V(socket->receive_count_mutex);
         }
     }
+
     return 0;
 }
 

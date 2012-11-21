@@ -538,8 +538,6 @@ network_initialize(interrupt_handler_t network_handler)
 
     start_network_poll(network_handler, &if_info.sock);
 
-    network_get_my_address(hostaddr);
-
     return 0;
 }
 

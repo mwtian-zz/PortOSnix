@@ -14,7 +14,7 @@ int main() {
 	char hosts[10][20] = {"www.google.com", "www.cnn.com", "localhost", "www.baidu.com", "www.cornell.edu", "www.cs.cornell.edu", "www.yahoo.com", "www.msn.com", "www.apple.com", "www.ibm.com"};
 	int i;
 
-	cache = miniroute_cache_new(20);
+	cache = miniroute_cache_new(20, 1000, 10000);
 	miniroute_cache_set_max_num(cache, 5);
 
 	for (i = 0; i < 10; i++) {

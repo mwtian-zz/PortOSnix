@@ -7,11 +7,11 @@
 /* Data structure to record a path */
 typedef struct miniroute_path *miniroute_path_t;
 typedef struct miniroute_item *miniroute_item_t;
-
+typedef struct miniroute_disc_hist *miniroute_disc_hist_t;
 typedef struct miniroute_cache *miniroute_cache_t;
 
 /* Create a cache with size as table size, return NULL if fails */
-extern miniroute_cache_t miniroute_cache_new(size_t size);
+extern miniroute_cache_t miniroute_cache_new(int size, int max_num, long exp_time);
 
 /*
  * Get an item from cache
@@ -64,6 +64,9 @@ extern void miniroute_cache_destroy(miniroute_cache_t cache);
  * The cached route reverses the path in the header.
  */
 extern miniroute_path_t miniroute_path_from_hdr(miniroute_header_t header);
+
+/* Construct a new discovery history item from header */
+extern miniroute_disc_hist_t miniroute_dischist_from_hdr(miniroute_header_t header);
 
 /* Print whole cache with path as items, for debugging */
 extern void miniroute_cache_print_path(miniroute_cache_t cache);

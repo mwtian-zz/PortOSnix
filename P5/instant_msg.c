@@ -1,3 +1,9 @@
+/******************************************************************************
+ * Usage:
+ * minithreads : Start up as a minisocket server
+ * minithreads <remote name> : Start up trying to connect to the remote server
+ *****************************************************************************/
+
 #include "defs.h"
 
 #include "read.h"
@@ -6,49 +12,69 @@
 
 #define BUFFER_SIZE 256
 
-int
-msg_server(int* arg)
+/* File scope variables */
+static char *remote_name;
+static minisocket_t connection;
+static minisocket_error error;
+static int port_num = 7272;
+
+/* File scope functions */
+static int receiver(int* arg);
+static int sender(int *arg);
+
+static int
+receiver(int* arg)
+{
+    int len;
+    char buffer[BUFFER_SIZE];
+    network_address_t dest;
+
+    if (NULL != remote_name) {
+        network_translate_hostname(remote_name, dest);
+        connection = minisocket_client_create(dest, port_num, &error);
+    } else {
+        connection = minisocket_server_create(port_num, &error);
+    }
+
+    if (NULL == connection) {
+        printf("Connection error.\n");
+        return -1;
+    } else {
+        minithread_fork(sender, NULL);
+        printf("Connection successful. Type and enter to send messages.\n");
+    }
+
+    while (1) {
+        buffer[BUFFER_SIZE] = '\0';
+        len = minisocket_receive(connection, buffer, BUFFER_SIZE - 1, &error);
+        buffer[len] = '\0';
+        printf("[Received message]: %s", buffer);
+    }
+
+    return 0;
+}
+
+static int
+sender(int *arg)
 {
     int len = BUFFER_SIZE;
     char buffer[BUFFER_SIZE];
-    minisocket_error error;
-    minisocket_t server;
-
-    server = minisocket_server_create(0, &error);
 
     while (1) {
-        len = minisocket_receive(server, buffer, BUFFER_SIZE, &error);
-        if (len == -1)
-            break;
-        if (len == BUFFER_SIZE)
-            --len;
-        buffer[len] = '\0';
-        printf("Received message: %s\n", buffer);
+        len = miniterm_read(buffer, BUFFER_SIZE - 1);
+        minisocket_send(connection, buffer, len + 1, &error);
     }
 
     return 0;
 }
 
 int
-main()
+main(int argc, char** argv)
 {
-    int len = BUFFER_SIZE;
-    char buffer[BUFFER_SIZE];
-    network_address_t dest;
-    minisocket_error error;
-    minisocket_t client;
+    if (argc > 1)
+        remote_name = argv[1];
 
-    minithread_fork(msg_server, NULL);
-
-    printf("Type in the destination machine name:\n");
-    miniterm_read(buffer, len);
-    network_translate_hostname(buffer, dest);
-    client = minisocket_client_create(dest, 0, &error);
-
-    while (1) {
-        miniterm_read(buffer, len);
-        minisocket_send(client, buffer, len, &error);
-    }
+    minithread_system_initialize(receiver, NULL);
 
     return 0;
 }

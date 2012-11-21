@@ -25,6 +25,17 @@ struct miniroute_path {
 	network_address_t hop[MAX_ROUTE_LENGTH];  /* Path along to destination */
 };
 
+struct miniroute_disc_hist {
+	struct miniroute_path *list_next;          /* Next item in eviction list */
+	struct miniroute_path *list_prev;          /* Previous item in eviction list */
+	struct miniroute_path *hash_next;          /* Next item in hash table entry */
+	struct miniroute_path *hash_prev;          /* Previous item in hash table entry */
+    network_address_t addr;          /* Address used as the key */
+    long exp_time;                   /* Expiration time */
+
+	unsigned int id;                /* Discovery packet id */
+};
+
 /* Maybe we can use void* to make it more generic... */
 struct miniroute_cache {
 	miniroute_item_t *items;                   /* Hash table, using chaining */
@@ -33,6 +44,7 @@ struct miniroute_cache {
 	int item_num;                    /* Number of items in cache */
 	int table_size;                  /* Hash table size */
 	int max_item_num;                /* Maximum item which can be in the cached */
+	long exp_length;
 };
 
 

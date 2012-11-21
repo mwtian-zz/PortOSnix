@@ -9,7 +9,7 @@ extern long ticks;
 
 /* Create a cache with size as table size, return NULL if fails */
 miniroute_cache_t
-miniroute_cache_new(size_t size)
+miniroute_cache_new(int size, int max_num_entry, long exp_length)
 {
     miniroute_cache_t new_cache;
 
@@ -26,12 +26,13 @@ miniroute_cache_new(size_t size)
         free(new_cache);
         return NULL;
     }
-    memset(new_cache->items, 0, size);
+    memset(new_cache->items, 0, sizeof(miniroute_item_t) * size);
     new_cache->item_num = 0;
     new_cache->table_size = size;
     new_cache->list_head = NULL;
     new_cache->list_tail = NULL;
-    new_cache->max_item_num = SIZE_OF_ROUTE_CACHE;
+    new_cache->max_item_num = max_num_entry;
+    new_cache->exp_length = exp_length;
     return new_cache;
 }
 
@@ -85,7 +86,12 @@ miniroute_cache_put_item(miniroute_cache_t cache, void *it)
 {
     miniroute_item_t item = it;
     miniroute_item_t item_to_evict;
+    miniroute_item_t exist_item;
     int hash_num;
+
+    if (miniroute_cache_get_by_addr(cache, item->addr, (void**)&exist_item) == 0) {
+        miniroute_cache_delete_item(cache, exist_item);
+    }
 
     if (cache->item_num >= cache->max_item_num) {
         item_to_evict = cache->list_head;
@@ -110,8 +116,9 @@ miniroute_cache_put_item(miniroute_cache_t cache, void *it)
         cache->list_tail = item;
         cache->list_head = item;
     }
-    cache->item_num++;
+    item->exp_time = ticks + cache->exp_length;
 
+    cache->item_num++;
     return 0;
 }
 
@@ -236,29 +243,51 @@ miniroute_cache_print_path(miniroute_cache_t cache)
 miniroute_path_t
 miniroute_path_from_hdr(miniroute_header_t header)
 {
-    miniroute_path_t item;
-    network_address_t addr;
-    int i;
+    miniroute_path_t path;
+    unsigned int i;
 
-    item = malloc(sizeof(struct miniroute_path));
-    if (item == NULL) {
+    path = malloc(sizeof(struct miniroute_path));
+    if (path == NULL) {
         return NULL;
     }
-    unpack_address(header->destination, addr);
-    network_address_copy(addr, item->addr);
-    item->path_len = unpack_unsigned_int(header->path_len);
 
+    path->hash_next = NULL;
+    path->hash_prev = NULL;
+    path->list_next = NULL;
+    path->list_prev = NULL;
+    path->exp_time = 0;
+
+    path->path_len = unpack_unsigned_int(header->path_len);
     /* Reverse path in header */
-    for (i = 0; i < item->path_len; i++) {
-        unpack_address(header->path[item->path_len - i - 1], item->hop[i]);
+    for (i = 0; i < path->path_len; i++) {
+        unpack_address(header->path[path->path_len - i - 1], path->hop[i]);
+    }
+    network_address_copy(path->hop[path->path_len - 1], path->addr);
+
+    return path;
+}
+
+/* Construct a new discovery history item from header */
+miniroute_disc_hist_t
+miniroute_dischist_from_hdr(miniroute_header_t header)
+{
+    miniroute_disc_hist_t hist;
+
+    hist = malloc(sizeof(struct miniroute_disc_hist));
+    if (hist == NULL) {
+        return NULL;
     }
 
-    item->hash_next = NULL;
-    item->hash_prev = NULL;
-    item->list_next = NULL;
-    item->list_prev = NULL;
-    item->exp_time = ticks + (3 * (SECOND / PERIOD));
-    return item;
+    hist->hash_next = NULL;
+    hist->hash_prev = NULL;
+    hist->list_next = NULL;
+    hist->list_prev = NULL;
+    unpack_address(header->path[0], hist->addr);
+    hist->exp_time = 0;
+
+    hist->id = unpack_unsigned_int(header->id);
+
+    return hist;
 }
 
 /* Destroy a cache */

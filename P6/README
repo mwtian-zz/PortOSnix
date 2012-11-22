@@ -1,17 +1,8 @@
 Hao Li (hl824) , Mingwei Tian (mt643)
 
-CS4411 Project 5 - Ad-Hoc Networking
+CS4411 Project 6 - File System
 
-The project is finished in Windows to be available for testing.
-It is merged back into this Linux version at the end.
-
---------------------------------------------------------------------------------
-The progamming is done in the Windows/VS2010 64bit environment.
-
-instant_msg.c implements a simple messenger.
-
-Due to limited availability of machines, this project has not been tested on
-networks with more than 3 nodes.
+q1: minifile.h "If the file exists its contents are detected.": deleted?
 
 --------------------------------------------------------------------------------
 Project Description

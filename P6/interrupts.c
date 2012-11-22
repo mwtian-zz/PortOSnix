@@ -27,7 +27,7 @@ extern int start();
 extern int end();
 
 /*
- * Virtual processor interrupt level (spl). 
+ * Virtual processor interrupt level (spl).
  * Are interrupts enabled? A new interrupt will only be taken when interrupts
  * are enabled.
  */
@@ -69,7 +69,7 @@ interrupt_handler_t mini_disk_handler;
 
 static volatile int signal_handled = 0;
 
-sem_t interrupt_received_sema; 
+sem_t interrupt_received_sema;
 
 /*
  * atomically sets interrupt level and returns the original
@@ -84,7 +84,7 @@ interrupt_level_t set_interrupt_level(interrupt_level_t newlevel) {
  * Register the minithread clock handler by making
  * mini_clock_handler point to it.
  *
- * Then set the signal handler for SIGRTMAX-1 to 
+ * Then set the signal handler for SIGRTMAX-1 to
  * handle_interrupt.  This signal handler will either
  * interrupt the minithreads, or drop the interrupt,
  * depending on safety conditions.
@@ -92,13 +92,13 @@ interrupt_level_t set_interrupt_level(interrupt_level_t newlevel) {
  * The signals are handled on their own stack to reduce
  * chances of an overrun.
  */
-void 
+void
 minithread_clock_init(interrupt_handler_t clock_handler){
     timer_t timerid;
     struct sigevent sev;
     struct itimerspec its;
-    long long freq_nanosecs;
-    sigset_t mask;
+    //long long freq_nanosecs;
+    //sigset_t mask;
     struct sigaction sa;
     stack_t ss;
     mini_clock_handler = clock_handler;
@@ -107,7 +107,7 @@ minithread_clock_init(interrupt_handler_t clock_handler){
 
     ss.ss_sp = malloc(SIGSTKSZ);
     if (ss.ss_sp == NULL){
-        perror("malloc."); 
+        perror("malloc.");
         abort();
     }
     ss.ss_size = SIGSTKSZ;
@@ -121,7 +121,7 @@ minithread_clock_init(interrupt_handler_t clock_handler){
 
     /* Establish handler for timer signal */
     sa.sa_handler = (void*)handle_interrupt;
-    sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK; 
+    sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
     sa.sa_sigaction= (void*)handle_interrupt;
     sigemptyset(&sa.sa_mask);
     sigaddset(&sa.sa_mask,SIGRTMAX-1);
@@ -155,7 +155,7 @@ void
 handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
 {
     uint64_t eip = ucontext->uc_mcontext.gregs[RIP];
-    unsigned long *gr;
+    //unsigned long *gr;
     /*
      * This allows us to check the interrupt level
      * and effectively block other signals.
@@ -169,7 +169,7 @@ handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
             eip > (uint64_t)start &&
             eip < (uint64_t)end){
 
-        unsigned long *newsp, *newfp;
+        unsigned long *newsp;//, *newfp;
         /*
          * push the return address
          */
@@ -199,18 +199,18 @@ handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
          * the stack.
          */
         if(sig==SIGRTMAX-2){
-            ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp; 
+            ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp;
             ucontext->uc_mcontext.gregs[RIP]=(unsigned long)((interrupt_t*)si->si_value.sival_ptr)->handler;
             ucontext->uc_mcontext.gregs[RDI]=(unsigned long)((interrupt_t*)si->si_value.sival_ptr)->arg;
             set_interrupt_level(DISABLED);
         }
         else if(sig==SIGRTMAX-1){
-            ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp; 
+            ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp;
             ucontext->uc_mcontext.gregs[RIP]=(unsigned long)mini_clock_handler;
             ucontext->uc_mcontext.gregs[RDI]=(unsigned long)0;
             if(DEBUG)
                 printf("SP=%p\n",newsp);
-        } 
+        }
         else {
             printf("UNKNOWN SIGNAL\n");
             fflush(stdout);
@@ -238,7 +238,7 @@ void send_interrupt(int interrupt_type, interrupt_handler_t handler, void* arg){
         if(interrupt_type==NETWORK_INTERRUPT_TYPE)
             interrupt.handler = mini_network_handler;
         else if(interrupt_type==READ_INTERRUPT_TYPE)
-            interrupt.handler = mini_read_handler; 
+            interrupt.handler = mini_read_handler;
         else if(interrupt_type==DISK_INTERRUPT_TYPE)
             interrupt.handler = mini_disk_handler;
         else
@@ -246,7 +246,7 @@ void send_interrupt(int interrupt_type, interrupt_handler_t handler, void* arg){
 
         /* Repeat if signal is not delivered. */
         while(sigqueue(getpid(),SIGRTMAX-2, (union sigval)(void*)&interrupt)==-1);
-        
+
         /* semaphore_P to wait for main thread signal */
         sem_wait(&interrupt_received_sema);
 

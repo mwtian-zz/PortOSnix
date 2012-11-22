@@ -15,17 +15,19 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 #conn-network3
-MAIN =  instant_msg
+MAIN =  shell
 
 OBJ = \
     alarm.o \
     alarm_queue.o \
+    disk.o \
 	miniroute_cache.o \
     interrupts.o \
     machineprimitives_x86_64_asm.o \
     machineprimitives_x86_64.o \
     machineprimitives.o \
     $(MAIN).o \
+    minifile.o \
     miniheader.o \
     minimsg.o \
     minisocket.o \

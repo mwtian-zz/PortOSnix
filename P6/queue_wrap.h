@@ -3,11 +3,6 @@
 
 #include "queue_private.h"
 
-struct queue_wrap_node {
-    struct node node;
-    void *data;
-};
-
 extern int
 queue_wrap_prepend(queue_t q, void* data);
 

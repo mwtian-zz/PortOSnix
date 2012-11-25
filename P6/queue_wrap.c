@@ -2,6 +2,11 @@
 #include "queue.h"
 #include "queue_wrap.h"
 
+struct queue_wrap_node {
+    struct node node;
+    void *data;
+};
+
 int
 queue_wrap_prepend(queue_t q, void* data)
 {

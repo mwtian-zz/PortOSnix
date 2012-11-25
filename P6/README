@@ -4,6 +4,11 @@ CS4411 Project 6 - File System
 
 q1: minifile.h "If the file exists its contents are detected.": deleted?
 
+q2: is it legal to have a semaphore function similar to notifyall in condvar?
+
+q3:
+
+
 --------------------------------------------------------------------------------
 Project Description
 http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3

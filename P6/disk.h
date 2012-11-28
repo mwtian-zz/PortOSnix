@@ -1,7 +1,7 @@
 #ifndef __DISK_H__
 #define __DISK_H__
 
-/* 
+/*
  * disk.h
  *       This module simulates a SCSI harddrive
  */
@@ -35,39 +35,41 @@ extern int disk_flags;			/* Set to DISK_READWRITE or DISK_READONLY */
 extern int disk_size;			/* Set to the number of blocks allocated for disk */
 
 typedef enum {
-  DISK_READWRITE=0,
-  DISK_READONLY=1
+    DISK_READWRITE=0,
+    DISK_READONLY=1
 } disk_flags_t;
- 
+
 typedef struct {
-  int size;    /* in blocks */
-  int flags;
+    int size;    /* in blocks */
+    int flags;
 } disk_layout_t;
 
 typedef enum { DISK_RESET, /* required after disk crash */
-	       DISK_SHUTDOWN,
-	       DISK_READ,
-	       DISK_WRITE } disk_request_type_t ;
+               DISK_SHUTDOWN,
+               DISK_READ,
+               DISK_WRITE
+             } disk_request_type_t ;
 
 typedef enum { DISK_REPLY_OK,
-	       DISK_REPLY_FAILED, /* disk failed on this request for no apparent reason */
-	       DISK_REPLY_ERROR, /* disk nonexistent or block outside disk requested */ 
-	       DISK_REPLY_CRASHED } disk_reply_t;
+               DISK_REPLY_FAILED, /* disk failed on this request for no apparent reason */
+               DISK_REPLY_ERROR, /* disk nonexistent or block outside disk requested */
+               DISK_REPLY_CRASHED
+             } disk_reply_t;
 
-/* 
+/*
  * Datastructure used to make and receive replies to disk
  * requests.
 */
 
 typedef struct {
-  int blocknum;
-  char* buffer; /* pointer to the memory buffer */
-  disk_request_type_t type; /* type of disk request */
-} disk_request_t; 
+    int blocknum;
+    char* buffer; /* pointer to the memory buffer */
+    disk_request_type_t type; /* type of disk request */
+} disk_request_t;
 
 typedef struct disk_queue_elem_t {
-  disk_request_t request;
-  struct disk_queue_elem_t* next;
+    disk_request_t request;
+    struct disk_queue_elem_t* next;
 } disk_queue_elem_t ;
 
 /* Do not modify by hand elements of type disk_t since synchronization
@@ -75,18 +77,18 @@ typedef struct disk_queue_elem_t {
 */
 
 typedef struct {
-  disk_layout_t layout;
-  FILE* file;
-  disk_queue_elem_t* queue;
-  disk_queue_elem_t* last;
-  sem_t semaphore; /* the semaphore should be signaled when something is added to the queue */
+    disk_layout_t layout;
+    FILE* file;
+    disk_queue_elem_t* queue;
+    disk_queue_elem_t* last;
+    sem_t semaphore; /* the semaphore should be signaled when something is added to the queue */
 } disk_t;
 
 /* structure used to pass arguments through interrupts */
 typedef struct {
-  disk_t* disk;
-  disk_request_t request;
-  disk_reply_t reply;
+    disk_t* disk;
+    disk_request_t request;
+    disk_reply_t reply;
 } disk_interrupt_arg_t;
 
 
@@ -95,7 +97,7 @@ typedef void (*disk_handler_t)(disk_t* disk, disk_request_t, disk_reply_t);
 int
 disk_initialize(disk_t* disk);
 
-int 
+int
 disk_send_request(disk_t*, int, char*,disk_request_type_t);
 
 int

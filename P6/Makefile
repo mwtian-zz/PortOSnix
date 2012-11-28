@@ -15,7 +15,7 @@ OUTPUT = minithread
 #
 # Note that you must write your own test programs.
 #conn-network3
-MAIN =  shell
+MAIN =  mkfs
 
 OBJ = \
     alarm.o \
@@ -28,6 +28,7 @@ OBJ = \
     machineprimitives.o \
     $(MAIN).o \
     minifile.o \
+    minifile_diskutil.o \
     miniheader.o \
     minimsg.o \
     minisocket.o \

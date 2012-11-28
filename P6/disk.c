@@ -28,10 +28,11 @@ int disk_size;			/* Set to the number of blocks allocated for disk */
 void start_disk_poll(disk_t* disk); /* forward declaration */
 
 int disk_send_request(disk_t* disk, int blocknum, char* buffer,
-        disk_request_type_t type){
+                      disk_request_type_t type)
+{
     disk_queue_elem_t* saved_last=NULL;
-    disk_queue_elem_t* disk_request 
-        = (disk_queue_elem_t*) malloc(sizeof(disk_queue_elem_t));
+    disk_queue_elem_t* disk_request
+    = (disk_queue_elem_t*) malloc(sizeof(disk_queue_elem_t));
 
     if (disk_request == NULL)
         return -1;
@@ -44,7 +45,7 @@ int disk_send_request(disk_t* disk, int blocknum, char* buffer,
     /* queue the request */
     pthread_mutex_lock(&disk_mutex);
 
-    if (type == DISK_SHUTDOWN){
+    if (type == DISK_SHUTDOWN) {
         /* optimistically put the request on top of the queue */
         disk_request->next=disk->queue;
         disk->queue=disk_request;
@@ -52,7 +53,7 @@ int disk_send_request(disk_t* disk, int blocknum, char* buffer,
         /* optimistically put it at the end */
         disk_request->next=NULL;
         saved_last=disk->last;
-        if (disk->last != NULL){
+        if (disk->last != NULL) {
             disk->last->next=disk_request;
         } else {
             disk->queue=disk_request;
@@ -61,7 +62,7 @@ int disk_send_request(disk_t* disk, int blocknum, char* buffer,
     }
 
     /* signal the task that simulates the disk */
-    if (sem_post(&disk->semaphore)){
+    if (sem_post(&disk->semaphore)) {
         kprintf("You have exceeded the maximum number of requests pending.\n");
 
         /* undo changes made to the request queue */
@@ -76,8 +77,8 @@ int disk_send_request(disk_t* disk, int blocknum, char* buffer,
         }
         free(disk_request);
 
-        pthread_mutex_unlock(&disk_mutex);	
-        return -2; 
+        pthread_mutex_unlock(&disk_mutex);
+        return -2;
     }
 
     pthread_mutex_unlock(&disk_mutex);
@@ -87,7 +88,8 @@ int disk_send_request(disk_t* disk, int blocknum, char* buffer,
 
 
 static int
-disk_create(disk_t* disk, const char* name, int size, int flags) {
+disk_create(disk_t* disk, const char* name, int size, int flags)
+{
     if ((disk->file = fopen(name, "w+b")) == NULL)
         return -1;
     disk->layout.size = size;
@@ -106,11 +108,12 @@ disk_create(disk_t* disk, const char* name, int size, int flags) {
 }
 
 static int
-disk_startup(disk_t* disk, const char* name) {
+disk_startup(disk_t* disk, const char* name)
+{
     if ((disk->file = fopen(name, "r+b")) == NULL)
         return -1;
 
-    if (fread(&disk->layout, 1, sizeof(disk_layout_t), disk->file) != 
+    if (fread(&disk->layout, 1, sizeof(disk_layout_t), disk->file) !=
             sizeof(disk_layout_t)) {
         fclose(disk->file);
         return -1;
@@ -121,7 +124,8 @@ disk_startup(disk_t* disk, const char* name) {
     return 0;
 }
 
-int disk_initialize(disk_t* disk){
+int disk_initialize(disk_t* disk)
+{
     int result=0;
 
     /* create new disk or startup existing disk */
@@ -142,24 +146,27 @@ int disk_initialize(disk_t* disk){
 }
 
 static void
-disk_write_layout(disk_t* disk) {
+disk_write_layout(disk_t* disk)
+{
     if (fseek(disk->file, 0, SEEK_SET) != 0)
         fclose(disk->file);
-    else if (fwrite(&disk->layout, 1, sizeof(disk_layout_t), disk->file) != 
-            sizeof(disk_layout_t))
+    else if (fwrite(&disk->layout, 1, sizeof(disk_layout_t), disk->file) !=
+             sizeof(disk_layout_t))
         fclose(disk->file);
     else
         fflush(disk->file);
 }
 
 int
-disk_shutdown(disk_t* disk) {
+disk_shutdown(disk_t* disk)
+{
     disk_send_request(disk, 0, NULL, DISK_SHUTDOWN);
     return 0;
 }
 
 void
-disk_set_flags(disk_t* disk, int flags) {
+disk_set_flags(disk_t* disk, int flags)
+{
     pthread_mutex_lock(&disk_mutex);
 
     disk->layout.flags |= flags;
@@ -169,7 +176,8 @@ disk_set_flags(disk_t* disk, int flags) {
 }
 
 void
-disk_unset_flags(disk_t* disk, int flags) {
+disk_unset_flags(disk_t* disk, int flags)
+{
     pthread_mutex_lock(&disk_mutex);
 
     disk->layout.flags ^= disk->layout.flags | flags;
@@ -179,19 +187,21 @@ disk_unset_flags(disk_t* disk, int flags) {
 }
 
 int
-disk_read_block(disk_t* disk, int blocknum, char* buffer) {
-    return 
+disk_read_block(disk_t* disk, int blocknum, char* buffer)
+{
+    return
         disk_send_request(disk,blocknum,buffer,DISK_READ);
 }
 
 int
-disk_write_block(disk_t* disk, int blocknum, char* buffer) {
-    return 
+disk_write_block(disk_t* disk, int blocknum, char* buffer)
+{
+    return
         disk_send_request(disk,blocknum,buffer,DISK_WRITE);
 }
 
 
-/* handle read and write to disk. Watch the job queue and 
+/* handle read and write to disk. Watch the job queue and
    submit the requests to the operating system one by one.
    On completion, the user suplied function with the user
    suplied parameter is called
@@ -201,7 +211,8 @@ disk_write_block(disk_t* disk, int blocknum, char* buffer) {
 
    The argument is a disk_t with the disk description.
  */
-void disk_poll(void* arg) {
+void disk_poll(void* arg)
+{
     enum { DISK_OK, DISK_CRASHED } disk_state;
 
     disk_t* disk = (disk_t*) arg;
@@ -212,7 +223,7 @@ void disk_poll(void* arg) {
 
     disk_state=DISK_OK;
 
-    for (;;){
+    for (;;) {
         int blocknum;
         char* buffer;
         disk_request_type_t type;
@@ -234,20 +245,20 @@ void disk_poll(void* arg) {
         layout = disk->layout; /* this is the layout used until the request is fulfilled */
         /* this is safe since a disk can only grow */
 
-        if (disk->queue != NULL){
+        if (disk->queue != NULL) {
             disk_interrupt = (disk_interrupt_arg_t*)
-                malloc(sizeof(disk_interrupt_arg_t));
+                             malloc(sizeof(disk_interrupt_arg_t));
             assert( disk_interrupt != NULL);
 
             disk_interrupt->disk = disk;
             /* we look first at the first request in the queue
                to see if it is special.
              */
-            disk_interrupt->request = 
+            disk_interrupt->request =
                 disk->queue->request;
 
             /* check if we shut down the disk */
-            if (disk->queue->request.type == DISK_SHUTDOWN){
+            if (disk->queue->request.type == DISK_SHUTDOWN) {
                 if (DEBUG)
                     kprintf("Disk: Shutting down.\n");
 
@@ -260,7 +271,7 @@ void disk_poll(void* arg) {
             }
 
             /* check if we got to reset the disk */
-            if (disk->queue->request.type == DISK_RESET){
+            if (disk->queue->request.type == DISK_RESET) {
                 disk_queue_elem_t* curr;
                 disk_queue_elem_t *next;
 
@@ -270,7 +281,7 @@ void disk_poll(void* arg) {
                 disk_interrupt->reply=DISK_REPLY_OK;
                 /* empty the queue */
                 curr=disk->queue;
-                while (curr!=NULL){
+                while (curr!=NULL) {
                     next=curr->next;
                     free(curr);
                     curr=next;
@@ -283,10 +294,10 @@ void disk_poll(void* arg) {
             }
 
             /* permute the first two elements in the queue
-               probabilistically if queue has two elements 
+               probabilistically if queue has two elements
              */
-            if (disk->queue->next !=NULL && 
-                    (genrand() < reordering_rate)){
+            if (disk->queue->next !=NULL &&
+                    (genrand() < reordering_rate)) {
                 disk_queue_elem_t* first = disk->queue;
                 disk_queue_elem_t* second = first->next;
                 first->next = second->next;
@@ -312,7 +323,7 @@ void disk_poll(void* arg) {
         disk_interrupt->request = disk_request->request;
 
         /* crash the disk ocasionally */
-        if (genrand() < crash_rate){
+        if (genrand() < crash_rate) {
             disk_state = DISK_CRASHED;
 
             /*      if (DEBUG) */
@@ -321,7 +332,7 @@ void disk_poll(void* arg) {
         }
 
         /* check if disk crashed */
-        if (disk_state == DISK_CRASHED){  
+        if (disk_state == DISK_CRASHED) {
             disk_interrupt->reply=DISK_REPLY_CRASHED;
             goto sendinterrupt;
         }
@@ -364,31 +375,31 @@ void disk_poll(void* arg) {
         }
 
         switch (type) {
-            case DISK_READ:
-                if (fread(buffer, 1, DISK_BLOCK_SIZE, disk->file) 
-                        < DISK_BLOCK_SIZE)
-                    disk_interrupt->reply = DISK_REPLY_ERROR;
-                if (DEBUG)
-                    kprintf("Disk: Read request.\n");
+        case DISK_READ:
+            if (fread(buffer, 1, DISK_BLOCK_SIZE, disk->file)
+                    < DISK_BLOCK_SIZE)
+                disk_interrupt->reply = DISK_REPLY_ERROR;
+            if (DEBUG)
+                kprintf("Disk: Read request.\n");
 
-                break;
-            case DISK_WRITE:
-                if (fwrite(buffer, 1, DISK_BLOCK_SIZE, disk->file) 
-                        < DISK_BLOCK_SIZE)
-                    disk_interrupt->reply = DISK_REPLY_ERROR;
-                fflush(disk->file);
-                if (DEBUG)
-                    kprintf("Disk: Write request.\n");
+            break;
+        case DISK_WRITE:
+            if (fwrite(buffer, 1, DISK_BLOCK_SIZE, disk->file)
+                    < DISK_BLOCK_SIZE)
+                disk_interrupt->reply = DISK_REPLY_ERROR;
+            fflush(disk->file);
+            if (DEBUG)
+                kprintf("Disk: Write request.\n");
 
-                break;
-            default:
-                break;
+            break;
+        default:
+            break;
         }
 
 sendinterrupt:
         if (DEBUG)
             kprintf("Disk Controler: sending an interrupt for block %d, request type %d, with reply %d.\n",
-                    disk_interrupt->request.blocknum, 
+                    disk_interrupt->request.blocknum,
                     disk_interrupt->request.type,
                     disk_interrupt->reply);
 
@@ -397,8 +408,8 @@ sendinterrupt:
 
 }
 
-void start_disk_poll(disk_t* disk){
-    int id;  
+void start_disk_poll(disk_t* disk)
+{
     pthread_t disk_thread;
     sigset_t set;
     struct sigaction sa;
@@ -409,14 +420,14 @@ void start_disk_poll(disk_t* disk){
     sigprocmask(SIG_BLOCK,&set,&old_set);
 
     sa.sa_handler = (void*)handle_interrupt;
-    sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK; 
+    sa.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
     sa.sa_sigaction= (void*)handle_interrupt;
     sigemptyset(&sa.sa_mask);
     sigaddset(&sa.sa_mask,SIGRTMAX-2);
     sigaddset(&sa.sa_mask,SIGRTMAX-1);
     if (sigaction(SIGRTMAX-2, &sa, NULL) == -1)
         AbortOnError(0);
-  
+
 
     /* reset the request queue */
     disk->queue = disk->last = NULL;
@@ -425,12 +436,13 @@ void start_disk_poll(disk_t* disk){
     AbortOnCondition(sem_init(&disk->semaphore, 0, 0),"sem_init");
 
     AbortOnCondition(pthread_create(&disk_thread, NULL, (void*)disk_poll, (void*)disk),
-      "pthread");
+                     "pthread");
 
     pthread_sigmask(SIG_SETMASK,&old_set,NULL);
 }
 
-void install_disk_handler(interrupt_handler_t disk_handler){
+void install_disk_handler(interrupt_handler_t disk_handler)
+{
     kprintf("Starting disk interrupt.\n");
     mini_disk_handler = disk_handler;
 

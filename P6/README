@@ -9,6 +9,19 @@ q2: is it legal to have a semaphore function similar to notifyall in condvar?
 q3:
 
 
+
+Things to do (functions names can change):
+
+1. iget(): get inode from disk (can get from table or cache, but now from disk)
+2. iput(): put inode to disk
+3. ialloc(): get free node 
+4. ifree(): free an inode
+5. alloc(): get free data block
+6. free(): free data block
+7. inodeToBlockNum(): inode number to block number (can be macro)
+8. get_blk(): get block
+9: put_blk(): put block
+
 --------------------------------------------------------------------------------
 Project Description
 http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3

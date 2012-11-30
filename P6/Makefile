@@ -28,6 +28,7 @@ OBJ = \
     machineprimitives.o \
     $(MAIN).o \
     minifile.o \
+    minifile_cache.o \
     minifile_diskutil.o \
     miniheader.o \
     minimsg.o \

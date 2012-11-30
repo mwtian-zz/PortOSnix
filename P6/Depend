@@ -36,13 +36,12 @@ machineprimitives.o: machineprimitives.c defs.h machineprimitives.h
 machineprimitives_x86_64.o: machineprimitives_x86_64.c defs.h \
  machineprimitives.h interrupts_private.h interrupts.h
 minifile.o: minifile.c minifile.h defs.h
-minifile_cache.o: minifile_cache.c defs.h minifile_cache.h disk.h \
- interrupts.h synch.h minifile.h minifile_private.h network.h \
- interrupts_private.h miniheader.h
+minifile_cache.o: minifile_cache.c defs.h minifile.h minifile_cache.h \
+ disk.h interrupts.h synch.h minifile_fs.h
 minifile_diskutil.o: minifile_diskutil.c disk.h defs.h interrupts.h \
- minifile_cache.h synch.h minifile.h minifile_private.h \
- minifile_diskutil.h
-minifile_inode.o: minifile_inode.c minifile_private.h disk.h defs.h \
+ minifile_cache.h synch.h minifile_fs.h minifile_diskutil.h
+minifile_fs.o: minifile_fs.c minifile_fs.h disk.h defs.h interrupts.h
+minifile_inode.o: minifile_inode.c minifile_fs.h disk.h defs.h \
  interrupts.h
 miniheader.o: miniheader.c miniheader.h network.h interrupts_private.h \
  interrupts.h defs.h
@@ -63,11 +62,11 @@ minisocket.o: minisocket.c defs.h alarm.h miniheader.h network.h \
  minisocket_private.h queue.h synch.h minithread.h machineprimitives.h \
  queue_wrap.h queue_private.h
 minithread.o: minithread.c alarm.h interrupts.h defs.h minifile_cache.h \
- disk.h synch.h minifile.h minifile_private.h miniroute.h minimsg.h \
- network.h interrupts_private.h miniheader.h minisocket.h queue.h \
- read_private.h minithread.h machineprimitives.h minithread_private.h \
- queue_private.h multilevel_queue.h
-mkfs.o: mkfs.c minithread.h machineprimitives.h defs.h minifile_private.h \
+ disk.h synch.h minifile_fs.h miniroute.h minimsg.h network.h \
+ interrupts_private.h miniheader.h minisocket.h queue.h read_private.h \
+ minithread.h machineprimitives.h minithread_private.h queue_private.h \
+ multilevel_queue.h
+mkfs.o: mkfs.c minithread.h machineprimitives.h defs.h minifile_fs.h \
  disk.h interrupts.h minifile_diskutil.h
 multilevel_queue.o: multilevel_queue.c queue.h multilevel_queue.h \
  multilevel_queue_private.h

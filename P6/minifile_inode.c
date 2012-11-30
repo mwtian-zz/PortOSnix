@@ -1,2 +1,2 @@
-#include "minifile_private.h"
+#include "minifile_fs.h"
 

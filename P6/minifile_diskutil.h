@@ -1,7 +1,8 @@
 #ifndef __MINIFILE_DISKUTIL_H__
 #define __MINIFILE_DISKUTIL_H__
 
-#include "minifile_private.h"
+#include "disk.h"
+#include "minifile_fs.h"
 
 /* Make a file system with the specified number of blocks */
 extern int minifile_mkfs(disk_t* disk, const char* name, blocknum_t size);

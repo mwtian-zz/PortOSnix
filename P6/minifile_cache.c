@@ -1,16 +1,23 @@
 #include "defs.h"
 
-#include "minifile_cache.h"
 #include "minifile.h"
-#include "network.h"
-#include "interrupts.h"
-#include "miniheader.h"
+#include "minifile_cache.h"
+
+
+/*********************************************************************
+ * Semantics of using a block:
+ * (1) Create a buf_block_t pointer.
+ *     Know the block num to use (from inode, or allocated by balloc).
+ * (2) Use bread to get the block.
+ * (3) Use bwrite/bdwrite/bawrite/brelse to return the block,
+ *     and schedule/immediately write to disk.
+ * (+) Before the block is returned, no other thread can use it. <- To do
+ ********************************************************************/
 
 
 /* Used for communication with interrupt handler */
 semaphore_t disk_lock;
 semaphore_t block_sig;
-
 
 /* Initialize buffer cache */
 int

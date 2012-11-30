@@ -8,32 +8,33 @@ CFLAGS = -Wall -Wfatal-errors -mno-red-zone -fno-omit-frame-pointer -ggdb -O0 \
     -I. -Wdeclaration-after-statement
 LFLAGS = -lrt -lpthread
 
-OUTPUT = minithread
-
-# change this to the name of the file you want to link with minithreads,
+# change MAIN to the name of the file you want to link with minithreads,
 # dropping the ".c": so to use "sieve.c", change to "MAIN = sieve".
 #
 # Note that you must write your own test programs.
-#conn-network3
-MAIN =  mkfs
+MAIN =  shell
+OUTPUT_MAIN = minithread
+
+# Extra ultility: mkfs
+TARGET_MKFS = mkfs
+OUTPUT_MKFS = mkfs
 
 OBJ = \
     alarm.o \
     alarm_queue.o \
     disk.o \
-	miniroute_cache.o \
+    miniroute_cache.o \
     interrupts.o \
     machineprimitives_x86_64_asm.o \
     machineprimitives_x86_64.o \
     machineprimitives.o \
-    $(MAIN).o \
     minifile.o \
     minifile_cache.o \
     minifile_diskutil.o \
     miniheader.o \
     minimsg.o \
     minisocket.o \
-	miniroute.o \
+    miniroute.o \
     minithread.o \
     multilevel_queue.o \
     network.o \
@@ -44,20 +45,22 @@ OBJ = \
     read.o \
     synch.o \
 
-all: minithread
-
-.c.obj:
-	$(CC) $(CFLAGS) $<
+.PHONY: all
+.DEFAULT: all
+all: minithread mkfs
 
 machineprimitives_x86_64_asm.o: machineprimitives_x86_64_asm.S
 	$(CC) -c machineprimitives_x86_64_asm.S -o machineprimitives_x86_64_asm.o
 
-minithread: start.o end.o $(OBJ) $(SYSTEMOBJ)
-	$(CC) $(LFLAGS) $(LIB) start.o $(OBJ) end.o $(LFLAGS) -o $(OUTPUT)
+minithread: start.o end.o $(OBJ) $(SYSTEMOBJ) $(MAIN).o
+	$(CC) $(LFLAGS) $(LIB) start.o $(OBJ) end.o $(MAIN).o $(LFLAGS) -o $(OUTPUT_MAIN)
+
+mkfs: start.o end.o $(OBJ) $(SYSTEMOBJ) $(TARGET_MKFS).o
+	$(CC) $(LFLAGS) $(LIB) start.o $(OBJ) end.o $(TARGET_MKFS).o $(LFLAGS) -o $(OUTPUT_MKFS)
 
 clean:
 	rm -f *.o
-	rm -f $(OUTPUT)
+	rm -f $(OUTPUT_MAIN) $(OUTPUT_MKFS)
 
 depend:
 	gcc -MM *.c 2>/dev/null > Depend

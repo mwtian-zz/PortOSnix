@@ -3,7 +3,7 @@
 #include "disk.h"
 #include "minifile_cache.h"
 #include "minifile_diskutil.h"
-#include "minifile_private.h"
+#include "minifile_fs.h"
 
 /* Make a file system with the specified number of blocks */
 int
@@ -12,7 +12,7 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     buf_block_t buf;
     sblock_t sb;
     disk_inode_t inode;
-    disk_freeblock_t freeblock;
+    freeblock_t freeblock;
     blocknum_t i;
 
     /* Make a new disk */
@@ -46,24 +46,24 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     /* Initialize free inode list */
     for (i = sb->free_ilist_head; i < sb->free_ilist_tail; ++i) {
         bread(disk, i, &buf);
-        inode = (disk_inode_t) buf->data;
-        inode->next = i + 1;
+        freeblock = (freeblock_t) buf->data;
+        freeblock->next = i + 1;
         bwrite(buf);
     }
     bread(disk, sb->free_ilist_tail, &buf);
-    inode = (disk_inode_t) buf->data;
-    inode->next = 0;
+    freeblock = (freeblock_t) buf->data;
+    freeblock->next = 0;
     bwrite(buf);
 
     /* Initialize free block list */
     for (i = sb->free_blist_head; i < sb->free_blist_tail; ++i) {
         bread(disk, i, &buf);
-        freeblock = (disk_freeblock_t) buf->data;
+        freeblock = (freeblock_t) buf->data;
         freeblock->next = i + 1;
         bwrite(buf);
     }
     bread(disk, sb->free_blist_tail, &buf);
-    freeblock = (disk_freeblock_t) buf->data;
+    freeblock = (freeblock_t) buf->data;
     freeblock->next = 0;
     bwrite(buf);
 

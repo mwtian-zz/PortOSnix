@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "minithread.h"
-#include "minifile_private.h"
+#include "minifile_fs.h"
 #include "minifile_diskutil.h"
 
 static blocknum_t total_blocks;

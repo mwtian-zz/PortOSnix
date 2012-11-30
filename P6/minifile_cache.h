@@ -3,21 +3,19 @@
 
 #include "disk.h"
 #include "synch.h"
-#include "minifile.h"
-#include "minifile_private.h"
+#include "minifile_fs.h"
 
 /* Data structures for buffer cache */
 typedef struct buf_cache *buf_cache_t;
-
 
 /* Buffer cache item structure */
 typedef struct buf_block *buf_block_t;
 
 struct buf_block {
     buf_block_t list_next;          /* Next item in LRU */
-	buf_block_t list_prev;          /* Previous item in LRU */
-	buf_block_t hash_next;          /* Next item in hash table entry */
-	buf_block_t hash_prev;          /* Previous item in hash table entry */
+    buf_block_t list_prev;          /* Previous item in LRU */
+    buf_block_t hash_next;          /* Next item in hash table entry */
+    buf_block_t hash_prev;          /* Previous item in hash table entry */
     char data[DISK_BLOCK_SIZE];
     char mod;
     disk_t* disk;

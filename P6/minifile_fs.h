@@ -1,10 +1,9 @@
 #ifndef __MINIFILE_FS_H__
 #define __MINIFILE_FS_H__
 
-#include <stdint.h>
 #include "disk.h"
+#include "minifile_cache.h"
 
-typedef uint64_t blocknum_t;
 
 typedef enum inode_type {
     MINIFILE,
@@ -32,16 +31,20 @@ typedef struct mem_sblock {
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
     blocknum_t free_blocks;
+
+    disk_t* disk;
+    blocknum_t pos;
+    buf_block_t buf;
 } *mem_sblock_t;
 
 
-typedef struct disk_inode {
+typedef struct inode {
         itype_t type;
         size_t size;
         blocknum_t direct[12];
         blocknum_t indirect1;
         blocknum_t indirect2;
-} *disk_inode_t;
+} *inode_t;
 
 typedef struct mem_inode {
     itype_t type;
@@ -59,12 +62,12 @@ typedef struct freeblock {
 } *freeblock_t;
 
 /* Disk space management functions. Explained before implementations. */
-extern blocknum_t balloc();
-extern void bfree(blocknum_t n);
-extern blocknum_t ialloc();
-extern void ifree(blocknum_t n);
-extern int iclear(blocknum_t n);
-extern int iget(mem_inode_t *inodep, blocknum_t n);
+extern blocknum_t balloc(disk_t* disk);
+extern void bfree(disk_t* disk, blocknum_t n);
+extern blocknum_t ialloc(disk_t* disk);
+extern void ifree(disk_t* disk, blocknum_t n);
+extern int iclear(disk_t* disk, blocknum_t n);
+extern int iget(disk_t* disk, blocknum_t n, mem_inode_t *inodep);
 extern void iput(mem_inode_t inode);
 extern int iupdate(mem_inode_t inode);
 

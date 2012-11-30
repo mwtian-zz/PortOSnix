@@ -11,7 +11,7 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
 {
     buf_block_t buf;
     sblock_t sb;
-    disk_inode_t inode;
+    inode_t inode;
     freeblock_t freeblock;
     blocknum_t i;
 
@@ -38,7 +38,7 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
 
     /* Initialize root inode */
     bread(disk, 1, &buf);
-    inode = (disk_inode_t) buf->data;
+    inode = (inode_t) buf->data;
     inode->type = MINIDIRECTORY;
     inode->size = 0;
     bwrite(buf);

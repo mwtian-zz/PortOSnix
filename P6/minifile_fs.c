@@ -2,58 +2,112 @@
 #include "minifile_cache.h"
 
 /* Super block management */
-static int sblock_get(mem_inode_t *inodep, blocknum_t n);
-static void sblock_put(mem_inode_t inode);
-static int sblock_update(mem_inode_t inode);
+static int sblock_get(disk_t* disk, mem_sblock_t *sbp);
+static void sblock_put(mem_sblock_t sb);
+static int sblock_update(mem_sblock_t sb);
 
-
-int sblock_get(sblock_t *sb)
+/* Get super block into a memory struct */
+int sblock_get(disk_t* disk, mem_sblock_t *sbp)
 {
-
+    mem_sblock_t sb = malloc(sizeof(struct mem_sblock));
+    buf_block_t buf;
+    if (bread(disk, 0, &buf) != 0)
+        return -1;
+    memcpy(sb, buf->data, sizeof(struct sblock));
+    sb->disk = disk;
+    sb->pos = 0;
+    sb->buf = buf;
+    *sbp = sb;
+    return 0;
 }
 
-void sblock_put(sblock_t sb)
+/* Return super block and no write back to disk */
+void sblock_put(mem_sblock_t sb)
 {
-
+    brelse(sb->buf);
+    free(sb);
 }
 
-int sblock_update(sblock_t sb)
+/* Return super block and immediately write back to disk */
+int sblock_update(mem_sblock_t sb)
 {
-
+    memcpy(buf->data, sb, sizeof(struct sblock));
+    bwrite(sb->buf);
+    free(sb);
 }
 
-/* Get a free block */
+/* Get a free block from the disk */
 blocknum_t
-balloc()
+balloc(disk_t* disk)
+{
+    mem_sblock_t sb;
+    blocknum_t freeblk_num;
+    freeblock_t freeblk;
+    buf_block_t buf;
+
+    /* Get super block */
+    sblock_get(disk, &sb);
+    if (sb->free_blocks <= 0) {
+        return NULL;
+    }
+
+    /* Get free block number and next free block */
+    freeblk_num = sb->free_blist_head;
+    bread(disk, freeblk_num, &buf);
+    freeblk = (freeblock_t) buf->data;
+    sb->free_blist_head = freeblk->next;
+
+    /* Update superbock and release the empty block */
+    sblock_update(sb);
+    brelse(buf);
+
+    return freeblk_num;
+}
+
+void
+bfree(disk_t* disk, blocknum_t freeblk_num)
+{
+    mem_sblock_t sb;
+    freeblock_t freeblk;
+    buf_block_t buf;
+
+    if (disk->layout.size <= freeblk_num) {
+        return;
+    }
+
+    /* Get super block */
+    sblock_get(disk, &sb);
+
+    /* Add to the free block list  */
+    bread(disk, freeblk_num, &buf);
+    freeblk = (freeblock_t) buf->data;
+    freeblk->next = sb->free_blist_head;
+    sb->free_blist_head = freeblk_num;
+
+    /* Update superbock and the new free block */
+    sblock_update(sb);
+    bwrite(buf);
+}
+
+blocknum_t
+ialloc(disk_t* disk)
 {
 
 }
 
 void
-bfree(blocknum_t n)
-{
-
-}
-
-blocknum_t
-ialloc()
-{
-
-}
-
-void
-ifree(blocknum_t n)
+ifree(disk_t* disk, blocknum_t n)
 {
 
 }
 
 int
-iclear(blocknum_t n)
+iclear(disk_t* disk, blocknum_t n)
 {
 
 }
 
-int iget(mem_inode_t *inodep, blocknum_t n)
+int iget(disk_t* disk, blocknum_t n, mem_inode_t *inodep)
 {
 
 }

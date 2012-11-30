@@ -14,7 +14,7 @@ semaphore_t block_sig;
 
 /* Initialize buffer cache */
 int
-minifile_buf_cache_init()
+minifile_buf_cache_init(interrupt_handler_t disk_handler)
 {
     disk_lock = semaphore_create();
     block_sig = semaphore_create();
@@ -23,9 +23,10 @@ minifile_buf_cache_init()
         semaphore_destroy(block_sig);
         return -1;
     }
-
     semaphore_initialize(disk_lock, 1);
     semaphore_initialize(block_sig, 0);
+
+    install_disk_handler(disk_handler);
 
     return 0;
 }
@@ -33,38 +34,58 @@ minifile_buf_cache_init()
 
 /* For block n, get a pointer to its block buffer */
 int
-bread(blocknum_t n, buf_block_t *buffer)
+bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
 {
+    if (NULL == bufp || NULL == disk || disk->layout.size < n) {
+        return -1;
+    }
+
+    *bufp = malloc(sizeof(struct buf_block));
+    if (NULL == *bufp) {
+        return -1;
+    }
+    (*bufp)->disk = disk;
+    (*bufp)->num = n;
+    semaphore_P(disk_lock);
+    disk_read_block(disk, n, (*bufp)->data);
+    semaphore_P(block_sig);
+    semaphore_V(disk_lock);
+
     return 0;
 }
 
 
 /* Only release the buffer, no write scheduled */
 int
-brelse(buf_block_t buffer)
+brelse(buf_block_t buf)
 {
+    free(buf);
     return 0;
 }
 
 
-
 /* Immediately write buffer back to disk, block until write finishes */
-int bwrite(buf_block_t buffer)
+int bwrite(buf_block_t buf)
 {
+    semaphore_P(disk_lock);
+    disk_write_block(buf->disk, buf->num, buf->data);
+    semaphore_P(block_sig);
+    semaphore_V(disk_lock);
+    free(buf);
     return 0;
 }
 
 
 /* Schedule write immediately, but do not block */
-void bawrite(buf_block_t buffer)
+void bawrite(buf_block_t buf)
 {
-
+    bwrite(buf);
 }
 
 /* Only mark buffer dirty, no write scheduled */
-void bdwrite(buf_block_t buffer)
+void bdwrite(buf_block_t buf)
 {
-
+    bwrite(buf);
 }
 
 

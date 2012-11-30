@@ -117,7 +117,9 @@ minithread_clock_init(interrupt_handler_t clock_handler){
         abort();
     }
 
+    /*
     printf("SIGRTMAX = %d\n",SIGRTMAX);
+    */
 
     /* Establish handler for timer signal */
     sa.sa_handler = (void*)handle_interrupt;

@@ -14,6 +14,7 @@
 
 #include "alarm.h"
 #include "interrupts.h"
+#include "minifile_cache.h"
 #include "miniroute.h"
 #include "miniheader.h"
 #include "minimsg.h"
@@ -83,6 +84,7 @@ static int minithread_initialize_interrupts();
 static int minithread_initialize_sys_sems();
 static void clock_handler(void* arg);
 static void network_handler(void* arg);
+static void disk_handler(void* arg);
 
 /* minithread functions */
 
@@ -401,6 +403,7 @@ minithread_initialize_interrupts()
     minimsg_initialize();
     minisocket_initialize();
     miniterm_initialize();
+    minifile_buf_cache_init(disk_handler);
     set_interrupt_level(ENABLED);
     return 0;
 }
@@ -456,5 +459,13 @@ network_handler(void* arg)
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     network_interrupt_arg_t *intrpt = arg;
     miniroute_buffer_intrpt(intrpt);
+    set_interrupt_level(oldlevel);
+}
+
+void
+disk_handler(void* arg)
+{
+    interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
+    semaphore_V(block_sig);
     set_interrupt_level(oldlevel);
 }

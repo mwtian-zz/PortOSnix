@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "disk.h"
+#include "minifile_cache.h"
 #include "minifile_diskutil.h"
 #include "minifile_private.h"
 
@@ -8,12 +9,10 @@
 int
 minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
 {
-    struct sblock sb_;
-    sblock_t sb = &sb_;
-    struct disk_inode inode_;
-    disk_inode_t inode = &inode_;
-    struct disk_freeblock freeblock_;
-    disk_freeblock_t freeblock = &freeblock_;
+    buf_block_t buf;
+    sblock_t sb;
+    disk_inode_t inode;
+    disk_freeblock_t freeblock;
     blocknum_t i;
 
     /* Make a new disk */
@@ -24,6 +23,8 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     disk_initialize(disk);
 
     /* Initialize superblock */
+    bread(disk, 0, &buf);
+    sb = (sblock_t) buf->data;
     sb->total_blocks = fs_size;
     sb->total_inodes = fs_size / 10;
     sb->free_ilist_head = 2;
@@ -32,29 +33,41 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     sb->free_blist_head = sb->total_inodes + 1;
     sb->free_blist_tail = fs_size - 1;
     sb->free_blocks = sb->free_blist_tail - sb->free_blist_head + 1;
-    disk_send_request(disk, 0, (char*)sb, DISK_WRITE);
+    bwrite(buf);
+
 
     /* Initialize root inode */
+    bread(disk, 1, &buf);
+    inode = (disk_inode_t) buf->data;
     inode->type = MINIDIRECTORY;
     inode->size = 0;
-    disk_send_request(disk, 1, (char*)inode, DISK_WRITE);
+    bwrite(buf);
 
     /* Initialize free inode list */
-    inode->type = INODE_EMPTY;
     for (i = sb->free_ilist_head; i < sb->free_ilist_tail; ++i) {
+        bread(disk, i, &buf);
+        inode = (disk_inode_t) buf->data;
         inode->next = i + 1;
-        disk_send_request(disk, i, (char*)inode, DISK_WRITE);
+        bwrite(buf);
     }
+    bread(disk, sb->free_ilist_tail, &buf);
+    inode = (disk_inode_t) buf->data;
     inode->next = 0;
-    disk_send_request(disk, sb->free_ilist_tail, (char*)inode, DISK_WRITE);
+    bwrite(buf);
 
     /* Initialize free block list */
     for (i = sb->free_blist_head; i < sb->free_blist_tail; ++i) {
+        bread(disk, i, &buf);
+        freeblock = (disk_freeblock_t) buf->data;
         freeblock->next = i + 1;
-        disk_send_request(disk, i, (char*)freeblock, DISK_WRITE);
+        bwrite(buf);
     }
+    bread(disk, sb->free_blist_tail, &buf);
+    freeblock = (disk_freeblock_t) buf->data;
     freeblock->next = 0;
-    disk_send_request(disk, sb->free_blist_tail, (char*)freeblock, DISK_WRITE);
+    bwrite(buf);
+
+    printf("minifile system started at '%s'.\n", fs_name);
 
     return 0;
 }

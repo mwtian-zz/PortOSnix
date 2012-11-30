@@ -20,6 +20,7 @@ struct buf_block {
 	buf_block_t hash_prev;          /* Previous item in hash table entry */
     char data[DISK_BLOCK_SIZE];
     char mod;
+    disk_t* disk;
     blocknum_t num;
 };
 
@@ -28,12 +29,12 @@ extern semaphore_t disk_lock;
 extern semaphore_t block_sig;
 
 /* Buffer cache interface, explained before implementations */
-extern int minifile_buf_cache_init();
-extern int bread(blocknum_t n, buf_block_t *buffer);
-extern int brelse(buf_block_t buffer);
-extern int bwrite(buf_block_t buffer);
-extern void bawrite(buf_block_t buffer);
-extern void bdwrite(buf_block_t buffer);
+extern int minifile_buf_cache_init(interrupt_handler_t disk_handler);
+extern int bread(disk_t* disk, blocknum_t n, buf_block_t *bufp);
+extern int brelse(buf_block_t buf);
+extern int bwrite(buf_block_t buf);
+extern void bawrite(buf_block_t buf);
+extern void bdwrite(buf_block_t buf);
 
 #endif /* __MINIFILE_CACHE_H__ */
 

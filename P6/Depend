@@ -40,7 +40,8 @@ minifile_cache.o: minifile_cache.c defs.h minifile_cache.h disk.h \
  interrupts.h synch.h minifile.h minifile_private.h network.h \
  interrupts_private.h miniheader.h
 minifile_diskutil.o: minifile_diskutil.c disk.h defs.h interrupts.h \
- minifile_diskutil.h minifile_private.h
+ minifile_cache.h synch.h minifile.h minifile_private.h \
+ minifile_diskutil.h
 minifile_inode.o: minifile_inode.c minifile_private.h disk.h defs.h \
  interrupts.h
 miniheader.o: miniheader.c miniheader.h network.h interrupts_private.h \
@@ -61,12 +62,13 @@ minisocket.o: minisocket.c defs.h alarm.h miniheader.h network.h \
  interrupts_private.h interrupts.h miniroute.h minimsg.h minisocket.h \
  minisocket_private.h queue.h synch.h minithread.h machineprimitives.h \
  queue_wrap.h queue_private.h
-minithread.o: minithread.c alarm.h interrupts.h defs.h miniroute.h \
- minimsg.h network.h interrupts_private.h miniheader.h minisocket.h \
- queue.h read_private.h synch.h minithread.h machineprimitives.h \
- minithread_private.h queue_private.h multilevel_queue.h
-mkfs.o: mkfs.c minifile_private.h disk.h defs.h interrupts.h \
- minifile_diskutil.h
+minithread.o: minithread.c alarm.h interrupts.h defs.h minifile_cache.h \
+ disk.h synch.h minifile.h minifile_private.h miniroute.h minimsg.h \
+ network.h interrupts_private.h miniheader.h minisocket.h queue.h \
+ read_private.h minithread.h machineprimitives.h minithread_private.h \
+ queue_private.h multilevel_queue.h
+mkfs.o: mkfs.c minithread.h machineprimitives.h defs.h minifile_private.h \
+ disk.h interrupts.h minifile_diskutil.h
 multilevel_queue.o: multilevel_queue.c queue.h multilevel_queue.h \
  multilevel_queue_private.h
 multilevel_queue_test.o: multilevel_queue_test.c \

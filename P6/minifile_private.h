@@ -14,25 +14,20 @@ typedef enum inode_type {
 typedef uint64_t blocknum_t;
 
 typedef struct sblock {
-    union {
-        struct {
-            blocknum_t total_blocks;
-            blocknum_t total_inodes;
-            blocknum_t free_ilist_head;
-            blocknum_t free_ilist_tail;
-            blocknum_t free_inodes;
-            blocknum_t free_blist_head;
-            blocknum_t free_blist_tail;
-            blocknum_t free_blocks;
-        };
-        char size[DISK_BLOCK_SIZE];
-    };
+        blocknum_t total_blocks;
+        blocknum_t total_inodes;
+        blocknum_t free_ilist_head;
+        blocknum_t free_ilist_tail;
+        blocknum_t free_inodes;
+        blocknum_t free_blist_head;
+        blocknum_t free_blist_tail;
+        blocknum_t free_blocks;
 } *sblock_t;
 
 typedef struct disk_inode {
-    itype_t type;
     union {
         struct {
+            itype_t type;
             size_t size;
             blocknum_t direct[12];
             blocknum_t indirect1;
@@ -41,7 +36,6 @@ typedef struct disk_inode {
         struct {
             blocknum_t next;
         };
-        char padding[DISK_BLOCK_SIZE - sizeof(itype_t)];
     };
 } *disk_inode_t;
 
@@ -56,10 +50,7 @@ typedef struct mem_inode {
 } *mem_inode_t;
 
 typedef struct disk_freeblock {
-    union {
-        blocknum_t next;
-        char padding[DISK_BLOCK_SIZE];
-    };
+    blocknum_t next;
 } *disk_freeblock_t;
 
 #endif /* __MINIFILE_PRIVATE_H__ */

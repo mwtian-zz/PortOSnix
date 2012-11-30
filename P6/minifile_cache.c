@@ -19,6 +19,7 @@
 semaphore_t disk_lock;
 semaphore_t block_sig;
 
+
 /* Initialize buffer cache */
 int
 minifile_buf_cache_init(interrupt_handler_t disk_handler)

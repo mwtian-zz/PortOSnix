@@ -1,15 +1,20 @@
 #ifndef __MINIFILE_CACHE_H__
 #define __MINIFILE_CACHE_H__
 
+#include <stdint.h>
+
 #include "disk.h"
 #include "synch.h"
-#include "minifile_fs.h"
+
 
 /* Data structures for buffer cache */
 typedef struct buf_cache *buf_cache_t;
 
 /* Buffer cache item structure */
 typedef struct buf_block *buf_block_t;
+
+/* Supported disk address space */
+typedef uint64_t blocknum_t;
 
 struct buf_block {
     buf_block_t list_next;          /* Next item in LRU */

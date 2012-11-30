@@ -5,12 +5,17 @@
 #include "minifile_cache.h"
 
 
+/* Address space of inodes */
+typedef uint64_t inodenum_t;
+
+/* Types of inodes */
 typedef enum inode_type {
     MINIFILE,
     MINIDIRECTORY,
     INODE_EMPTY
 } itype_t;
 
+/* Super block on disk */
 typedef struct sblock {
     blocknum_t total_blocks;
     blocknum_t total_inodes;
@@ -20,8 +25,10 @@ typedef struct sblock {
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
     blocknum_t free_blocks;
+    blocknum_t root;
 } *sblock_t;
 
+/* Super block in memory */
 typedef struct mem_sblock {
     blocknum_t total_blocks;
     blocknum_t total_inodes;
@@ -31,13 +38,14 @@ typedef struct mem_sblock {
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
     blocknum_t free_blocks;
+    blocknum_t root;
 
     disk_t* disk;
     blocknum_t pos;
     buf_block_t buf;
 } *mem_sblock_t;
 
-
+/* inode on disk */
 typedef struct inode {
         itype_t type;
         size_t size;
@@ -46,6 +54,7 @@ typedef struct inode {
         blocknum_t indirect2;
 } *inode_t;
 
+/* indoe in memory */
 typedef struct mem_inode {
     itype_t type;
     size_t size_bytes;
@@ -59,6 +68,7 @@ typedef struct mem_inode {
     blocknum_t size_blocks;
 } *mem_inode_t;
 
+/* free block on disk */
 typedef struct freeblock {
     blocknum_t next;
 } *freeblock_t;

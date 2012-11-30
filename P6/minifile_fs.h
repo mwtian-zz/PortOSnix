@@ -53,7 +53,9 @@ typedef struct mem_inode {
     blocknum_t indirect1;
     blocknum_t indirect2;
 
+    disk_t* disk;
     blocknum_t num;
+    buf_block_t buf;
     blocknum_t size_blocks;
 } *mem_inode_t;
 
@@ -67,8 +69,8 @@ extern void bfree(disk_t* disk, blocknum_t n);
 extern blocknum_t ialloc(disk_t* disk);
 extern void ifree(disk_t* disk, blocknum_t n);
 extern int iclear(disk_t* disk, blocknum_t n);
-extern int iget(disk_t* disk, blocknum_t n, mem_inode_t *inodep);
-extern void iput(mem_inode_t inode);
-extern int iupdate(mem_inode_t inode);
+extern int iget(disk_t* disk, blocknum_t n, mem_inode_t *inop);
+extern void iput(mem_inode_t ino);
+extern int iupdate(mem_inode_t ino);
 
 #endif /* __MINIFILE_FS_H__ */

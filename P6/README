@@ -16,8 +16,6 @@ Things to do (functions names can change):
 2. iput(): put inode to disk
 3. ialloc(): get free node
 4. ifree(): free an inode
-5. alloc(): get free data block
-6. free(): free data block
 7. inodeToBlockNum(): inode number to block number (can be macro)
 
 --------------------------------------------------------------------------------

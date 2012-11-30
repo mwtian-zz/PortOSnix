@@ -1,5 +1,4 @@
-#include <stdlib.h>
-
+#include "defs.h"
 #include "disk.h"
 #include "minifile_cache.h"
 #include "minifile_diskutil.h"
@@ -76,5 +75,8 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
 int
 minifile_fsck(disk_t* disk)
 {
+
+
+
     return 0;
 }

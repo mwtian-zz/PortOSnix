@@ -31,7 +31,7 @@ void sblock_put(mem_sblock_t sb)
 /* Return super block and immediately write back to disk */
 int sblock_update(mem_sblock_t sb)
 {
-    memcpy(buf->data, sb, sizeof(struct sblock));
+    memcpy(sb->buf->data, sb, sizeof(struct sblock));
     bwrite(sb->buf);
     free(sb);
 }
@@ -93,14 +93,54 @@ bfree(disk_t* disk, blocknum_t freeblk_num)
 blocknum_t
 ialloc(disk_t* disk)
 {
+    mem_sblock_t sb;
+    blocknum_t freeblk_num;
+    freeblock_t freeblk;
+    buf_block_t buf;
 
+    /* Get super block */
+    sblock_get(disk, &sb);
+    if (sb->free_blocks <= 0) {
+        return NULL;
+    }
+
+    /* Get free block number and next free block */
+    freeblk_num = sb->free_ilist_head;
+    bread(disk, freeblk_num, &buf);
+    freeblk = (freeblock_t) buf->data;
+    sb->free_ilist_head = freeblk->next;
+
+    /* Update superbock and release the empty block */
+    sblock_update(sb);
+    brelse(buf);
+
+    return freeblk_num;
 }
 
 /* Add an inode back to free list */
 void
 ifree(disk_t* disk, blocknum_t n)
 {
+    mem_sblock_t sb;
+    freeblock_t freeblk;
+    buf_block_t buf;
 
+    if (disk->layout.size <= freeblk_num) {
+        return;
+    }
+
+    /* Get super block */
+    sblock_get(disk, &sb);
+
+    /* Add to the free block list  */
+    bread(disk, freeblk_num, &buf);
+    freeblk = (freeblock_t) buf->data;
+    freeblk->next = sb->free_ilist_head;
+    sb->free_ilist_head = freeblk_num;
+
+    /* Update superbock and the new free block */
+    sblock_update(sb);
+    bwrite(buf);
 }
 
 /* Clear the content of an inode, including indirect blocks */
@@ -111,19 +151,32 @@ iclear(disk_t* disk, blocknum_t n)
 }
 
 /* Get the content of the inode */
-int iget(disk_t* disk, blocknum_t n, mem_inode_t *inodep)
+int iget(disk_t* disk, blocknum_t n, mem_inode_t *inop)
 {
-
+    mem_inode_t in = malloc(sizeof(struct mem_inode));
+    buf_block_t buf;
+    if (bread(disk, n, &buf) != 0)
+        return -1;
+    memcpy(in, buf->data, sizeof(struct inode));
+    in->disk = disk;
+    in->num = n;
+    in->buf = buf;
+    in->size_blocks = in->size / DISK_BLOCK_SIZE + 1;
+    *inop = in;
+    return 0;
 }
 
 /* Return the inode and no write to disk */
-void iput(mem_inode_t inode)
+void iput(mem_inode_t ino)
 {
-
+    brelse(ino->buf);
+    free(ino);
 }
 
 /* Return the inode and update it on the disk */
-int iupdate(mem_inode_t inode)
+int iupdate(mem_inode_t ino)
 {
-
+    memcpy(ino->buf->data, ino, sizeof(struct inode));
+    bwrite(ino->buf);
+    free(ino);
 }

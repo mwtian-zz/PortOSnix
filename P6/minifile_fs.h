@@ -58,9 +58,9 @@ typedef struct inode {
         itype_t type;
         size_t size;
         blocknum_t direct[12];
-        blocknum_t indirect1;
-        blocknum_t indirect2;
-} *inode_t;
+        blocknum_t indirect;
+        blocknum_t double_indirect;    /* This support a little more than 1GB file... */
+} *inode_t;                            /* 512 * 512 * 4096 / 1024 / 1024 / 1024 = 1GB */
 
 /* indoe in memory */
 typedef struct mem_inode {
@@ -74,6 +74,7 @@ typedef struct mem_inode {
 	inodenum_t num;
     buf_block_t buf;
     blocknum_t size_blocks;
+	size_t ref_count;
 } *mem_inode_t;
 
 /* free block on disk */
@@ -84,11 +85,11 @@ typedef struct freespace {
 /* Disk space management functions. Explained before implementations. */
 extern blocknum_t balloc(disk_t* disk);
 extern void bfree(disk_t* disk, blocknum_t n);
-extern blocknum_t ialloc(disk_t* disk);
-extern void ifree(disk_t* disk,inodenum_t n);
+extern mem_inode_t ialloc(disk_t* disk);
+extern void ifree(disk_t* disk, inodenum_t n);
 extern int iclear(disk_t* disk, inodenum_t n);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
-
+extern blocknum_t bmap(size_t byte_offset); /* Byte offset to block number */
 #endif /* __MINIFILE_FS_H__ */

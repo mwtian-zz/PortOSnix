@@ -14,8 +14,12 @@
 #define INODE_OFFSET(num) ((((num) - 1) % INODE_PER_BLOCK) * INODE_SIZE)
 
 /* Number of direct block pointers and indirect blocks pointers in inodes */
-#define INODE_NUM_DIRECT 11
-#define INODE_NUM_INDIRECT 3
+#define POINTER_PER_BLOCK 512
+#define INODE_DIRECT_BLOCKS 11
+#define INODE_INDIRECT_BLOCKS (512)
+#define INODE_DOUBLE_BLOCKS (512 * 512)
+#define INODE_TRIPLE_BLOCKS (512 * 512 * 512)
+#define INODE_MAX_FILE_BLOCKS (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS + INODE_TRIPLE_BLOCKS)
 
 /* Size of inode table */
 #define INODE_TABLE_SIZE 128
@@ -66,21 +70,19 @@ mem_sblock_t sb;
 
 /* inode on disk */
 typedef struct inode {
-    itype_t type;
-    size_t size;
-    blocknum_t direct[INODE_NUM_DIRECT ];
-    blocknum_t indirect;
-    /* This support a little more than 1GB file... 512 * 512 * 4096 / 1024 / 1024 / 1024 = 1GB */
-    blocknum_t double_indirect;
-    blocknum_t triple_indirect;
-    /* Maybe use INODE_NUM_INDIRECT here and write a generalized algorithm */
+        itype_t type;
+        size_t size;
+        blocknum_t direct[INODE_DIRECT_BLOCKS];
+        blocknum_t indirect;
+        blocknum_t double_indirect;
+        blocknum_t triple_indirect;
 } *inode_t;
 
 /* indoe in memory */
 typedef struct mem_inode {
     itype_t type;
     size_t size;
-    blocknum_t direct[INODE_NUM_DIRECT];
+    blocknum_t direct[INODE_DIRECT_BLOCKS];
     blocknum_t indirect;
     blocknum_t double_indirect;
     blocknum_t triple_indirect;
@@ -117,6 +119,7 @@ extern int iclear(disk_t* disk, inodenum_t n);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
-extern blocknum_t bmap(size_t byte_offset); /* Byte offset to block number */
+extern blocknum_t bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset); /* Byte offset to block number */
+extern blocknum_t blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset); /* Block offset to block number */
 
 #endif /* __MINIFILE_FS_H__ */

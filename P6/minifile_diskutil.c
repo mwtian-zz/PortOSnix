@@ -66,7 +66,5 @@ int
 minifile_fsck(disk_t* disk)
 {
 
-
-
     return 0;
 }

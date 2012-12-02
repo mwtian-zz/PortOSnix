@@ -21,7 +21,7 @@ int cache_test(int *arg)
     bread(maindisk, 0, &buf);
     block = (blocknum_t*) buf->data;
     for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
-        printf("%ld ", block[i]);
+        printf("%ld\n", block[i]);
         if (block[i] != i) {
             printf("Error in write %ld!\n", i);
             break;

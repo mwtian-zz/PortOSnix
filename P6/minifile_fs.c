@@ -34,6 +34,7 @@ int sblock_update(mem_sblock_t sb)
     memcpy(sb->buf->data, sb, sizeof(struct sblock));
     bwrite(sb->buf);
     free(sb);
+	return 0;
 }
 
 /* Get a free block from the disk */
@@ -48,7 +49,7 @@ balloc(disk_t* disk)
     /* Get super block */
     sblock_get(disk, &sb);
     if (sb->free_blocks <= 0) {
-        return NULL;
+        return -1;
     }
 
     /* Get free block number and next free block */
@@ -89,15 +90,20 @@ bfree(disk_t* disk, blocknum_t freeblk_num)
     bwrite(buf);
 }
 
-/* Allocate a free inode */
-inodenum_t
+/* 
+ * Allocate a free inode and return a pointer to free inode 
+ * Return NULL if fail. May need locks.
+ */
+mem_inode_t
 ialloc(disk_t* disk)
 {
     mem_sblock_t sb;
-    inodenum_t freeblk_num;
+    inodenum_t freeinode_num;
     freeblock_t freeblk;
     buf_block_t buf;
-
+	blocknum_t block_to_read;
+	mem_inode_t new_inode;
+	
     /* Get super block */
     sblock_get(disk, &sb);
     if (sb->free_blocks <= 0) {
@@ -105,16 +111,28 @@ ialloc(disk_t* disk)
     }
 
     /* Get free block number and next free block */
-    freeblk_num = sb->free_ilist_head;
-    bread(disk, freeblk_num, &buf);
-    freeblk = (freeblock_t) buf->data;
+    freeinode_num = sb->free_ilist_head;
+	block_to_read = INODE_TO_BLOCK(freeinode_num);
+    bread(disk, block_to_read, &buf);
+    freeblk = (freeblock_t) (buf->data + INODE_OFFSET(freeinode_num));
+	new_inode = malloc(sizeof(struct mem_inode));
+	/* If fails allocating new inode memory, don't update super block */
+	if (new_inode == NULL) {
+		return NULL;
+	}
+	memcpy(new_inode, freeblk, sizeof(struct inode));
+	new_inode->num = freeinode_num;
+	new_inode->disk = disk;
+	new_inode->buf = buf;
+	new_inode->ref_count = 0;   /* ref count may need to be 1 */
+	new_inode->size_bytes = 0;
+	
     sb->free_ilist_head = freeblk->next;
-
     /* Update superbock and release the empty block */
     sblock_update(sb);
     brelse(buf);
 
-    return freeblk_num;
+    return new_inode;
 }
 
 /* Add an inode back to free list */
@@ -124,20 +142,21 @@ ifree(disk_t* disk, inodenum_t n)
     mem_sblock_t sb;
     freeblock_t freeblk;
     buf_block_t buf;
-
-    if (disk->layout.size <= freeblk_num) {
+	blocknum_t freeblk_num;
+	
+    if (disk->layout.size <= n) {
         return;
     }
 
     /* Get super block */
     sblock_get(disk, &sb);
-
+	freeblk_num = INODE_TO_BLOCK(n);
     /* Add to the free block list  */
     bread(disk, freeblk_num, &buf);
-    freeblk = (freeblock_t) buf->data;
+    freeblk = (freeblock_t) (buf->data + INODE_OFFSET(n));
     freeblk->next = sb->free_ilist_head;
     sb->free_ilist_head = freeblk_num;
-
+	sb->free_blocks++;
     /* Update superbock and the new free block */
     sblock_update(sb);
     bwrite(buf);
@@ -147,27 +166,30 @@ ifree(disk_t* disk, inodenum_t n)
 int
 iclear(disk_t* disk, inodenum_t n)
 {
-
+	return 0;
 }
 
 /* Get the content of the inode with inode number n*/
 int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 {
 	blocknum_t block_to_read = INODE_TO_BLOCK(n);
-	mem_inode_t in = malloc(sizeof(struct mem_inode));
-	if (in == NULL) {
-		return -1;
-	}
+	mem_inode_t in;
+
     buf_block_t buf;
     if (bread(disk, block_to_read, &buf) != 0) {
-		free(in);
+		return -1;
+	}
+	
+	in = malloc(sizeof(struct mem_inode));
+	if (in == NULL) {
 		return -1;
 	}
     memcpy(in, buf->data + INODE_OFFSET(n), sizeof(struct inode));
     in->disk = disk;
     in->num = n;
     in->buf = buf;
-    in->size_blocks = in->size / DISK_BLOCK_SIZE + 1;
+	/* May need to increment ref count */
+    in->size_blocks = in->size_bytes / DISK_BLOCK_SIZE + 1;
     *inop = in;
     return 0;
 }
@@ -185,4 +207,5 @@ int iupdate(mem_inode_t ino)
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
     bwrite(ino->buf);
     free(ino);
+	return 0;
 }

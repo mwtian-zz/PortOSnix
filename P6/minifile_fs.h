@@ -4,6 +4,14 @@
 #include "disk.h"
 #include "minifile_cache.h"
 
+#define INODE_START_BLOCK 1 /* Inode starts from block 1 */
+#define INODE_SIZE 128    /* Size of inode in bytes on disk */
+#define INODE_PER_BLOCK (DISK_BLOCK_SIZE / INODE_SIZE)   /* Number of inodes in one block */
+
+/* Translate inode number to block number. Inode starts from 1 which is root directory */
+#define INODE_TO_BLOCK(num) ((((num) - 1) / INODE_PER_BLOCK) + INODE_START_BLOCK)
+/* Inode offset within a data block */
+#define INODE_OFFSET(num) ((((num) - 1) % INODE_PER_BLOCK) * INODE_SIZE)
 
 /* Address space of inodes */
 typedef uint64_t inodenum_t;
@@ -63,15 +71,15 @@ typedef struct mem_inode {
     blocknum_t indirect2;
 
     disk_t* disk;
-    blocknum_t num;
+	inodenum_t num;
     buf_block_t buf;
     blocknum_t size_blocks;
 } *mem_inode_t;
 
 /* free block on disk */
-typedef struct freeblock {
+typedef struct freespace {
     blocknum_t next;
-} *freeblock_t;
+} *freespace_t;
 
 /* Disk space management functions. Explained before implementations. */
 extern blocknum_t balloc(disk_t* disk);

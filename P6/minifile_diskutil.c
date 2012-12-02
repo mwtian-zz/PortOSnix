@@ -11,7 +11,7 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     buf_block_t buf;
     sblock_t sb;
     inode_t inode;
-    freeblock_t freeblock;
+    freespace_t freeblock;
     blocknum_t i;
 
     /* Make a new disk */
@@ -45,24 +45,24 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     for (i = sb->free_ilist_head; i < sb->free_ilist_tail; ++i) {
         bread(disk, i, &buf);
         freeblock = (freeblock_t) buf->data;
-        freeblock->next = i + 1;
+        freespace->next = i + 1;
         bwrite(buf);
     }
     bread(disk, sb->free_ilist_tail, &buf);
-    freeblock = (freeblock_t) buf->data;
-    freeblock->next = 0;
+    freespace = (freespace_t) buf->data;
+    freespace->next = 0;
     bwrite(buf);
 
     /* Initialize free block list */
     for (i = sb->free_blist_head; i < sb->free_blist_tail; ++i) {
         bread(disk, i, &buf);
-        freeblock = (freeblock_t) buf->data;
-        freeblock->next = i + 1;
+        freespace = (freespace_t) buf->data;
+        freespace->next = i + 1;
         bwrite(buf);
     }
     bread(disk, sb->free_blist_tail, &buf);
-    freeblock = (freeblock_t) buf->data;
-    freeblock->next = 0;
+    freespace = (freespace_t) buf->data;
+    freespace->next = 0;
     bwrite(buf);
 
     printf("minifile system started at '%s'.\n", fs_name);

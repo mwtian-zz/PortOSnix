@@ -6,6 +6,7 @@
 #include "queue.h"
 #include "minithread.h"
 #include "synch.h"
+#include "synch_private.h"
 
 /*
  *    You must implement the procedures and types defined in this interface.
@@ -14,12 +15,6 @@
 /*
  * Semaphores.
  */
-struct semaphore {
-    int count;
-    tas_lock_t lock;
-    queue_t wait;
-};
-
 
 /*
  * semaphore_t semaphore_create()
@@ -107,4 +102,13 @@ void
 semaphore_Signal(void* sem)
 {
     semaphore_V((semaphore_t) sem);
+}
+
+semaphore_t
+semaphore_new(int cnt)
+{
+    semaphore_t sem;
+    sem = semaphore_create();
+    semaphore_initialize(sem, cnt);
+    return sem;
 }

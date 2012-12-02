@@ -15,50 +15,142 @@
  ********************************************************************/
 
 
-/* Used for communication with interrupt handler */
-semaphore_t disk_lock;
-semaphore_t block_sig;
-
+/* Functions on hash list */
+static buf_block_t hash_find(disk_t* disk, blocknum_t n, blocknum_t bhash);
+static void hash_add(buf_block_t block, blocknum_t bhash);
+static void hash_remove(buf_block_t block, blocknum_t bhash);
+static buf_block_t get_blk();
 
 /* Initialize buffer cache */
 int
-minifile_buf_cache_init(interrupt_handler_t disk_handler)
+minifile_buf_cache_init()
 {
-    disk_lock = semaphore_create();
-    block_sig = semaphore_create();
-    if (NULL == disk_lock || NULL == block_sig) {
-        semaphore_destroy(disk_lock);
-        semaphore_destroy(block_sig);
-        return -1;
-    }
-    semaphore_initialize(disk_lock, 1);
-    semaphore_initialize(block_sig, 0);
+    int i;
 
-    install_disk_handler(disk_handler);
+    disk_lim = semaphore_new(MAX_PENDING_DISK_REQUESTS);
+    bc = malloc(sizeof(struct buf_cache));
+    if (NULL == disk_lim || NULL == bc)
+        goto err1;
+
+    bc->locked = queue_new();
+    bc->lru = queue_new();
+    for (i = 0; i < BUFFER_CACHE_HASH; ++i) {
+        bc->block_lock[i] = semaphore_new(1);
+        bc->block_sig[i] = semaphore_new(0);
+    }
+    bc->cache_lock = semaphore_new(1);
+
+    if (NULL == bc->locked || NULL == bc->lru || NULL == bc->cache_lock) {
+        goto err2;
+    }
+    for (i = 0; i < BUFFER_CACHE_HASH; ++i) {
+        if (NULL == bc->block_sig[i] || NULL == bc->block_lock[i]) {
+            goto err2;
+        }
+    }
 
     return 0;
+
+err2:
+    queue_free(bc->locked);
+    queue_free(bc->lru);
+    semaphore_destroy(bc->cache_lock);
+    for (i = 0; i < BUFFER_CACHE_HASH; ++i) {
+        semaphore_destroy(bc->block_lock[i]);
+        semaphore_destroy(bc->block_sig[i]);
+    }
+err1:
+    semaphore_destroy(disk_lim);
+    free(bc);
+    return -1;
 }
 
+static buf_block_t
+hash_find(disk_t* disk, blocknum_t n, blocknum_t bhash)
+{
+    buf_block_t p_block = bc->hash[bhash];
+    while (p_block != NULL) {
+        if (p_block->disk == disk && p_block->num == n)
+            break;
+        p_block = p_block->hash_next;
+    }
+    return p_block;
+}
+
+static void
+hash_add(buf_block_t block, blocknum_t bhash)
+{
+    block->hash_prev = NULL;
+    block->hash_next = bc->hash[bhash];
+    if (block->hash_next != NULL) {
+        block->hash_next->hash_prev = block;
+    }
+    bc->hash[bhash] = block;
+}
+
+static void
+hash_remove(buf_block_t block, blocknum_t bhash)
+{
+    bc->hash[bhash] = block->hash_next;
+    if (block->hash_prev != NULL) {
+        block->hash_prev->hash_next = block->hash_next;
+    }
+    if (block->hash_next != NULL) {
+        block->hash_next->hash_prev = block->hash_prev;
+    }
+    block->hash_prev = NULL;
+    block->hash_next = NULL;
+}
+
+static buf_block_t
+get_blk()
+{
+    buf_block_t block;
+    queue_dequeue(bc->lru, (void**)&block);
+    if (NULL == block)
+        block = malloc(sizeof(struct buf_block));
+    return block;
+}
 
 /* For block n, get a pointer to its block buffer */
 int
 bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
 {
+    blocknum_t bhash = BUF_HASH(n);
+
     if (NULL == bufp || NULL == disk || disk->layout.size < n) {
         return -1;
     }
 
-    *bufp = malloc(sizeof(struct buf_block));
-    if (NULL == *bufp) {
-        return -1;
+    semaphore_P(bc->block_lock[bhash]);
+    semaphore_P(bc->cache_lock);
+
+    *bufp = hash_find(disk, n, bhash);
+    if (NULL != *bufp) {
+        queue_delete(bc->lru, (void**)bufp);
+        queue_append(bc->locked, *bufp);
+    } else {
+        *bufp = get_blk();
+        if (NULL == *bufp) {
+            return -1;
+        }
+        (*bufp)->disk = disk;
+        (*bufp)->num = n;
+
+        semaphore_V(bc->cache_lock);
+
+        semaphore_P(disk_lim);
+        disk_read_block(disk, n, (*bufp)->data);
+        semaphore_P(bc->block_sig[bhash]);
+        semaphore_V(disk_lim);
+
+        semaphore_P(bc->cache_lock);
+
+        hash_add(*bufp, bhash);
+        queue_append(bc->locked, *bufp);
     }
-    (*bufp)->disk = disk;
-    (*bufp)->num = n;
-    semaphore_P(disk_lock);
-    disk_read_block(disk, n, (*bufp)->data);
-    semaphore_P(block_sig);
-    /* Check return here */
-    semaphore_V(disk_lock);
+
+    semaphore_V(bc->cache_lock);
 
     return 0;
 }
@@ -68,7 +160,11 @@ bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
 int
 brelse(buf_block_t buf)
 {
-    free(buf);
+    semaphore_P(bc->cache_lock);
+    queue_delete(bc->locked, (void**)&buf);
+    queue_append(bc->lru, buf);
+    semaphore_V(bc->cache_lock);
+    semaphore_V(bc->block_lock[BUF_HASH(buf->num)]);
     return 0;
 }
 
@@ -76,11 +172,11 @@ brelse(buf_block_t buf)
 /* Immediately write buffer back to disk, block until write finishes */
 int bwrite(buf_block_t buf)
 {
-    semaphore_P(disk_lock);
+    semaphore_P(disk_lim);
     disk_write_block(buf->disk, buf->num, buf->data);
-    semaphore_P(block_sig);
-    semaphore_V(disk_lock);
-    free(buf);
+    semaphore_P(bc->block_sig[BUF_HASH(buf->num)]);
+    semaphore_V(disk_lim);
+    brelse(buf);
     return 0;
 }
 

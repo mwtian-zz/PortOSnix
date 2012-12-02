@@ -7,12 +7,9 @@
  *	You must implement the procedures and types defined in this interface.
  */
 
+/* Semaphores */
+
 typedef struct semaphore *semaphore_t;
-
-
-/*
- * Semaphores.
- */
 
 /*
  * semaphore_t semaphore_create()
@@ -47,5 +44,8 @@ extern void semaphore_V(semaphore_t sem);
 
 /* Same as semaphore_V, but taking void* argument (for alarm) */
 extern void semaphore_Signal(void* sem);
+
+/* Create a new semaphore with count initialized to cnt */
+extern semaphore_t semaphore_new(int cnt);
 
 #endif /*__SYNCH_H__*/

@@ -17,6 +17,9 @@
 #define INODE_NUM_DIRECT 11
 #define INODE_NUM_INDIRECT 3
 
+/* Size of inode table */
+#define INODE_TABLE_SIZE 128
+
 /* Address space of inodes */
 typedef uint64_t inodenum_t;
 
@@ -55,7 +58,12 @@ typedef struct mem_sblock {
     disk_t* disk;
     blocknum_t pos;
     buf_block_t buf;
+    /* semaphore_t lock; */
 } *mem_sblock_t;
+
+/*
+struct mem_sblock sb;
+*/
 
 /* inode on disk */
 typedef struct inode {
@@ -83,7 +91,12 @@ typedef struct mem_inode {
     buf_block_t buf;
     blocknum_t size_blocks;
 	size_t ref_count;
+	/* semaphore_t lock; */
 } *mem_inode_t;
+
+/*
+struct mem_inode inode[INODE_TABLE_SIZE];
+*/
 
 /* free block on disk */
 typedef struct freespace {

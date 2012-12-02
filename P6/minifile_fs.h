@@ -13,6 +13,10 @@
 /* Inode offset within a data block */
 #define INODE_OFFSET(num) ((((num) - 1) % INODE_PER_BLOCK) * INODE_SIZE)
 
+/* Number of direct block pointers and indirect blocks pointers in inodes */
+#define INODE_NUM_DIRECT 11
+#define INODE_NUM_INDIRECT 3
+
 /* Address space of inodes */
 typedef uint64_t inodenum_t;
 
@@ -57,18 +61,22 @@ typedef struct mem_sblock {
 typedef struct inode {
         itype_t type;
         size_t size;
-        blocknum_t direct[12];
+        blocknum_t direct[INODE_NUM_DIRECT ];
         blocknum_t indirect;
-        blocknum_t double_indirect;    /* This support a little more than 1GB file... */
-} *inode_t;                            /* 512 * 512 * 4096 / 1024 / 1024 / 1024 = 1GB */
+        /* This support a little more than 1GB file... 512 * 512 * 4096 / 1024 / 1024 / 1024 = 1GB */
+        blocknum_t double_indirect;
+        blocknum_t triple_indirect;
+        /* Maybe use INODE_NUM_INDIRECT here and write a generalized algorithm */
+} *inode_t;
 
 /* indoe in memory */
 typedef struct mem_inode {
     itype_t type;
     size_t size_bytes;
-    blocknum_t direct[12];
-    blocknum_t indirect1;
-    blocknum_t indirect2;
+    blocknum_t direct[INODE_NUM_DIRECT];
+    blocknum_t indirect;
+    blocknum_t double_indirect;
+    blocknum_t triple_indirect;
 
     disk_t* disk;
 	inodenum_t num;

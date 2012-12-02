@@ -145,13 +145,13 @@ ifree(disk_t* disk, blocknum_t n)
 
 /* Clear the content of an inode, including indirect blocks */
 int
-iclear(disk_t* disk, blocknum_t n)
+iclear(disk_t* disk, inodenum_t n)
 {
 
 }
 
 /* Get the content of the inode */
-int iget(disk_t* disk, blocknum_t n, mem_inode_t *inop)
+int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 {
     mem_inode_t in = malloc(sizeof(struct mem_inode));
     buf_block_t buf;

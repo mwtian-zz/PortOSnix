@@ -57,6 +57,7 @@ bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
     semaphore_P(disk_lock);
     disk_read_block(disk, n, (*bufp)->data);
     semaphore_P(block_sig);
+    /* Check return here */
     semaphore_V(disk_lock);
 
     return 0;

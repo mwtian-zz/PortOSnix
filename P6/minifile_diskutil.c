@@ -34,7 +34,6 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     sb->free_blocks = sb->free_blist_tail - sb->free_blist_head + 1;
     bwrite(buf);
 
-
     /* Initialize root inode */
     bread(disk, 1, &buf);
     inode = (inode_t) buf->data;

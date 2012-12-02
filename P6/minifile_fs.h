@@ -18,27 +18,27 @@ typedef enum inode_type {
 /* Super block on disk */
 typedef struct sblock {
     blocknum_t total_blocks;
-    blocknum_t total_inodes;
-    blocknum_t free_ilist_head;
-    blocknum_t free_ilist_tail;
-    blocknum_t free_inodes;
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
     blocknum_t free_blocks;
-    blocknum_t root;
+    inodenum_t total_inodes;
+    inodenum_t free_ilist_head;
+    inodenum_t free_ilist_tail;
+    inodenum_t free_inodes;
+    inodenum_t root;
 } *sblock_t;
 
 /* Super block in memory */
 typedef struct mem_sblock {
     blocknum_t total_blocks;
-    blocknum_t total_inodes;
-    blocknum_t free_ilist_head;
-    blocknum_t free_ilist_tail;
-    blocknum_t free_inodes;
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
     blocknum_t free_blocks;
-    blocknum_t root;
+    inodenum_t total_inodes;
+    inodenum_t free_ilist_head;
+    inodenum_t free_ilist_tail;
+    inodenum_t free_inodes;
+    inodenum_t root;
 
     disk_t* disk;
     blocknum_t pos;
@@ -77,9 +77,9 @@ typedef struct freeblock {
 extern blocknum_t balloc(disk_t* disk);
 extern void bfree(disk_t* disk, blocknum_t n);
 extern blocknum_t ialloc(disk_t* disk);
-extern void ifree(disk_t* disk, blocknum_t n);
-extern int iclear(disk_t* disk, blocknum_t n);
-extern int iget(disk_t* disk, blocknum_t n, mem_inode_t *inop);
+extern void ifree(disk_t* disk,inodenum_t n);
+extern int iclear(disk_t* disk, inodenum_t n);
+extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
 

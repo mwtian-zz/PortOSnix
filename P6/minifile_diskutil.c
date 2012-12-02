@@ -11,7 +11,7 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     buf_block_t buf;
     sblock_t sb;
     inode_t inode;
-    freespace_t freeblock;
+    freespace_t freespace;
     blocknum_t i;
 
     /* Make a new disk */
@@ -44,7 +44,7 @@ minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
     /* Initialize free inode list */
     for (i = sb->free_ilist_head; i < sb->free_ilist_tail; ++i) {
         bread(disk, i, &buf);
-        freeblock = (freeblock_t) buf->data;
+        freespace = (freespace_t) buf->data;
         freespace->next = i + 1;
         bwrite(buf);
     }

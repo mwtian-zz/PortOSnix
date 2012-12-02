@@ -1,39 +1,32 @@
 #include "minifile_fs.h"
 #include "minifile_cache.h"
 
-/* Super block management */
-static int sblock_get(disk_t* disk, mem_sblock_t *sbp);
-static void sblock_put(mem_sblock_t sb);
-static int sblock_update(mem_sblock_t sb);
 
 /* Get super block into a memory struct */
-int sblock_get(disk_t* disk, mem_sblock_t *sbp)
+int sblock_get(disk_t* disk, mem_sblock_t sbp)
 {
-    mem_sblock_t sb = malloc(sizeof(struct mem_sblock));
     buf_block_t buf;
     if (bread(disk, 0, &buf) != 0)
         return -1;
-    memcpy(sb, buf->data, sizeof(struct sblock));
-    sb->disk = disk;
-    sb->pos = 0;
-    sb->buf = buf;
-    *sbp = sb;
+    memcpy(sbp, buf->data, sizeof(struct sblock));
+    sbp->disk = disk;
+    sbp->pos = 0;
+    sbp->buf = buf;
+
     return 0;
 }
 
 /* Return super block and no write back to disk */
-void sblock_put(mem_sblock_t sb)
+void sblock_put(mem_sblock_t sbp)
 {
-    brelse(sb->buf);
-    free(sb);
+    brelse(sbp->buf);
 }
 
 /* Return super block and immediately write back to disk */
-int sblock_update(mem_sblock_t sb)
+int sblock_update(mem_sblock_t sbp)
 {
-    memcpy(sb->buf->data, sb, sizeof(struct sblock));
-    bwrite(sb->buf);
-    free(sb);
+    memcpy(sbp->buf->data, sbp, sizeof(struct sblock));
+    bwrite(sbp->buf);
 	return 0;
 }
 
@@ -41,13 +34,12 @@ int sblock_update(mem_sblock_t sb)
 blocknum_t
 balloc(disk_t* disk)
 {
-    mem_sblock_t sb;
     blocknum_t freeblk_num;
     freespace_t freeblk;
     buf_block_t buf;
 
     /* Get super block */
-    sblock_get(disk, &sb);
+    sblock_get(disk, sb);
     if (sb->free_blocks <= 0) {
         return -1;
     }
@@ -68,7 +60,6 @@ balloc(disk_t* disk)
 void
 bfree(disk_t* disk, blocknum_t freeblk_num)
 {
-    mem_sblock_t sb;
     freespace_t freeblk;
     buf_block_t buf;
 
@@ -77,7 +68,7 @@ bfree(disk_t* disk, blocknum_t freeblk_num)
     }
 
     /* Get super block */
-    sblock_get(disk, &sb);
+    sblock_get(disk, sb);
 
     /* Add to the free block list  */
     bread(disk, freeblk_num, &buf);
@@ -97,7 +88,6 @@ bfree(disk_t* disk, blocknum_t freeblk_num)
 mem_inode_t
 ialloc(disk_t* disk)
 {
-    mem_sblock_t sb;
     inodenum_t freeinode_num;
     freespace_t freeblk;
     buf_block_t buf;
@@ -105,7 +95,7 @@ ialloc(disk_t* disk)
 	mem_inode_t new_inode;
 
     /* Get super block */
-    sblock_get(disk, &sb);
+    sblock_get(disk, sb);
     if (sb->free_blocks <= 0) {
         return NULL;
     }
@@ -125,7 +115,7 @@ ialloc(disk_t* disk)
 	new_inode->disk = disk;
 	new_inode->buf = buf;
 	new_inode->ref_count = 0;   /* ref count may need to be 1 */
-	new_inode->size_bytes = 0;
+	new_inode->size = 0;
 
     sb->free_ilist_head = freeblk->next;
 
@@ -140,7 +130,6 @@ ialloc(disk_t* disk)
 void
 ifree(disk_t* disk, inodenum_t n)
 {
-    mem_sblock_t sb;
     freespace_t freeblk;
     buf_block_t buf;
 	blocknum_t freeblk_num;
@@ -150,7 +139,7 @@ ifree(disk_t* disk, inodenum_t n)
     }
 
     /* Get super block */
-    sblock_get(disk, &sb);
+    sblock_get(disk, sb);
 	freeblk_num = INODE_TO_BLOCK(n);
     /* Add to the free block list  */
     bread(disk, freeblk_num, &buf);
@@ -190,7 +179,7 @@ int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
     in->num = n;
     in->buf = buf;
 	/* May need to increment ref count */
-    in->size_blocks = in->size_bytes / DISK_BLOCK_SIZE + 1;
+    in->size_blocks = in->size / DISK_BLOCK_SIZE + 1;
     *inop = in;
     return 0;
 }

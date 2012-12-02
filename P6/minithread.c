@@ -392,7 +392,6 @@ minithread_initialize_sys_sems()
 static int
 minithread_initialize_interrupts()
 {
-    disk_t *maindisk;
     ticks = 0;
     expire = -1;
     set_interrupt_level(DISABLED);
@@ -404,6 +403,7 @@ minithread_initialize_interrupts()
     minimsg_initialize();
     minisocket_initialize();
     miniterm_initialize();
+    maindisk = &(disk_table[0]);
     disk_initialize(maindisk);
     minifile_buf_cache_init();
     install_disk_handler(disk_handler);
@@ -472,7 +472,9 @@ disk_handler(void* arg)
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     disk_interrupt_arg_t *intrpt = arg;
     int block = intrpt->request.blocknum;
-    semaphore_V(bc->block_sig[BUF_HASH(block)]);
+    int blocknum = BUF_HASH(block);
+    semaphore_V(bc->block_sig[blocknum]);
+    bc->reply[blocknum] = intrpt->reply;
     free(arg);
     set_interrupt_level(oldlevel);
 }

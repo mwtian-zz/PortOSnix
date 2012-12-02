@@ -6,66 +6,57 @@
 
 /* Make a file system with the specified number of blocks */
 int
-minifile_mkfs(disk_t* disk, const char* fs_name, blocknum_t fs_size)
+minifile_remkfs()
 {
     buf_block_t buf;
-    sblock_t sb;
-    inode_t inode;
+    mem_inode_t inode;
     freespace_t freespace;
     blocknum_t i;
 
-    /* Make a new disk */
-    use_existing_disk = 0;
-    disk_name = fs_name;
-    disk_flags = DISK_READWRITE;
-    disk_size = fs_size;
-    disk_initialize(disk);
-
     /* Initialize superblock */
-    bread(disk, 0, &buf);
-    sb = (sblock_t) buf->data;
-    sb->total_blocks = fs_size;
-    sb->total_inodes = fs_size / 10;
+    sblock_get(maindisk, sb);
+    sb = (mem_sblock_t) buf->data;
+    sb->total_blocks = maindisk->layout.size;
+    sb->total_inodes = sb->total_blocks / 10;
     sb->free_ilist_head = 2;
     sb->free_ilist_tail = sb->total_inodes;
     sb->free_inodes = sb->total_inodes - 1;
     sb->free_blist_head = sb->total_inodes + 1;
-    sb->free_blist_tail = fs_size - 1;
+    sb->free_blist_tail = sb->total_blocks - 1;
     sb->free_blocks = sb->free_blist_tail - sb->free_blist_head + 1;
-    bwrite(buf);
+    sblock_update(sb);
 
     /* Initialize root inode */
-    bread(disk, 1, &buf);
-    inode = (inode_t) buf->data;
+    iget(maindisk, 1, &inode);
     inode->type = MINIDIRECTORY;
     inode->size = 0;
-    bwrite(buf);
+    iupdate(inode);
 
     /* Initialize free inode list */
     for (i = sb->free_ilist_head; i < sb->free_ilist_tail; ++i) {
-        bread(disk, i, &buf);
-        freespace = (freespace_t) buf->data;
+        iget(maindisk, i, &inode);
+        freespace = (freespace_t) inode;
         freespace->next = i + 1;
-        bwrite(buf);
+        iupdate(inode);
     }
-    bread(disk, sb->free_ilist_tail, &buf);
-    freespace = (freespace_t) buf->data;
+    iget(maindisk, sb->free_ilist_tail, &inode);
+    freespace = (freespace_t) inode;
     freespace->next = 0;
-    bwrite(buf);
+    iupdate(inode);
 
     /* Initialize free block list */
     for (i = sb->free_blist_head; i < sb->free_blist_tail; ++i) {
-        bread(disk, i, &buf);
+        bread(maindisk, i, &buf);
         freespace = (freespace_t) buf->data;
         freespace->next = i + 1;
         bwrite(buf);
     }
-    bread(disk, sb->free_blist_tail, &buf);
+    bread(maindisk, sb->free_blist_tail, &buf);
     freespace = (freespace_t) buf->data;
     freespace->next = 0;
     bwrite(buf);
 
-    printf("minifile system started at '%s'.\n", fs_name);
+    printf("minifile system established.\n");
 
     return 0;
 }

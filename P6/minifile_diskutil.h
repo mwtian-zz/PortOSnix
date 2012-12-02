@@ -5,7 +5,7 @@
 #include "minifile_fs.h"
 
 /* Make a file system with the specified number of blocks */
-extern int minifile_mkfs(disk_t* disk, const char* name, blocknum_t size);
+extern int minifile_remkfs();
 
 /* Check the consistency of the file system on disk */
 extern int minifile_fsck(disk_t* disk);

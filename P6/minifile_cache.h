@@ -16,12 +16,11 @@
 typedef uint64_t blocknum_t;
 
 /* Disk table. Only the first entry, main disk, is used. */
-disk_t disk[8];
-disk_t *maindisk = disk;
+disk_t disk_table[8];
+disk_t *maindisk;
 
 /* Used for communication with interrupt handler */
 semaphore_t disk_lim;
-
 
 /* Data structures for buffer cache and cached items */
 typedef struct buf_block *buf_block_t;
@@ -43,6 +42,7 @@ struct buf_cache {
     semaphore_t block_lock[BUFFER_CACHE_HASH];
     semaphore_t block_sig[BUFFER_CACHE_HASH];
     buf_block_t hash[BUFFER_CACHE_HASH];
+    disk_reply_t reply[BUFFER_CACHE_HASH];
     queue_t locked;
     queue_t lru;
 };

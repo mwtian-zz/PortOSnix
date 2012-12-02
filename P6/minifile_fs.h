@@ -58,40 +58,39 @@ typedef struct mem_sblock {
     disk_t* disk;
     blocknum_t pos;
     buf_block_t buf;
-    /* semaphore_t lock; */
+    semaphore_t lock;
 } *mem_sblock_t;
 
-/*
-struct mem_sblock sb;
-*/
+struct mem_sblock sb_table[8];
+mem_sblock_t sb;
 
 /* inode on disk */
 typedef struct inode {
-        itype_t type;
-        size_t size;
-        blocknum_t direct[INODE_NUM_DIRECT ];
-        blocknum_t indirect;
-        /* This support a little more than 1GB file... 512 * 512 * 4096 / 1024 / 1024 / 1024 = 1GB */
-        blocknum_t double_indirect;
-        blocknum_t triple_indirect;
-        /* Maybe use INODE_NUM_INDIRECT here and write a generalized algorithm */
+    itype_t type;
+    size_t size;
+    blocknum_t direct[INODE_NUM_DIRECT ];
+    blocknum_t indirect;
+    /* This support a little more than 1GB file... 512 * 512 * 4096 / 1024 / 1024 / 1024 = 1GB */
+    blocknum_t double_indirect;
+    blocknum_t triple_indirect;
+    /* Maybe use INODE_NUM_INDIRECT here and write a generalized algorithm */
 } *inode_t;
 
 /* indoe in memory */
 typedef struct mem_inode {
     itype_t type;
-    size_t size_bytes;
+    size_t size;
     blocknum_t direct[INODE_NUM_DIRECT];
     blocknum_t indirect;
     blocknum_t double_indirect;
     blocknum_t triple_indirect;
 
     disk_t* disk;
-	inodenum_t num;
+    inodenum_t num;
     buf_block_t buf;
     blocknum_t size_blocks;
-	size_t ref_count;
-	/* semaphore_t lock; */
+    size_t ref_count;
+    /* semaphore_t lock; */
 } *mem_inode_t;
 
 /*
@@ -103,6 +102,12 @@ typedef struct freespace {
     blocknum_t next;
 } *freespace_t;
 
+
+/* Super block management */
+int sblock_get(disk_t* disk, mem_sblock_t sbp);
+void sblock_put(mem_sblock_t sbp);
+int sblock_update(mem_sblock_t sbp);
+
 /* Disk space management functions. Explained before implementations. */
 extern blocknum_t balloc(disk_t* disk);
 extern void bfree(disk_t* disk, blocknum_t n);
@@ -113,4 +118,5 @@ extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
 extern blocknum_t bmap(size_t byte_offset); /* Byte offset to block number */
+
 #endif /* __MINIFILE_FS_H__ */

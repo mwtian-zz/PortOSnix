@@ -12,7 +12,7 @@ LFLAGS = -lrt -lpthread
 # dropping the ".c": so to use "sieve.c", change to "MAIN = sieve".
 #
 # Note that you must write your own test programs.
-MAIN = inode_test
+MAIN = minifile_cache_test
 OUTPUT_MAIN = minithread
 
 # Extra ultility: mkfs
@@ -48,7 +48,7 @@ OBJ = \
 
 .PHONY: all
 .DEFAULT: all
-all: minithread 
+all: minithread
 
 machineprimitives_x86_64_asm.o: machineprimitives_x86_64_asm.S
 	$(CC) -c machineprimitives_x86_64_asm.S -o machineprimitives_x86_64_asm.o

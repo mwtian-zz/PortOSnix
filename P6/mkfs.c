@@ -9,7 +9,7 @@ static blocknum_t total_blocks;
 int mkfs(int *arg)
 {
     disk_t disk;
-    return minifile_mkfs(&disk, "minidisk", total_blocks);
+    return minifile_remkfs();
 }
 
 int main(int argc, char** argv)
@@ -18,6 +18,12 @@ int main(int argc, char** argv)
         return -1;
     }
     total_blocks = atoi(argv[1]);
+
+
+    use_existing_disk = 0;
+    disk_name = "minidisk";
+    disk_flags = DISK_READWRITE;
+    disk_size = total_blocks;
 
     minithread_system_initialize(mkfs, NULL);
 

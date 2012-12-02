@@ -8,6 +8,11 @@
 !*/*.h
 !*/*.S
 !*/*.c
+!*/minithread_tests
+!*/network_tests/
+!*/**/*.h
+!*/**/*.c
+!*/**/*.s
 !*/Makefile
 !*/Depend
 !*/README

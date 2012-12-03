@@ -122,6 +122,7 @@ minithread_create(proc_t proc, arg_t arg)
     t->qnode.next = NULL;
     t->status = INITIAL;
     t->priority = 0;
+    t->current_dir = sb->root;
 
     semaphore_P(id_mutex);
     t->id = tid_count;

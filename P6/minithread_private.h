@@ -4,6 +4,8 @@
 
 #ifndef __MINITHREAD_STRUCT_H__
 #define __MINITHREAD_STRUCT_H__
+
+#include "minifile_fs.h"
 #include "minithread.h"
 #include "queue_private.h"
 #include "multilevel_queue.h"
@@ -41,6 +43,7 @@ struct minithread {
     enum status status;
     int priority;
     semaphore_t sleep_sem;
+    inodenum_t current_dir;
 };
 
 #endif /*__MINITHREAD_PRIVATE_H__*/

@@ -1,5 +1,6 @@
 #include "defs.h"
 
+#include "interrupts.h"
 #include "minifile.h"
 #include "minifile_cache.h"
 
@@ -11,7 +12,7 @@
  * (2) Use bread to get the block.
  * (3) Use bwrite/bdwrite/bawrite/brelse to return the block,
  *     and schedule/immediately write to disk.
- * (+) Before the block is returned, no other thread can use it. <- To do
+ * (+) Before the block is returned, no other thread can use it.
  ********************************************************************/
 
 
@@ -19,13 +20,14 @@
 static buf_block_t hash_find(disk_t* disk, blocknum_t n, blocknum_t bhash);
 static void hash_add(buf_block_t block, blocknum_t bhash);
 static void hash_remove(buf_block_t block, blocknum_t bhash);
-static buf_block_t get_blk();
+static buf_block_t get_buf_block();
 
 /* Initialize buffer cache */
 int
 minifile_buf_cache_init()
 {
     int i;
+    buf_block_t block;
 
     disk_lim = semaphore_new(MAX_PENDING_DISK_REQUESTS);
     bc = malloc(sizeof(struct buf_cache));
@@ -34,16 +36,22 @@ minifile_buf_cache_init()
 
     bc->locked = queue_new();
     bc->lru = queue_new();
-    for (i = 0; i < BUFFER_CACHE_HASH; ++i) {
+    for (i = 0; i < BUFFER_CACHE_HASH_VALUE; ++i) {
         bc->block_lock[i] = semaphore_new(1);
         bc->block_sig[i] = semaphore_new(0);
+        block = malloc(sizeof(struct buf_block));
+        if (NULL != block) {
+            block->hash_prev = NULL;
+            block->hash_next = NULL;
+            queue_append(bc->lru, block);
+        }
     }
     bc->cache_lock = semaphore_new(1);
 
     if (NULL == bc->locked || NULL == bc->lru || NULL == bc->cache_lock) {
         goto err2;
     }
-    for (i = 0; i < BUFFER_CACHE_HASH; ++i) {
+    for (i = 0; i < BUFFER_CACHE_HASH_VALUE; ++i) {
         if (NULL == bc->block_sig[i] || NULL == bc->block_lock[i]) {
             goto err2;
         }
@@ -55,7 +63,7 @@ err2:
     queue_free(bc->locked);
     queue_free(bc->lru);
     semaphore_destroy(bc->cache_lock);
-    for (i = 0; i < BUFFER_CACHE_HASH; ++i) {
+    for (i = 0; i < BUFFER_CACHE_HASH_VALUE; ++i) {
         semaphore_destroy(bc->block_lock[i]);
         semaphore_destroy(bc->block_sig[i]);
     }
@@ -70,6 +78,13 @@ hash_find(disk_t* disk, blocknum_t n, blocknum_t bhash)
 {
     buf_block_t p_block = bc->hash[bhash];
     while (p_block != NULL) {
+//        printf("hash_find on block %ld ... looking at block %ld\n", n, p_block->num);
+//        if (n == 127 && p_block->num == 0) {
+//            printf("hash_prev: %p", p_block->hash_prev);
+//            printf("hash_next: %p", p_block->hash_next);
+//            p_block = NULL;
+//            break;
+//        }
         if (p_block->disk == disk && p_block->num == n)
             break;
         p_block = p_block->hash_next;
@@ -86,6 +101,11 @@ hash_add(buf_block_t block, blocknum_t bhash)
         block->hash_next->hash_prev = block;
     }
     bc->hash[bhash] = block;
+
+//printf("hash_add on block %ld ... bhash = %ld\n", block->num, bhash);
+//printf("hash_prev: %p ", block->hash_prev);
+//printf("hash_next: %p\n", block->hash_next);
+//printf("bc->hash[bhash]: %p\n", bc->hash[bhash]);
 }
 
 static void
@@ -103,34 +123,65 @@ hash_remove(buf_block_t block, blocknum_t bhash)
 }
 
 static buf_block_t
-get_blk()
+get_buf_block()
 {
     buf_block_t block;
     queue_dequeue(bc->lru, (void**)&block);
     if (NULL == block)
         block = malloc(sizeof(struct buf_block));
+    else
+        hash_remove(block, BLOCK_NUM_HASH(block->num));
     return block;
+}
+
+static disk_reply_t
+blocking_read(buf_block_t buf)
+{
+    interrupt_level_t oldlevel;
+    blocknum_t bhash = BLOCK_NUM_HASH(buf->num);
+    semaphore_P(disk_lim);
+    disk_read_block(buf->disk, buf->num, buf->data);
+    oldlevel = set_interrupt_level(DISABLED);
+    semaphore_P(bc->block_sig[bhash]);
+    set_interrupt_level(oldlevel);
+    semaphore_V(disk_lim);
+
+    return bc->reply[bhash];
+}
+
+static disk_reply_t
+blocking_write(buf_block_t buf)
+{
+    interrupt_level_t oldlevel;
+    blocknum_t bhash = BLOCK_NUM_HASH(buf->num);
+    semaphore_P(disk_lim);
+    disk_write_block(buf->disk, buf->num, buf->data);
+    oldlevel = set_interrupt_level(DISABLED);
+    semaphore_P(bc->block_sig[bhash]);
+    set_interrupt_level(oldlevel);
+    semaphore_V(disk_lim);
+
+    return bc->reply[bhash];
 }
 
 /* For block n, get a pointer to its block buffer */
 int
 bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
 {
-    blocknum_t bhash = BUF_HASH(n);
+    blocknum_t bhash = BLOCK_NUM_HASH(n);
 
     if (NULL == bufp || NULL == disk || disk->layout.size < n) {
         return -1;
     }
-
     semaphore_P(bc->block_lock[bhash]);
     semaphore_P(bc->cache_lock);
 
     *bufp = hash_find(disk, n, bhash);
+
     if (NULL != *bufp) {
         queue_delete(bc->lru, (void**)bufp);
-        queue_append(bc->locked, *bufp);
     } else {
-        *bufp = get_blk();
+        *bufp = get_buf_block();
         if (NULL == *bufp) {
             return -1;
         }
@@ -139,10 +190,7 @@ bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
 
         semaphore_V(bc->cache_lock);
 
-        semaphore_P(disk_lim);
-        disk_read_block(disk, n, (*bufp)->data);
-        semaphore_P(bc->block_sig[bhash]);
-        semaphore_V(disk_lim);
+        blocking_read(*bufp);
 
         semaphore_P(bc->cache_lock);
 
@@ -161,10 +209,9 @@ int
 brelse(buf_block_t buf)
 {
     semaphore_P(bc->cache_lock);
-    queue_delete(bc->locked, (void**)&buf);
     queue_append(bc->lru, buf);
     semaphore_V(bc->cache_lock);
-    semaphore_V(bc->block_lock[BUF_HASH(buf->num)]);
+    semaphore_V(bc->block_lock[BLOCK_NUM_HASH(buf->num)]);
     return 0;
 }
 
@@ -172,10 +219,7 @@ brelse(buf_block_t buf)
 /* Immediately write buffer back to disk, block until write finishes */
 int bwrite(buf_block_t buf)
 {
-    semaphore_P(disk_lim);
-    disk_write_block(buf->disk, buf->num, buf->data);
-    semaphore_P(bc->block_sig[BUF_HASH(buf->num)]);
-    semaphore_V(disk_lim);
+    blocking_write(buf);
     brelse(buf);
     return 0;
 }
@@ -192,140 +236,3 @@ void bdwrite(buf_block_t buf)
 {
     bwrite(buf);
 }
-
-
-
-///* Create a cache with size as table size, return NULL if fails */
-//minifile_cache_t
-//minifile_cache_new(int size, int max_num_entry)
-//{
-//    minifile_cache_t new_cache;
-//
-//    if (size <= 0) {
-//        return NULL;
-//    }
-//
-//    new_cache = malloc(sizeof(struct minifile_cache));
-//    if (new_cache == NULL) {
-//        return NULL;
-//    }
-//    new_cache->items = malloc(sizeof(minifile_item_t) * size);
-//    if (new_cache->items == NULL) {
-//        free(new_cache);
-//        return NULL;
-//    }
-//    memset(new_cache->items, 0, sizeof(minifile_item_t) * size);
-//    new_cache->item_num = 0;
-//    new_cache->table_size = size;
-//    new_cache->list_head = NULL;
-//    new_cache->list_tail = NULL;
-//    new_cache->max_item_num = max_num_entry;
-//    new_cache->exp_length = exp_length;
-//    return new_cache;
-//}
-//
-//
-///*
-// * Put an item into cache
-// * If the cache is full, find a victim to evict
-// * Return 0 on success, -1 on failure
-// */
-//int
-//minifile_cache_put_item(minifile_cache_t cache, void *it)
-//{
-//    minifile_item_t item = it;
-//    minifile_item_t item_to_evict;
-//    minifile_item_t exist_item;
-//    int hash_num;
-//
-//    if (minifile_cache_get_by_addr(cache, item->addr, (void**)&exist_item) == 0) {
-//        minifile_cache_delete_item(cache, exist_item);
-//    }
-//
-//    if (cache->item_num >= cache->max_item_num) {
-//        item_to_evict = cache->list_head;
-//        /* This shouldn't happen */
-//        if (item_to_evict == NULL) {
-//            return -1;
-//        }
-//        minifile_cache_delete_item(cache, item_to_evict);
-//    }
-//
-//    hash_num = hash_address(item->addr) % cache->table_size;
-//    item->hash_next = cache->items[hash_num];
-//    if (cache->items[hash_num] != NULL) {
-//        cache->items[hash_num]->hash_prev = item;
-//    }
-//    cache->items[hash_num] = item;
-//    if (cache->list_tail != NULL) {
-//        cache->list_tail->list_next = item;
-//        item->list_prev = cache->list_tail;
-//        cache->list_tail = item;
-//    } else {
-//        cache->list_tail = item;
-//        cache->list_head = item;
-//    }
-//    item->exp_time = ticks + cache->exp_length;
-//
-//    cache->item_num++;
-//    return 0;
-//}
-//
-///*
-// * Delete an item from cache
-// * Return 0 on success, -1 on failure
-// */
-//int
-//minifile_cache_delete_item(minifile_cache_t cache, void *it)
-//{
-//    int hash_num;
-//    minifile_item_t item = it;
-//
-//    if (item == NULL) {
-//        return -1;
-//    }
-//    if (item == cache->list_head) {
-//        cache->list_head = item->list_next;
-//    }
-//    if (item == cache->list_tail) {
-//        cache->list_tail = item->list_prev;
-//    }
-//    if (item->list_next != NULL) {
-//        item->list_next->list_prev = item->list_prev;
-//    }
-//    if (item->list_prev != NULL) {
-//        item->list_prev->list_next = item->list_next;
-//    }
-//    hash_num = hash_address(item->addr) % cache->table_size;
-//    if (cache->items[hash_num] == item) {
-//        cache->items[hash_num] = item->hash_next;
-//    }
-//    if (item->hash_next != NULL) {
-//        item->hash_next->hash_prev = item->hash_prev;
-//    }
-//    if (item->hash_prev != NULL) {
-//        item->hash_prev->hash_next = item->hash_next;
-//    }
-//    free(item);
-//    cache->item_num--;
-//    return 0;
-//}
-//
-///* Set the maximum item number of cache */
-//void
-//minifile_cache_set_max_num(minifile_cache_t cache, int num)
-//{
-//    if (num <= 0) {
-//        return;
-//    }
-//    cache->max_item_num = num;
-//}
-//
-///* Destroy a cache */
-//void
-//minifile_cache_destroy(minifile_cache_t cache)
-//{
-//    free(cache->items);
-//    free(cache);
-//}
-//

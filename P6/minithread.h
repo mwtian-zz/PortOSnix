@@ -2,6 +2,7 @@
 #define __MINITHREAD_H__
 
 #include "machineprimitives.h"
+#include "minifile_fs.h"
 
 /*
  * minithread.h:
@@ -28,7 +29,7 @@ typedef struct minithread *minithread_t;
  *	Create and schedule a new thread of control so
  *	that it starts executing inside proc_t with
  *	initial argument arg.
- */	
+ */
 extern minithread_t minithread_fork(proc_t proc, arg_t arg);
 
 
@@ -54,6 +55,8 @@ extern minithread_t minithread_self();
  */
 extern int minithread_id();
 
+/* Working directory inode number */
+extern inodenum_t minithread_wd();
 
 /*
  * minithread_stop()

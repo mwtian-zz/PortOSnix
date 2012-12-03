@@ -82,6 +82,7 @@ static int minithread_initialize_scheduler();
 static int minithread_initialize_sys_threads();
 static int minithread_initialize_interrupts();
 static int minithread_initialize_sys_sems();
+static int minithread_initialize_filesystem();
 static void clock_handler(void* arg);
 static void network_handler(void* arg);
 static void disk_handler(void* arg);
@@ -122,7 +123,7 @@ minithread_create(proc_t proc, arg_t arg)
     t->qnode.next = NULL;
     t->status = INITIAL;
     t->priority = 0;
-    t->current_dir = sb->root;
+    //t->current_dir = sb->root;
 
     semaphore_P(id_mutex);
     t->id = tid_count;
@@ -304,6 +305,13 @@ minithread_id()
     return context->id;
 }
 
+inodenum_t
+minithread_wd()
+{
+    return context->current_dir;
+}
+
+
 /*
  * Initialization.
  *
@@ -327,13 +335,16 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
     if (minithread_initialize_sys_sems() == -1) {
         exit(-1);
     }
+    if (minithread_initialize_filesystem() == -1) {
+        exit(-1);
+    }
+    if (minithread_initialize_interrupts() == -1) {
+        exit(-1);
+    }
     if (minithread_initialize_sys_threads() == -1) {
         exit(-1);
     }
     if (minithread_fork(mainproc, mainarg) == NULL) {
-        exit(-1);
-    }
-    if (minithread_initialize_interrupts() == -1) {
         exit(-1);
     }
 
@@ -391,6 +402,25 @@ minithread_initialize_sys_sems()
 }
 
 static int
+minithread_initialize_filesystem()
+{
+    /* Initialize disk. Parameters are set in the linked main program */
+    maindisk = &(disk_table[0]);
+    disk_initialize(maindisk);
+
+    /* Initialize cache */
+    minifile_buf_cache_init();
+
+    /* Get super block into memory */
+    sb = &(sb_table[0]);
+    sblock_get(maindisk, sb);
+    sblock_put(sb);
+    //root_inode = sb->root;
+
+    return 0;
+}
+
+static int
 minithread_initialize_interrupts()
 {
     ticks = 0;
@@ -404,9 +434,6 @@ minithread_initialize_interrupts()
     minimsg_initialize();
     minisocket_initialize();
     miniterm_initialize();
-    maindisk = &(disk_table[0]);
-    disk_initialize(maindisk);
-    minifile_buf_cache_init();
     install_disk_handler(disk_handler);
     set_interrupt_level(ENABLED);
 
@@ -473,7 +500,7 @@ disk_handler(void* arg)
     interrupt_level_t oldlevel = set_interrupt_level(DISABLED);
     disk_interrupt_arg_t *intrpt = arg;
     int block = intrpt->request.blocknum;
-    int blocknum = BUF_HASH(block);
+    int blocknum = BLOCK_NUM_HASH(block);
     semaphore_V(bc->block_sig[blocknum]);
     bc->reply[blocknum] = intrpt->reply;
     free(arg);

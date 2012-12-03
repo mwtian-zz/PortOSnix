@@ -19,7 +19,6 @@ int main(int argc, char** argv)
     }
     total_blocks = atoi(argv[1]);
 
-
     use_existing_disk = 0;
     disk_name = "minidisk";
     disk_flags = DISK_READWRITE;

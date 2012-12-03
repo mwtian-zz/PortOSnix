@@ -9,8 +9,8 @@
 #include "synch.h"
 
 /* Buffer cache hashing */
-#define BUFFER_CACHE_HASH 1024
-#define BUF_HASH(n) ((n) & 1023)
+#define BUFFER_CACHE_HASH_VALUE 1024
+#define BLOCK_NUM_HASH(n) ((n) & 1023)
 
 /* Supported disk address space */
 typedef uint64_t blocknum_t;
@@ -26,8 +26,8 @@ semaphore_t disk_lim;
 typedef struct buf_block *buf_block_t;
 struct buf_block {
     struct node node;
-    buf_block_t hash_next;          /* Next item in hash table entry */
     buf_block_t hash_prev;          /* Previous item in hash table entry */
+    buf_block_t hash_next;          /* Next item in hash table entry */
     char data[DISK_BLOCK_SIZE];
     disk_t* disk;
     blocknum_t num;
@@ -37,16 +37,17 @@ struct buf_block {
 typedef struct buf_cache *buf_cache_t;
 struct buf_cache {
     size_t hash_val;
-    size_t max_num_blocks;
+    size_t num_blocks;
     semaphore_t cache_lock;
-    semaphore_t block_lock[BUFFER_CACHE_HASH];
-    semaphore_t block_sig[BUFFER_CACHE_HASH];
-    buf_block_t hash[BUFFER_CACHE_HASH];
-    disk_reply_t reply[BUFFER_CACHE_HASH];
+    semaphore_t block_lock[BUFFER_CACHE_HASH_VALUE];
+    semaphore_t block_sig[BUFFER_CACHE_HASH_VALUE];
+    buf_block_t hash[BUFFER_CACHE_HASH_VALUE];
+    disk_reply_t reply[BUFFER_CACHE_HASH_VALUE];
     queue_t locked;
     queue_t lru;
 };
 
+/* Global cache */
 buf_cache_t bc;
 
 /* Sempahores used for locking the disk and signaling response */

@@ -2,6 +2,7 @@
 #include "minifile_cache.h"
 #include "minithread.h"
 #include <string.h>
+#include "minithread_private.h"
 
 /* Indirect block management */
 static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);

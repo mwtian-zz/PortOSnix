@@ -95,6 +95,7 @@ typedef struct mem_inode {
     /* semaphore_t lock; */
 } *mem_inode_t;
 
+struct inode _root_inode;
 mem_inode_t root_inode;
 
 /*

@@ -24,10 +24,6 @@
 /* Size of inode table */
 #define INODE_TABLE_SIZE 128
 
-#define MAX_PATH_LEN 256
-#define ENTRY_SIZE (MAX_PATH_LEN + 1 + 8)
-#define ENTRY_NUM_PER_BLOCK (DISK_BLOCK_SIZE / ENTRY_SIZE)
-
 /* Address space of inodes */
 typedef uint64_t inodenum_t;
 
@@ -71,7 +67,6 @@ typedef struct mem_sblock {
 
 struct mem_sblock sb_table[8];
 mem_sblock_t sb;
-mem_inode_t root_inode;
 
 /* inode on disk */
 typedef struct inode {
@@ -100,6 +95,8 @@ typedef struct mem_inode {
     /* semaphore_t lock; */
 } *mem_inode_t;
 
+mem_inode_t root_inode;
+
 /*
 struct mem_inode inode[INODE_TABLE_SIZE];
 */
@@ -126,6 +123,5 @@ extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
 extern blocknum_t bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset); /* Byte offset to block number */
 extern blocknum_t blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset); /* Block offset to block number */
-extern inodenum_t namei(char* path); /* Translate path to inode number, return -1 on failure*/
 
 #endif /* __MINIFILE_FS_H__ */

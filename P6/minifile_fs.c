@@ -1,6 +1,7 @@
 #include "minifile_fs.h"
 #include "minifile_cache.h"
 #include "minithread.h"
+#include "minithread_private.h"
 
 /* Indirect block management */
 static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
@@ -305,7 +306,7 @@ namei(char* path) {
 	inodenum_t working_inodenum;
 	mem_inode_t working_inode;
 	size_t start_index = 0;
-	
+
 	if (strlen(path) <= 0) {
 		return -1;
 	}
@@ -319,6 +320,6 @@ namei(char* path) {
 			return -1;
 		}
 	}
-	
-	
+
+
 }

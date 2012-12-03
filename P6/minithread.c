@@ -122,7 +122,7 @@ minithread_create(proc_t proc, arg_t arg)
     t->qnode.next = NULL;
     t->status = INITIAL;
     t->priority = 0;
-    t->current_dir = sb->root;
+    //t->current_dir = sb->root;
 
     semaphore_P(id_mutex);
     t->id = tid_count;
@@ -304,6 +304,13 @@ minithread_id()
     return context->id;
 }
 
+inodenum_t
+minithread_wd()
+{
+    return context->current_dir;
+}
+
+
 /*
  * Initialization.
  *
@@ -411,7 +418,7 @@ minithread_initialize_interrupts()
     minifile_buf_cache_init();
     sblock_get(maindisk, sb);
     sblock_put(sb);
-    root_inode = sb->root;
+    //root_inode = sb->root;
 
     install_disk_handler(disk_handler);
     set_interrupt_level(ENABLED);

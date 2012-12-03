@@ -71,7 +71,6 @@ typedef struct mem_sblock {
 
 struct mem_sblock sb_table[8];
 mem_sblock_t sb;
-mem_inode_t root_inode;
 
 /* inode on disk */
 typedef struct inode {
@@ -99,6 +98,9 @@ typedef struct mem_inode {
     size_t ref_count;
     /* semaphore_t lock; */
 } *mem_inode_t;
+
+struct inode _root_inode;
+mem_inode_t root_inode;
 
 /*
 struct mem_inode inode[INODE_TABLE_SIZE];

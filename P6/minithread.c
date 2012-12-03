@@ -327,13 +327,13 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
     if (minithread_initialize_sys_sems() == -1) {
         exit(-1);
     }
+    if (minithread_initialize_interrupts() == -1) {
+        exit(-1);
+    }
     if (minithread_initialize_sys_threads() == -1) {
         exit(-1);
     }
     if (minithread_fork(mainproc, mainarg) == NULL) {
-        exit(-1);
-    }
-    if (minithread_initialize_interrupts() == -1) {
         exit(-1);
     }
 
@@ -404,9 +404,15 @@ minithread_initialize_interrupts()
     minimsg_initialize();
     minisocket_initialize();
     miniterm_initialize();
+
     maindisk = &(disk_table[0]);
+    sb = &(sb_table[0]);
     disk_initialize(maindisk);
     minifile_buf_cache_init();
+    sblock_get(maindisk, sb);
+    sblock_put(sb);
+    root_inode = sb->root;
+
     install_disk_handler(disk_handler);
     set_interrupt_level(ENABLED);
 

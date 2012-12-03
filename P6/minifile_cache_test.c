@@ -18,11 +18,28 @@ int cache_test(int *arg)
         block[i] = i;
     bwrite(buf);
 
+    bread(maindisk, 127, &buf);
+    block = (blocknum_t*) buf->data;
+    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i)
+        block[i] = i + 127;
+    bwrite(buf);
+
+    printf("Checking block 0... ");
     bread(maindisk, 0, &buf);
     block = (blocknum_t*) buf->data;
     for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
-        printf("%ld\n", block[i]);
         if (block[i] != i) {
+            printf("Error in write %ld!\n", i);
+            break;
+        }
+    }
+    brelse(buf);
+
+    printf("Checking block 127... ");
+    bread(maindisk, 127, &buf);
+    block = (blocknum_t*) buf->data;
+    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
+        if (block[i] != (i + 127)) {
             printf("Error in write %ld!\n", i);
             break;
         }

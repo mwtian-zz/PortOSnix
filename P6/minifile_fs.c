@@ -2,6 +2,7 @@
 #include "minifile_cache.h"
 #include "minithread.h"
 #include <string.h>
+#include "minithread_private.h"
 
 /* Indirect block management */
 static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
@@ -295,4 +296,35 @@ triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
 blocknum_t
 bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset) {
 	return blockmap(disk, ino, byte_offset / DISK_BLOCK_SIZE);
+<<<<<<< HEAD
 }
+=======
+}
+
+/*
+ * Translate path to inode number
+ * Return -1 on failure
+ */
+inodenum_t
+namei(char* path) {
+	inodenum_t working_inodenum;
+	mem_inode_t working_inode;
+	size_t start_index = 0;
+
+	if (strlen(path) <= 0) {
+		return -1;
+	}
+	/* Start with root directory */
+	if (path[0] == "/") {
+		working_inode = root_inode;
+		start_index = 1;
+	} else {
+		working_inodenum = minithread_self()->current_dir;
+		if (working_inode = iget(maindisk, working_inodenum, &working_inode) != 0) {
+			return -1;
+		}
+	}
+
+
+}
+>>>>>>> 579177231009d1274d0c1b95f740b301a462f99a

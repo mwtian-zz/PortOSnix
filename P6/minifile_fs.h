@@ -4,6 +4,8 @@
 #include "disk.h"
 #include "minifile_cache.h"
 
+#define FS_MAGIC_NUMBER 0xbada55
+
 #define INODE_START_BLOCK 1 /* Inode starts from block 1 */
 #define INODE_SIZE 128    /* Size of inode in bytes on disk */
 #define INODE_PER_BLOCK (DISK_BLOCK_SIZE / INODE_SIZE)   /* Number of inodes in one block */
@@ -26,6 +28,9 @@
 /* Address space of inodes */
 typedef uint64_t inodenum_t;
 
+/* Magic number is four bytes */
+typedef uint32_t magicnum_t;
+
 /* Types of inodes */
 typedef enum inode_type {
     MINIFILE,
@@ -35,6 +40,7 @@ typedef enum inode_type {
 
 /* Super block on disk */
 typedef struct sblock {
+    magicnum_t magic_number;
     blocknum_t total_blocks;
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
@@ -48,6 +54,7 @@ typedef struct sblock {
 
 /* Super block in memory */
 typedef struct mem_sblock {
+    magicnum_t magic_number;
     blocknum_t total_blocks;
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
@@ -62,6 +69,7 @@ typedef struct mem_sblock {
     blocknum_t pos;
     buf_block_t buf;
     semaphore_t lock;
+    char init;
 } *mem_sblock_t;
 
 struct mem_sblock sb_table[8];

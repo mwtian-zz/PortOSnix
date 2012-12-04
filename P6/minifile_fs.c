@@ -241,6 +241,15 @@ blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset) {
 	return triple_indirect(disk, ino->triple_indirect, offset);
 }
 
+/*
+ * Byte offset to block number
+ * Return -1 on error
+ */
+blocknum_t
+bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset) {
+	return blockmap(disk, ino, byte_offset / DISK_BLOCK_SIZE);
+}
+
 static blocknum_t
 indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
 	buf_block_t buf;
@@ -287,13 +296,4 @@ triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
 	brelse(buf);
 
 	return double_indirect(disk, block_to_read, block_offset - offset_to_read * POINTER_PER_BLOCK * POINTER_PER_BLOCK);
-}
-
-/*
- * Byte offset to block number
- * Return -1 on error
- */
-blocknum_t
-bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset) {
-	return blockmap(disk, ino, byte_offset / DISK_BLOCK_SIZE);
 }

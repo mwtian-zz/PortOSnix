@@ -97,9 +97,16 @@ itable_put_table(mem_inode_t inode) {
 /* Delete inode from hash table */
 void 
 itable_delete_from_table(mem_inode_t inode) {
-	int slotnum = INODE_NUM_HASH(inode->num);
-	mem_inode_t hhead = itable.inode_hashtable[slotnum];
+	int slotnum ;
+	mem_inode_t hhead;
 	
+	/* Not on table */
+	if (inode->h_next == NULL && inode->h_prev == NULL) {
+		return;
+	}
+	
+	slotnum = INODE_NUM_HASH(inode->num);
+	hhead = itable.inode_hashtable[slotnum];
 	if (hhead == inode) {
 		hhead = inode->h_next;
 	}
@@ -113,7 +120,7 @@ itable_delete_from_table(mem_inode_t inode) {
 	inode->h_next = NULL;
 }
 
-/* Put inode back to free list, but can still be in hash table */
+/* Put inode back to free list */
 void itable_put_list(mem_inode_t inode) {
 	if (itable.freelist_tail != NULL) {
 		itable.freelist_tail->l_next = inode;
@@ -126,6 +133,7 @@ void itable_put_list(mem_inode_t inode) {
 		inode->l_prev = NULL;
 		inode->l_next = NULL;
 	}
+	itable_delete_from_table(inode);
 }
 
 /* Delete inode from free list */

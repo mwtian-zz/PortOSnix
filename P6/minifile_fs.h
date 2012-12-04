@@ -100,6 +100,11 @@ typedef struct mem_inode {
     blocknum_t size_blocks;
     size_t ref_count;
     /* semaphore_t lock; */
+	
+	struct mem_inode* h_prev;   /* Hash table previous */
+	struct mem_inode* h_next;   /* Hash table next */
+	struct mem_inode* l_prev;   /* Free list previous */
+	struct mem_inode* l_next;   /* Free list next */
 } *mem_inode_t;
 
 struct inode _root_inode;

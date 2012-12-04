@@ -3,6 +3,7 @@
 #include "minithread.h"
 #include <string.h>
 #include "minithread_private.h"
+#include "minifile_inode.h"
 
 /* Indirect block management */
 static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);

@@ -32,6 +32,8 @@ OBJ = \
     minifile_cache.o \
     minifile_diskutil.o \
     minifile_fs.o \
+    minifile_inode.o \
+    minifile_inodetable.o \
     miniheader.o \
     minimsg.o \
     minisocket.o \

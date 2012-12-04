@@ -38,6 +38,7 @@ namei(char* path) {
 	
 	pch = strtok(path, "/");
 	while (pch != NULL) {
+		semaphore_P(working_inode->inode_lock);
 		if (working_inode->type != MINIDIRECTORY) {
 			return 0;
 		}
@@ -67,6 +68,10 @@ namei(char* path) {
 				break;
 			}
 		}
+		semaphore_V(working_inode);
+		if (working_inode != root_inode) {
+			iput(maindisk, working_inode);
+		}
 		if (isFound == 0) {
 			return 0;
 		} 
@@ -74,6 +79,9 @@ namei(char* path) {
 			return 0;
 		}
 		pch = strtok(NULL, "/");
+	}
+	if (working_inode != root_inode) {
+		iput(maindisk, working_inode);
 	}
 	return ret_inodenum;
 }

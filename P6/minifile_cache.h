@@ -23,7 +23,16 @@ disk_t *maindisk;
 semaphore_t disk_lim;
 
 /* Data structures for buffer cache and cached items */
+typedef enum block_state block_state_t;
 typedef struct buf_block *buf_block_t;
+typedef struct buf_cache *buf_cache_t;
+
+enum block_state {
+    BLOCK_EMPTY,
+    BLOCK_CLEAN,
+    BLOCK_DIRTY
+};
+
 struct buf_block {
     struct node node;
     buf_block_t hash_prev;          /* Previous item in hash table entry */
@@ -31,10 +40,9 @@ struct buf_block {
     char data[DISK_BLOCK_SIZE];
     disk_t* disk;
     blocknum_t num;
-    char mod;
+    block_state_t state;
 };
 
-typedef struct buf_cache *buf_cache_t;
 struct buf_cache {
     size_t hash_val;
     size_t num_blocks;
@@ -49,10 +57,6 @@ struct buf_cache {
 
 /* Global cache */
 buf_cache_t bc;
-
-/* Sempahores used for locking the disk and signaling response */
-extern semaphore_t disk_lock;
-extern semaphore_t block_sig;
 
 /* Buffer cache interface, explained before implementations */
 extern int minifile_buf_cache_init();

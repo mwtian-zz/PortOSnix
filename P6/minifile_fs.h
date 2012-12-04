@@ -13,7 +13,6 @@
 /* Inode offset within a data block */
 #define INODE_OFFSET(num) ((((num) - 1) % INODE_PER_BLOCK) * INODE_SIZE)
 
-
 #define POINTER_PER_BLOCK 512
 #define INODE_DIRECT_BLOCKS 11
 #define INODE_INDIRECT_BLOCKS (512)

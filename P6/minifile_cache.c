@@ -29,24 +29,20 @@ int
 minifile_buf_cache_init()
 {
     int i;
-    buf_block_t block;
 
     disk_lim = semaphore_new(MAX_PENDING_DISK_REQUESTS);
     bc = malloc(sizeof(struct buf_cache));
     if (NULL == disk_lim || NULL == bc)
         goto err1;
 
+    bc->hash_val = BUFFER_CACHE_HASH_VALUE;
+    bc->num_blocks = 0;
+
     bc->locked = queue_new();
     bc->lru = queue_new();
     for (i = 0; i < BUFFER_CACHE_HASH_VALUE; ++i) {
         bc->block_lock[i] = semaphore_new(1);
         bc->block_sig[i] = semaphore_new(0);
-        block = malloc(sizeof(struct buf_block));
-        if (NULL != block) {
-            block->hash_prev = NULL;
-            block->hash_next = NULL;
-            queue_append(bc->lru, block);
-        }
     }
     bc->cache_lock = semaphore_new(1);
 
@@ -127,12 +123,21 @@ hash_remove(buf_block_t block, blocknum_t bhash)
 static buf_block_t
 get_buf_block()
 {
-    buf_block_t block;
-    queue_dequeue(bc->lru, (void**)&block);
-    if (NULL == block)
+    buf_block_t block = NULL;
+
+    if (bc->num_blocks > bc->hash_val) {
+        queue_dequeue(bc->lru, (void**)&block);
+    }
+    if (NULL == block) {
         block = malloc(sizeof(struct buf_block));
-    else
+    }
+    else {
+        if (BLOCK_DIRTY == block->state) {
+            blocking_write(block);
+        }
         hash_remove(block, BLOCK_NUM_HASH(block->num));
+    }
+
     return block;
 }
 
@@ -141,12 +146,16 @@ blocking_read(buf_block_t buf)
 {
     interrupt_level_t oldlevel;
     blocknum_t bhash = BLOCK_NUM_HASH(buf->num);
+
     semaphore_P(disk_lim);
     disk_read_block(buf->disk, buf->num, buf->data);
     oldlevel = set_interrupt_level(DISABLED);
     semaphore_P(bc->block_sig[bhash]);
     set_interrupt_level(oldlevel);
     semaphore_V(disk_lim);
+    if (DISK_REPLY_OK == bc->reply[bhash]) {
+        buf->state = BLOCK_CLEAN;
+    }
 
     return bc->reply[bhash];
 }
@@ -156,12 +165,16 @@ blocking_write(buf_block_t buf)
 {
     interrupt_level_t oldlevel;
     blocknum_t bhash = BLOCK_NUM_HASH(buf->num);
+
     semaphore_P(disk_lim);
     disk_write_block(buf->disk, buf->num, buf->data);
     oldlevel = set_interrupt_level(DISABLED);
     semaphore_P(bc->block_sig[bhash]);
     set_interrupt_level(oldlevel);
     semaphore_V(disk_lim);
+    if (DISK_REPLY_OK == bc->reply[bhash]) {
+        buf->state = BLOCK_CLEAN;
+    }
 
     return bc->reply[bhash];
 }
@@ -175,6 +188,7 @@ bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
     if (NULL == bufp || NULL == disk || disk->layout.size < n) {
         return -1;
     }
+
     semaphore_P(bc->block_lock[bhash]);
     semaphore_P(bc->cache_lock);
 
@@ -183,21 +197,19 @@ bread(disk_t* disk, blocknum_t n, buf_block_t *bufp)
     if (NULL != *bufp) {
         queue_delete(bc->lru, (void**)bufp);
     } else {
+        semaphore_V(bc->cache_lock);
+
         *bufp = get_buf_block();
         if (NULL == *bufp) {
             return -1;
         }
         (*bufp)->disk = disk;
         (*bufp)->num = n;
-
-        semaphore_V(bc->cache_lock);
-
         blocking_read(*bufp);
 
         semaphore_P(bc->cache_lock);
 
         hash_add(*bufp, bhash);
-        queue_append(bc->locked, *bufp);
     }
 
     semaphore_V(bc->cache_lock);
@@ -230,11 +242,12 @@ int bwrite(buf_block_t buf)
 /* Schedule write immediately, but do not block */
 void bawrite(buf_block_t buf)
 {
-    bwrite(buf);
+    bdwrite(buf);
 }
 
 /* Only mark buffer dirty, no write scheduled */
 void bdwrite(buf_block_t buf)
 {
-    bwrite(buf);
+    buf->state = BLOCK_DIRTY;
+    brelse(buf);
 }

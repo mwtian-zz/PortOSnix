@@ -413,8 +413,8 @@ minithread_initialize_filesystem()
 
     /* Get super block into memory */
     sb = &(sb_table[0]);
-    sblock_get(maindisk, sb);
-    sblock_put(sb);
+    sblock_get(maindisk, mainsb);
+    sblock_put(mainsb);
     //root_inode = sb->root;
 
     return 0;

@@ -73,7 +73,7 @@ typedef struct mem_sblock {
 } *mem_sblock_t;
 
 struct mem_sblock sb_table[8];
-mem_sblock_t sb;
+mem_sblock_t mainsb;
 
 /* inode on disk */
 typedef struct inode {
@@ -121,7 +121,7 @@ void sblock_put(mem_sblock_t sbp);
 int sblock_update(mem_sblock_t sbp);
 
 /* Disk space management functions. Explained before implementations. */
-extern blocknum_t balloc(disk_t* disk);
+extern buf_block_t balloc(disk_t* disk);
 extern void bfree(disk_t* disk, blocknum_t n);
 extern mem_inode_t ialloc(disk_t* disk);
 extern void ifree(disk_t* disk, inodenum_t n);

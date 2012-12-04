@@ -21,6 +21,8 @@ static buf_block_t hash_find(disk_t* disk, blocknum_t n, blocknum_t bhash);
 static void hash_add(buf_block_t block, blocknum_t bhash);
 static void hash_remove(buf_block_t block, blocknum_t bhash);
 static buf_block_t get_buf_block();
+static disk_reply_t blocking_read(buf_block_t buf);
+static disk_reply_t blocking_write(buf_block_t buf);
 
 /* Initialize buffer cache */
 int

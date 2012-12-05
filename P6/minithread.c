@@ -319,6 +319,18 @@ minithread_wd_inode() {
 	return context->current_dir_inode;
 }
 
+/* Set working directory inode number */
+void 
+minithread_set_wd(inodenum_t inodenum) {
+	context->current_dir = inodenum;
+}
+
+/* Set working directory inode */
+void 
+minithread_set_wd_inode(mem_inode_t ino) {
+	context->current_dir_inode = ino;
+}
+
 /*
  * Initialization.
  *

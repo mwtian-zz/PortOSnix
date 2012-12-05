@@ -61,6 +61,12 @@ extern inodenum_t minithread_wd();
 /* Working directory inode */
 extern mem_inode_t minithread_wd_inode();
 
+/* Set working directory inode number */
+extern void minithread_set_wd(inodenum_t inodenum);
+
+/* Set working directory inode */
+extern void minithread_set_wd_inode(mem_inode_t ino);
+
 /*
  * minithread_stop()
  * DEPRECATED. Beginning from project 2, you should use minithread_unlock_and_stop() instead

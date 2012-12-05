@@ -241,6 +241,32 @@ ifree(mem_inode_t inode)
 }
 
 int
+ilist_check(mem_sblock_t sbp)
+{
+    blocknum_t i, next;
+    mem_inode_t inode;
+    freenode_t freenode;
+
+    sblock_get(maindisk, mainsb);
+    next = mainsb->free_ilist_head;
+    //printf("Next: %ld\n", next);
+    for (i = 0; i < mainsb->free_inodes; ++i) {
+        if (iget(sbp->disk, next, &inode) != 0)
+            break;
+        freenode = (freenode_t) inode;
+        next = freenode->next;
+        //printf("Next: %ld\n", next);
+        iput(inode);
+    }
+    sblock_put(mainsb);
+
+    if (0 == next)
+        return 0;
+    else
+        return -1;
+}
+
+int
 iread(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 {
     return 0;

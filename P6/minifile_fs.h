@@ -68,6 +68,7 @@ extern int sblock_update(mem_sblock_t sbp);
 extern void sblock_put(mem_sblock_t sbp);
 extern int sblock_init(mem_sblock_t sbp, blocknum_t total_blocks);
 extern int sblock_isvalid(mem_sblock_t sbp);
+extern void sblock_print(mem_sblock_t sbp);
 
 /* Disk space management functions. Explained before implementations. */
 extern buf_block_t balloc(disk_t* disk);
@@ -76,9 +77,10 @@ extern int blist_check(mem_sblock_t sbp);
 
 extern mem_inode_t ialloc(disk_t* disk);
 extern void ifree(mem_inode_t inode);
+int ilist_check(mem_sblock_t sbp);
+
 extern int iread(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern int iwrite(mem_inode_t ino);
 extern void irelse(mem_inode_t ino);
-extern void sblock_print(mem_sblock_t sbp);
 
 #endif /* __MINIFILE_FS_H__ */

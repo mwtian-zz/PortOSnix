@@ -57,9 +57,9 @@ mem_sblock_t mainsb;
 semaphore_t sb_lock;
 
 /* free block on disk */
-typedef struct freespace {
+typedef struct freenode {
     blocknum_t next;
-} *freespace_t;
+} *freenode_t;
 
 
 /* Super block management */
@@ -72,6 +72,8 @@ extern int sblock_isvalid(mem_sblock_t sbp);
 /* Disk space management functions. Explained before implementations. */
 extern buf_block_t balloc(disk_t* disk);
 extern void bfree(buf_block_t block);
+extern int blist_check(mem_sblock_t sbp);
+
 extern mem_inode_t ialloc(disk_t* disk);
 extern void ifree(mem_inode_t inode);
 extern int iread(disk_t* disk, inodenum_t n, mem_inode_t *inop);

@@ -100,7 +100,7 @@ buf_block_t
 balloc(disk_t* disk)
 {
     blocknum_t freeblk_num;
-    freespace_t freeblk;
+    freenode_t freeblk;
     buf_block_t buf;
 
     /* Get super block */
@@ -112,7 +112,7 @@ balloc(disk_t* disk)
     /* Get free block number and next free block */
     freeblk_num = mainsb->free_blist_head;
     bread(disk, freeblk_num, &buf);
-    freeblk = (freespace_t) buf->data;
+    freeblk = (freenode_t) buf->data;
     mainsb->free_blist_head = freeblk->next;
     mainsb->free_blocks--;
     if (0 == mainsb->free_blocks) {
@@ -130,13 +130,13 @@ balloc(disk_t* disk)
 void
 bfree(buf_block_t block)
 {
-    freespace_t freeblk;
+    freenode_t freeblk;
 
     /* Get super block */
     sblock_get(block->disk, mainsb);
 
     /* Add to the free block list  */
-    freeblk = (freespace_t) block->data;
+    freeblk = (freenode_t) block->data;
     freeblk->next = mainsb->free_blist_head;
     mainsb->free_blist_head = block->num;
     mainsb->free_blocks++;
@@ -153,7 +153,27 @@ bfree(buf_block_t block)
 int
 blist_check(mem_sblock_t sbp)
 {
-    return 0;
+    blocknum_t i, next;
+    buf_block_t block;
+    freenode_t freenode;
+
+    sblock_get(maindisk, mainsb);
+    next = mainsb->free_blist_head;
+    //printf("Next: %ld\n", next);
+    for (i = 0; i < mainsb->free_blocks; ++i) {
+        if (bread(sbp->disk, next, &block) != 0)
+            break;
+        freenode = (freenode_t) block->data;
+        next = freenode->next;
+        //printf("Next: %ld\n", next);
+        brelse(block);
+    }
+    sblock_put(mainsb);
+
+    if (0 == next)
+        return 0;
+    else
+        return -1;
 }
 
 /*
@@ -164,7 +184,7 @@ mem_inode_t
 ialloc(disk_t* disk)
 {
     inodenum_t freeinode_num;
-    freespace_t freeblk;
+    freenode_t freeblk;
 	mem_inode_t new_inode;
 
 	semaphore_P(sb_lock);
@@ -179,7 +199,7 @@ ialloc(disk_t* disk)
 	if (iget(disk, freeinode_num, &new_inode) != 0) {
 		goto err1;
 	}
-	freeblk = (freespace_t) new_inode;
+	freeblk = (freenode_t) new_inode;
     mainsb->free_ilist_head = freeblk->next;
 	mainsb->free_inodes--;
 
@@ -198,7 +218,7 @@ err1:
 void
 ifree(mem_inode_t inode)
 {
-    freespace_t freeblk;
+    freenode_t freeblk;
 	inodenum_t freeinode_num;
 
     if (inode->disk->layout.size <= inode->num) {
@@ -210,7 +230,7 @@ ifree(mem_inode_t inode)
 	iget(inode->disk, inode->num, &inode);
 
 	freeinode_num = inode->num;
-    freeblk = (freespace_t) inode;
+    freeblk = (freenode_t) inode;
     freeblk->next = mainsb->free_ilist_head;
     mainsb->free_ilist_head = freeinode_num;
 	mainsb->free_inodes++;

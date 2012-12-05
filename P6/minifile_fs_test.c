@@ -31,8 +31,9 @@ int fs_multithread_test(int *arg)
 
 int fs_test(int *arg)
 {
-//    buf_block_t buf;
-//    blocknum_t i, j;
+    buf_block_t block;
+    blocknum_t i, j;
+    freenode_t freenode;
 //    blocknum_t* block;
 //    blocknum_t inodes_blocks = total_blocks / INODE_PER_BLOCK;
 
@@ -44,7 +45,38 @@ int fs_test(int *arg)
     sblock_print(mainsb);
     sblock_put(mainsb);
 
+    /* Initialize free block list */
+    sblock_get(maindisk, mainsb);
+    for (i = mainsb->free_blist_head; i < mainsb->free_blist_tail; ++i) {
+        bread(maindisk, i, &block);
+        freenode = (freenode_t) block->data;
+        freenode->next = i + 1;
+        bwrite(block);
+    }
+    bread(maindisk, mainsb->free_blist_tail, &block);
+    freenode = (freenode_t) block->data;
+    freenode->next = 0;
+    bwrite(block);
+    sblock_put(mainsb);
+    printf("Free block list initialized.\n");
+    if (0 == blist_check(mainsb))
+        printf("Free block list correct.\n");
+    else
+        printf("Free block list incorrect.\n");
+
     /* Test block allocation/free */
+    for (i = 0; i < mainsb->free_blocks; ++i) {
+        block = balloc(maindisk);
+        block->data[0] = 1;
+        bfree(block);
+    }
+    sblock_get(maindisk, mainsb);
+    printf("Allocated and free all blocks. Free block left: %ld.\n", mainsb->free_blocks);
+    sblock_put(mainsb);
+    if (0 == blist_check(mainsb))
+        printf("Free block list correct.\n");
+    else
+        printf("Free block list incorrect.\n");
 
 //    bread(maindisk, 0, &buf);
 //    block = (blocknum_t*) buf->data;

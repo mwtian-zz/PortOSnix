@@ -17,7 +17,7 @@ iclear(mem_inode_t ino)
 {
 	int datablock_num, i, blocknum;
 	buf_block_t buf;
-	freespace_t freeblock;
+	freenode_t freeblock;
 
 	if (ino->type == MINIDIRECTORY) {
 		if (ino->size <= 0) {
@@ -43,7 +43,7 @@ iclear(mem_inode_t ino)
 			/* What to do here? */
 		}
 		if (bread(ino->disk, blocknum, &buf) == 0) {
-			freeblock = (freespace_t) buf->data;
+			freeblock = (freenode_t) buf->data;
 			freeblock->next = mainsb->free_blist_head;
 			mainsb->free_blist_head = buf->num;
 			mainsb->free_blocks++;

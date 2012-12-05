@@ -6,11 +6,11 @@
 
 /* Make a file system with parameters specified in disk.h */
 int
-minifile_remkfs(blocknum_t total_blocks)
+minifile_remkfs()
 {
     buf_block_t buf;
     mem_inode_t inode;
-    freespace_t freespace;
+    freenode_t freenode;
     blocknum_t i;
 
     /* Initialize superblock */
@@ -27,25 +27,25 @@ minifile_remkfs(blocknum_t total_blocks)
     /* Initialize free inode list */
     for (i = mainsb->free_ilist_head; i < mainsb->free_ilist_tail; ++i) {
         iget(maindisk, i, &inode);
-        freespace = (freespace_t) inode;
-        freespace->next = i + 1;
+        freenode = (freenode_t) inode;
+        freenode->next = i + 1;
         iupdate(inode);
     }
     iget(maindisk, mainsb->free_ilist_tail, &inode);
-    freespace = (freespace_t) inode;
-    freespace->next = 0;
+    freenode = (freenode_t) inode;
+    freenode->next = 0;
     iupdate(inode);
 
     /* Initialize free block list */
     for (i = mainsb->free_blist_head; i < mainsb->free_blist_tail; ++i) {
         bread(maindisk, i, &buf);
-        freespace = (freespace_t) buf->data;
-        freespace->next = i + 1;
+        freenode = (freenode_t) buf->data;
+        freenode->next = i + 1;
         bwrite(buf);
     }
     bread(maindisk, mainsb->free_blist_tail, &buf);
-    freespace = (freespace_t) buf->data;
-    freespace->next = 0;
+    freenode = (freenode_t) buf->data;
+    freenode->next = 0;
     bwrite(buf);
 
     printf("minifile system established.\n");

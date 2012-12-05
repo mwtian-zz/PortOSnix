@@ -2,6 +2,9 @@
 
 #include "disk.h"
 #include "minifile_cache.h"
+#include "minifile_fs.h"
+#include "minifile_inode.h"
+
 #include "minithread.h"
 #include "synch.h"
 
@@ -31,64 +34,74 @@ int fs_test(int *arg)
     buf_block_t buf;
     blocknum_t i, j;
     blocknum_t* block;
+    blocknum_t inodes_blocks = total_blocks / INODE_PER_BLOCK;
 
-    bread(maindisk, 0, &buf);
-    block = (blocknum_t*) buf->data;
-    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i)
-        block[i] = i;
-    bwrite(buf);
+    /* Test super block read/write */
+    sblock_get(maindisk, mainsb);
+    sblock_init(mainsb, total_blocks);
+    sblock_update(mainsb);
+    sblock_get(maindisk, mainsb);
+    sblock_print(mainsb);
+    sblock_put(mainsb);
 
-    bread(maindisk, 127, &buf);
-    block = (blocknum_t*) buf->data;
-    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i)
-        block[i] = i + 127;
-    bwrite(buf);
-
-    printf("Checking block 0... ");
-    bread(maindisk, 0, &buf);
-    block = (blocknum_t*) buf->data;
-    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
-        if (block[i] != i) {
-            printf("Error in write %ld!\n", i);
-            break;
-        }
-    }
-    brelse(buf);
-    printf("Check finished\n");
-
-    printf("Checking block 127... ");
-    bread(maindisk, 127, &buf);
-    block = (blocknum_t*) buf->data;
-    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
-        if (block[i] != (i + 127)) {
-            printf("Error in write %ld!\n", i);
-            break;
-        }
-    }
-    brelse(buf);
-    printf("Check finished\n");
-
-    sig = semaphore_new(0);
-    for (j = 0; j < 10; ++j) {
-        shift[j] = j + 11;
-        minithread_fork(cache_multithread_test, &(shift[j]));
-    }
-    for (j = 0; j < 10; ++j) {
-        semaphore_P(sig);
-    }
-
-    printf("Checking block 0 after multithreaded operation... ");
-    bread(maindisk, 0, &buf);
-    block = (blocknum_t*) buf->data;
-    printf("block[0]: %ld\n", block[0]);
-    for (i = 1; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
-        if (block[i] != i + block[0]) {
-            printf("Error in write %ld!\n", i);
-            break;
-        }
-    }
-    brelse(buf);
-    printf("Check finished\n");
+    /* Test block allocation/free */
+//    bread(maindisk, 0, &buf);
+//    block = (blocknum_t*) buf->data;
+//    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i)
+//        block[i] = i;
+//    bwrite(buf);
+//
+//    bread(maindisk, 127, &buf);
+//    block = (blocknum_t*) buf->data;
+//    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i)
+//        block[i] = i + 127;
+//    bwrite(buf);
+//
+//    printf("Checking block 0... ");
+//    bread(maindisk, 0, &buf);
+//    block = (blocknum_t*) buf->data;
+//    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
+//        if (block[i] != i) {
+//            printf("Error in write %ld!\n", i);
+//            break;
+//        }
+//    }
+//    brelse(buf);
+//    printf("Check finished\n");
+//
+//    printf("Checking block 127... ");
+//    bread(maindisk, 127, &buf);
+//    block = (blocknum_t*) buf->data;
+//    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
+//        if (block[i] != (i + 127)) {
+//            printf("Error in write %ld!\n", i);
+//            break;
+//        }
+//    }
+//    brelse(buf);
+//    printf("Check finished\n");
+//
+//    sig = semaphore_new(0);
+//    for (j = 0; j < 10; ++j) {
+//        shift[j] = j + 11;
+//        minithread_fork(cache_multithread_test, &(shift[j]));
+//    }
+//    for (j = 0; j < 10; ++j) {
+//        semaphore_P(sig);
+//    }
+//
+//    printf("Checking block 0 after multithreaded operation... ");
+//    bread(maindisk, 0, &buf);
+//    block = (blocknum_t*) buf->data;
+//    printf("block[0]: %ld\n", block[0]);
+//    for (i = 1; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i) {
+//        if (block[i] != i + block[0]) {
+//            printf("Error in write %ld!\n", i);
+//            break;
+//        }
+//    }
+//    brelse(buf);
+//    printf("Check finished\n");
 
     return 0;
 }

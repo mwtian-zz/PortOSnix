@@ -3,14 +3,12 @@
 #include "minithread.h"
 #include <string.h>
 #include "minithread_private.h"
+#include "minifile_inode.h"
 
-/* Indirect block management */
-static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
-static blocknum_t double_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
-static blocknum_t triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
 
 /* Get super block into a memory struct */
-int sblock_get(disk_t* disk, mem_sblock_t sbp)
+int
+sblock_get(disk_t* disk, mem_sblock_t sbp)
 {
     buf_block_t buf;
 
@@ -26,20 +24,78 @@ int sblock_get(disk_t* disk, mem_sblock_t sbp)
 }
 
 /* Return super block and no write back to disk */
-void sblock_put(mem_sblock_t sbp)
+void
+sblock_put(mem_sblock_t sbp)
 {
     brelse(sbp->buf);
 }
 
 /* Return super block and immediately write back to disk */
-int sblock_update(mem_sblock_t sbp)
+int
+sblock_update(mem_sblock_t sbp)
 {
     memcpy(sbp->buf->data, sbp, sizeof(struct sblock));
     bwrite(sbp->buf);
 	return 0;
 }
 
-/* Get a free block from the disk and lock the block */
+/*
+ * Fill in the initial data for a super block in memory.
+ * Requires getting the super block before this and updating it after.
+ */
+int
+sblock_init(mem_sblock_t sbp, blocknum_t total_blocks)
+{
+    inodenum_t inode_blocks = total_blocks / INODE_PER_BLOCK;
+    if (NULL == sbp)
+        return -1;
+
+    sbp->magic_number = MINIFS_MAGIC_NUMBER;
+    sbp->total_blocks = total_blocks;
+    sbp->free_blist_head = 1 + inode_blocks;
+    sbp->free_blist_tail = total_blocks - 1;
+    sbp->free_blocks = total_blocks - inode_blocks - 1;
+    sbp->total_inodes = total_blocks;
+    sbp->free_ilist_head = 1;
+    sbp->free_ilist_tail = total_blocks;
+    sbp->free_inodes = total_blocks;
+    sbp->first_inode_block = 1;
+    sbp->first_data_block = 1 + inode_blocks;
+    sbp->root_inum = 1;
+
+    return 0;
+}
+
+/* Check if a file system is valid. Return 0 (false) if invalid. */
+int
+sblock_isvalid(mem_sblock_t sbp)
+{
+    if (MINIFS_MAGIC_NUMBER == sbp->magic_number)
+        return 1;
+    else
+        return 0;
+}
+
+/* Print the super block in memory in a readable way */
+void
+sblock_print(mem_sblock_t sbp)
+{
+    printf("%-40s %-16X\n", "Magic number (4-byte HEX) :", sbp->magic_number);
+    printf("%-40s %-16ld\n", "Total disk blocks :", sbp->total_blocks);
+    printf("%-40s %-16ld\n", "Free block head :", sbp->free_blist_head);
+    printf("%-40s %-16ld\n", "Free block tail :", sbp->free_blist_tail);
+    printf("%-40s %-16ld\n", "Number of free blocks :",  sbp->free_blocks);
+    printf("%-40s %-16ld\n", "Total disk inodes :", sbp->total_inodes);
+    printf("%-40s %-16ld\n", "Free inode head :", sbp->free_ilist_head);
+    printf("%-40s %-16ld\n", "Free inode tail :", sbp->free_ilist_tail);
+    printf("%-40s %-16ld\n", "Number of free inodes :", sbp->free_inodes);
+
+    printf("%-40s %-16ld\n", "Block number of 1st inode :", sbp->first_inode_block);
+    printf("%-40s %-16ld\n", "Block number of 1st data block :", sbp->first_data_block);
+    printf("%-40s %-16ld\n", "Block number of root :", sbp->root_inum);
+}
+
+/* Get a free block from the disk and lock (bread) the block */
 buf_block_t
 balloc(disk_t* disk)
 {
@@ -59,6 +115,10 @@ balloc(disk_t* disk)
     freeblk = (freespace_t) buf->data;
     mainsb->free_blist_head = freeblk->next;
     mainsb->free_blocks--;
+    if (0 == mainsb->free_blocks) {
+        mainsb->free_blist_head = 0;
+        mainsb->free_blist_tail = 0;
+    }
 
     /* Update superbock and release the empty block */
     sblock_update(mainsb);
@@ -66,236 +126,114 @@ balloc(disk_t* disk)
     return buf;
 }
 
+/* Free the block on disk and release control (bwrite) of the block */
 void
-bfree(disk_t* disk, blocknum_t freeblk_num)
+bfree(buf_block_t block)
 {
     freespace_t freeblk;
-    buf_block_t buf;
-
-    if (disk->layout.size <= freeblk_num) {
-        return;
-    }
 
     /* Get super block */
-    sblock_get(disk, mainsb);
+    sblock_get(block->disk, mainsb);
 
     /* Add to the free block list  */
-    bread(disk, freeblk_num, &buf);
-    freeblk = (freespace_t) buf->data;
+    freeblk = (freespace_t) block->data;
     freeblk->next = mainsb->free_blist_head;
-    mainsb->free_blist_head = freeblk_num;
+    mainsb->free_blist_head = block->num;
+    mainsb->free_blocks++;
+    if (1 == mainsb->free_blocks) {
+        mainsb->free_blist_head = block->num;
+        mainsb->free_blist_tail = block->num;
+    }
 
     /* Update superbock and the new free block */
     sblock_update(mainsb);
     bwrite(buf);
 }
 
+int
+blist_check(mem_sblock_t sbp)
+{
+
+}
+
 /*
  * Allocate a free inode and return a pointer to free inode
- * Return NULL if fail. May need locks.
+ * Return NULL if fail.
  */
 mem_inode_t
 ialloc(disk_t* disk)
 {
     inodenum_t freeinode_num;
     freespace_t freeblk;
-    buf_block_t buf;
-	blocknum_t block_to_read;
 	mem_inode_t new_inode;
 
-    /* Get super block */
-    sblock_get(disk, mainsb);
-    if (mainsb->free_blocks <= 0) {
-        return NULL;
+	semaphore_P(sb_lock);
+	sblock_get(disk, mainsb);
+	/* No more free blocks */
+    if (mainsb->free_blocks <= 0 || mainsb->free_inodes <= 0) {
+		goto err1;
     }
+
     /* Get free block number and next free block */
     freeinode_num = mainsb->free_ilist_head;
-	block_to_read = INODE_TO_BLOCK(freeinode_num);
-    bread(disk, block_to_read, &buf);
-    freeblk = (freespace_t) (buf->data + INODE_OFFSET(freeinode_num));
-    sb->free_ilist_head = freeblk->next;
-    /* Release superblock */
-    sblock_update(sb);
-
-	new_inode = malloc(sizeof(struct mem_inode));
-	/* If fails allocating new inode memory, don't update super block */
-	if (new_inode == NULL) {
-		return NULL;
+	if (iget(disk, freeinode_num, &new_inode) != 0) {
+		goto err1;
 	}
-	memcpy(new_inode, freeblk, sizeof(struct inode));
-	new_inode->num = freeinode_num;
-	new_inode->disk = disk;
-	new_inode->buf = buf;
-	new_inode->ref_count = 0;   /* ref count may need to be 1 */
-	new_inode->size = 0;
+	freeblk = (freespace_t) new_inode;
+    mainsb->free_ilist_head = freeblk->next;
+	mainsb->free_inodes--;
 
-    sb->free_ilist_head = freeblk->next;
-
+    /* Update superbock and release the empty block */
+    sblock_update(mainsb);
+	semaphore_V(sb_lock);
     return new_inode;
+
+err1:
+    sblock_put(mainsb);
+    semaphore_V(sb_lock);
+    return NULL;
 }
 
 /* Add an inode back to free list */
 void
-ifree(disk_t* disk, inodenum_t n)
+ifree(mem_inode_t inode)
 {
     freespace_t freeblk;
-    buf_block_t buf;
-	blocknum_t freeblk_num;
+	inodenum_t freeinode_num;
 
-    if (disk->layout.size <= n) {
+    if (inode->disk->layout.size <= inode->num) {
         return;
     }
 
-    /* Get super block */
-    sblock_get(disk, sb);
-	freeblk_num = INODE_TO_BLOCK(n);
-    /* Add to the free block list  */
-    bread(disk, freeblk_num, &buf);
-    freeblk = (freespace_t) (buf->data + INODE_OFFSET(n));
-    freeblk->next = sb->free_ilist_head;
-    sb->free_ilist_head = freeblk_num;
-	sb->free_blocks++;
-    /* Update superbock and the new free block */
-    sblock_update(sb);
-    bwrite(buf);
+	semaphore_P(sb_lock);
+	sblock_get(inode->disk, mainsb);
+	iget(inode->disk, inode->num, &inode);
+
+	freeinode_num = inode->num;
+    freeblk = (freespace_t) inode;
+    freeblk->next = mainsb->free_ilist_head;
+    mainsb->free_ilist_head = freeinode_num;
+	mainsb->free_inodes++;
+
+	iupdate(inode);
+    sblock_update(mainsb);
+	semaphore_V(sb_lock);
 }
 
-/* Clear the content of an inode, including indirect blocks */
 int
-iclear(disk_t* disk, inodenum_t n)
+iread(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 {
-	return 0;
-}
-
-/* Get the content of the inode with inode number n*/
-int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
-{
-	blocknum_t block_to_read = INODE_TO_BLOCK(n);
-	mem_inode_t in;
-
-    buf_block_t buf;
-    if (bread(disk, block_to_read, &buf) != 0) {
-		return -1;
-	}
-
-	in = malloc(sizeof(struct mem_inode));
-	if (in == NULL) {
-		return -1;
-	}
-    memcpy(in, buf->data + INODE_OFFSET(n), sizeof(struct inode));
-    in->disk = disk;
-    in->num = n;
-    in->buf = buf;
-	/* May need to increment ref count */
-    in->size_blocks = in->size / DISK_BLOCK_SIZE + 1;
-    *inop = in;
     return 0;
 }
 
-/* Return the inode and no write to disk */
-void iput(mem_inode_t ino)
+int
+iwrite(mem_inode_t ino)
 {
-    brelse(ino->buf);
-    free(ino);
+    return 0;
 }
 
-/* Return the inode and update it on the disk */
-int iupdate(mem_inode_t ino)
+void irelse(mem_inode_t ino)
 {
-    memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
-    bwrite(ino->buf);
-    free(ino);
-	return 0;
+
 }
 
-/*
- * Block offset to block number
- * Return -1 on error
- */
-blocknum_t
-blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset) {
-	size_t offset;
-
-	/* Too small or too large */
-	if (block_offset < 0 || block_offset >= INODE_MAX_FILE_BLOCKS) {
-		return -1;
-	}
-
-	/* In direct block */
-	if (block_offset < INODE_DIRECT_BLOCKS) {
-		return ino->direct[block_offset];
-	}
-
-	/* In indirect block */
-	if (block_offset < INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) {
-		offset = block_offset - INODE_DIRECT_BLOCKS;
-		return indirect(disk, ino->indirect, offset);
-	}
-
-	/* In double indirect block */
-	if (block_offset < INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) {
-		offset = block_offset - INODE_DIRECT_BLOCKS - INODE_INDIRECT_BLOCKS;
-		return double_indirect(disk, ino->double_indirect, offset);
-	}
-
-	/* In triple indirect block */
-	offset = block_offset - INODE_DIRECT_BLOCKS - INODE_INDIRECT_BLOCKS - INODE_DOUBLE_BLOCKS;
-	return triple_indirect(disk, ino->triple_indirect, offset);
-}
-
-/*
- * Byte offset to block number
- * Return -1 on error
- */
-blocknum_t
-bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset) {
-	return blockmap(disk, ino, byte_offset / DISK_BLOCK_SIZE);
-}
-
-static blocknum_t
-indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
-	buf_block_t buf;
-	size_t offset_to_read;
-	blocknum_t ret_blocknum;
-
-	if (bread(disk, blocknum, &buf) != 0) {
-		return -1;
-	}
-	offset_to_read = block_offset % POINTER_PER_BLOCK;
-	ret_blocknum = (blocknum_t)(buf->data + offset_to_read * 8);
-	brelse(buf);
-
-	return ret_blocknum;
-}
-
-static blocknum_t
-double_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
-	buf_block_t buf;
-	size_t offset_to_read;
-	blocknum_t block_to_read;
-
-	if (bread(disk, blocknum, &buf) != 0) {
-		return -1;
-	}
-	offset_to_read = block_offset / POINTER_PER_BLOCK;
-	block_to_read = (blocknum_t)(buf->data + offset_to_read * 8);
-	brelse(buf);
-
-	return indirect(disk, block_to_read, block_offset - offset_to_read * POINTER_PER_BLOCK);
-}
-
-static blocknum_t
-triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
-	buf_block_t buf;
-	size_t offset_to_read;
-	blocknum_t block_to_read;
-
-	if (bread(disk, blocknum, &buf) != 0) {
-		return -1;
-	}
-	offset_to_read = block_offset / POINTER_PER_BLOCK / POINTER_PER_BLOCK;
-	block_to_read = (blocknum_t)(buf->data + offset_to_read * 8);
-	brelse(buf);
-
-	return double_indirect(disk, block_to_read, block_offset - offset_to_read * POINTER_PER_BLOCK * POINTER_PER_BLOCK);
-}

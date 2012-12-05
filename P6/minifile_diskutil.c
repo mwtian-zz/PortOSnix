@@ -4,9 +4,9 @@
 #include "minifile_diskutil.h"
 #include "minifile_fs.h"
 
-/* Make a file system with the specified number of blocks */
+/* Make a file system with parameters specified in disk.h */
 int
-minifile_remkfs()
+minifile_remkfs(blocknum_t total_blocks)
 {
     buf_block_t buf;
     mem_inode_t inode;
@@ -15,15 +15,7 @@ minifile_remkfs()
 
     /* Initialize superblock */
     sblock_get(maindisk, mainsb);
-    mainsb = (mem_sblock_t) buf->data;
-    mainsb->total_blocks = maindisk->layout.size;
-    mainsb->total_inodes = mainsb->total_blocks / 10;
-    mainsb->free_ilist_head = 2;
-    mainsb->free_ilist_tail = mainsb->total_inodes;
-    mainsb->free_inodes = mainsb->total_inodes - 1;
-    mainsb->free_blist_head = mainsb->total_inodes + 1;
-    mainsb->free_blist_tail = mainsb->total_blocks - 1;
-    mainsb->free_blocks = mainsb->free_blist_tail - mainsb->free_blist_head + 1;
+    sblock_init(mainsb, disk_size);
     sblock_update(mainsb);
 
     /* Initialize root inode */

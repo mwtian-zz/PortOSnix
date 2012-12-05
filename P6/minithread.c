@@ -15,6 +15,8 @@
 #include "alarm.h"
 #include "interrupts.h"
 #include "minifile_cache.h"
+#include "minifile_inode.h"
+#include "minifile_inodetable.h"
 #include "miniroute.h"
 #include "miniheader.h"
 #include "minimsg.h"
@@ -411,11 +413,33 @@ minithread_initialize_filesystem()
     /* Initialize cache */
     minifile_buf_cache_init();
 
+	/* Create super block lock */
+	sb_lock = semaphore_create();
+	if (sb_lock == NULL) {
+		return -1;
+	}
+	semaphore_initialize(sb_lock, 1);
+
     /* Get super block into memory */
-    sb = &(sb_table[0]);
+    mainsb = &(sb_table[0]);
     sblock_get(maindisk, mainsb);
+    mainsb->init = 1;
     sblock_put(mainsb);
-    //root_inode = sb->root;
+
+//	/* Initialize inode table */
+//	itable_init();
+//
+//	/* Create inode lock */
+//	inode_lock = semaphore_create();
+//	if (inode_lock == NULL) {
+//		return -1;
+//	}
+//	semaphore_initialize(inode_lock, 1);
+//
+//	/* Get root inode */
+//	if (iget(maindisk, mainsb->root_inum, &root_inode) != 0) {
+//		return -1;
+//	}
 
     return 0;
 }

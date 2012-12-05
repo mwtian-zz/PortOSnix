@@ -12,7 +12,7 @@ LFLAGS = -lrt -lpthread
 # dropping the ".c": so to use "sieve.c", change to "MAIN = sieve".
 #
 # Note that you must write your own test programs.
-MAIN = minifile_cache_test
+MAIN = minifile_fs_test
 OUTPUT_MAIN = minithread
 
 # Extra ultility: mkfs
@@ -32,6 +32,9 @@ OBJ = \
     minifile_cache.o \
     minifile_diskutil.o \
     minifile_fs.o \
+    minifile_inode.o \
+    minifile_inodetable.o \
+    minifile_util.o \
     miniheader.o \
     minimsg.o \
     minisocket.o \

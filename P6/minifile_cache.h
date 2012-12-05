@@ -13,7 +13,7 @@
 #define BLOCK_NUM_HASH(n) ((n) & 1023)
 
 /* Supported disk address space */
-typedef uint64_t blocknum_t;
+typedef int64_t blocknum_t;
 
 /* Disk table. Only the first entry, main disk, is used. */
 disk_t disk_table[8];

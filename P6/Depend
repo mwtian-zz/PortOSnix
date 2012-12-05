@@ -2,57 +2,57 @@ alarm.o: alarm.c interrupts.h defs.h alarm.h alarm_queue.h \
  alarm_private.h
 alarm_queue.o: alarm_queue.c alarm_queue.h alarm.h alarm_queue_private.h \
  alarm_private.h
-cache_test.o: cache_test.c miniroute_cache.h miniroute_cache_private.h \
- miniroute.h minimsg.h network.h interrupts_private.h interrupts.h defs.h \
- miniheader.h
 disk.o: disk.c defs.h disk.h interrupts.h interrupts_private.h random.h
 end.o: end.c defs.h
 inode_test.o: inode_test.c minifile_fs.h disk.h defs.h interrupts.h \
- minifile_cache.h queue.h queue_private.h synch.h
+ minifile_cache.h queue.h queue_private.h synch.h minifile_inode.h
 instant_msg.o: instant_msg.c defs.h read.h minisocket.h network.h \
  interrupts_private.h interrupts.h minimsg.h minithread.h \
  machineprimitives.h minifile_fs.h disk.h minifile_cache.h queue.h \
- queue_private.h synch.h
+ queue_private.h synch.h minifile_inode.h
 interrupts.o: interrupts.c defs.h interrupts_private.h interrupts.h \
  minithread.h machineprimitives.h minifile_fs.h disk.h minifile_cache.h \
- queue.h queue_private.h synch.h
+ queue.h queue_private.h synch.h minifile_inode.h
 machineprimitives.o: machineprimitives.c defs.h machineprimitives.h
 machineprimitives_x86_64.o: machineprimitives_x86_64.c defs.h \
  machineprimitives.h interrupts_private.h interrupts.h
 minifile.o: minifile.c minifile.h defs.h
-minifile_cache\ (jiji-tower's\ conflicted\ copy\ 2012-12-03).o: \
- minifile_cache\ (jiji-tower's\ conflicted\ copy\ 2012-12-03).c defs.h \
- minifile.h minifile_cache.h disk.h interrupts.h queue.h queue_private.h \
- synch.h
-minifile_cache.o: minifile_cache.c defs.h minifile.h minifile_cache.h \
- disk.h interrupts.h queue.h queue_private.h synch.h
+minifile_cache.o: minifile_cache.c defs.h interrupts.h minifile.h \
+ minifile_cache.h disk.h queue.h queue_private.h synch.h
 minifile_cache_test.o: minifile_cache_test.c defs.h disk.h interrupts.h \
  minifile_cache.h queue.h queue_private.h synch.h minithread.h \
- machineprimitives.h minifile_fs.h
+ machineprimitives.h minifile_fs.h minifile_inode.h
 minifile_diskutil.o: minifile_diskutil.c defs.h disk.h interrupts.h \
  minifile_cache.h queue.h queue_private.h synch.h minifile_diskutil.h \
- minifile_fs.h
+ minifile_fs.h minifile_inode.h
 minifile_fs.o: minifile_fs.c minifile_fs.h disk.h defs.h interrupts.h \
- minifile_cache.h queue.h queue_private.h synch.h minithread.h \
- machineprimitives.h minithread_private.h multilevel_queue.h
-minifile_inode.o: minifile_inode.c minifile_fs.h disk.h defs.h \
- interrupts.h minifile_cache.h queue.h queue_private.h synch.h
+ minifile_cache.h queue.h queue_private.h synch.h minifile_inode.h \
+ minithread.h machineprimitives.h minithread_private.h multilevel_queue.h
+minifile_fs_test.o: minifile_fs_test.c defs.h disk.h interrupts.h \
+ minifile_cache.h queue.h queue_private.h synch.h minifile_fs.h \
+ minifile_inode.h minithread.h machineprimitives.h
+minifile_inode.o: minifile_inode.c minifile_inode.h disk.h defs.h \
+ interrupts.h minifile_cache.h queue.h queue_private.h synch.h \
+ minifile_fs.h minifile_inodetable.h minifile_path.h
+minifile_inodetable.o: minifile_inodetable.c minifile_inodetable.h \
+ minifile_fs.h disk.h defs.h interrupts.h minifile_cache.h queue.h \
+ queue_private.h synch.h minifile_inode.h
 minifile_mkfs.o: minifile_mkfs.c minithread.h machineprimitives.h defs.h \
  minifile_fs.h disk.h interrupts.h minifile_cache.h queue.h \
- queue_private.h synch.h minifile_diskutil.h
+ queue_private.h synch.h minifile_inode.h minifile_diskutil.h
 minifile_path.o: minifile_path.c minifile_path.h minifile_cache.h disk.h \
  defs.h interrupts.h queue.h queue_private.h synch.h minifile_fs.h \
- minithread.h machineprimitives.h
+ minifile_inode.h minithread.h machineprimitives.h
+minifile_util.o: minifile_util.c minifile_util.h minifile_cache.h disk.h \
+ defs.h interrupts.h queue.h queue_private.h synch.h minifile_inode.h
 miniheader.o: miniheader.c miniheader.h network.h interrupts_private.h \
  interrupts.h defs.h
 minimsg.o: minimsg.c defs.h interrupts.h miniroute.h minimsg.h network.h \
  interrupts_private.h miniheader.h minimsg_private.h queue.h synch.h \
  queue_wrap.h queue_private.h
-minimsg_testport.o: minimsg_testport.c minimsg.h network.h \
- interrupts_private.h interrupts.h defs.h synch.h queue.h
 miniroute.o: miniroute.c defs.h alarm.h interrupts.h queue.h queue_wrap.h \
  queue_private.h synch.h minithread.h machineprimitives.h minifile_fs.h \
- disk.h minifile_cache.h miniroute.h minimsg.h network.h \
+ disk.h minifile_cache.h minifile_inode.h miniroute.h minimsg.h network.h \
  interrupts_private.h miniheader.h minisocket.h miniroute_cache.h \
  miniroute_cache_private.h
 miniroute_cache.o: miniroute_cache.c miniroute_cache.h \
@@ -61,33 +61,31 @@ miniroute_cache.o: miniroute_cache.c miniroute_cache.h \
 minisocket.o: minisocket.c defs.h alarm.h miniheader.h network.h \
  interrupts_private.h interrupts.h miniroute.h minimsg.h minisocket.h \
  minisocket_private.h queue.h synch.h minithread.h machineprimitives.h \
- minifile_fs.h disk.h minifile_cache.h queue_private.h queue_wrap.h
+ minifile_fs.h disk.h minifile_cache.h queue_private.h minifile_inode.h \
+ queue_wrap.h
 minithread.o: minithread.c alarm.h interrupts.h defs.h minifile_cache.h \
- disk.h queue.h queue_private.h synch.h miniroute.h minimsg.h network.h \
+ disk.h queue.h queue_private.h synch.h minifile_inode.h \
+ minifile_inodetable.h minifile_fs.h miniroute.h minimsg.h network.h \
  interrupts_private.h miniheader.h minisocket.h read_private.h \
- minithread.h machineprimitives.h minifile_fs.h minithread_private.h \
- multilevel_queue.h
+ minithread.h machineprimitives.h minithread_private.h multilevel_queue.h
 multilevel_queue.o: multilevel_queue.c queue.h multilevel_queue.h \
  multilevel_queue_private.h
-multilevel_queue_test.o: multilevel_queue_test.c \
- multilevel_queue_private.h queue.h multilevel_queue.h
 network.o: network.c defs.h network.h interrupts_private.h interrupts.h \
  minithread.h machineprimitives.h minifile_fs.h disk.h minifile_cache.h \
- queue.h queue_private.h synch.h random.h
+ queue.h queue_private.h synch.h minifile_inode.h random.h
 pid_random.o: pid_random.c pid_random.h random.h
 queue.o: queue.c queue.h queue_private.h
 queue_locked.o: queue_locked.c queue.h queue_wrap.h queue_private.h \
  queue_locked.h synch.h
-queue_test.o: queue_test.c queue.h
 queue_wrap.o: queue_wrap.c queue.h queue_wrap.h queue_private.h
 random.o: random.c
 read.o: read.c read.h read_private.h interrupts_private.h interrupts.h \
  defs.h minithread.h machineprimitives.h minifile_fs.h disk.h \
- minifile_cache.h queue.h queue_private.h synch.h
+ minifile_cache.h queue.h queue_private.h synch.h minifile_inode.h
 shell.o: shell.c minithread.h machineprimitives.h defs.h minifile_fs.h \
  disk.h interrupts.h minifile_cache.h queue.h queue_private.h synch.h \
- minifile.h
+ minifile_inode.h minifile.h
 start.o: start.c defs.h
 synch.o: synch.c defs.h queue.h minithread.h machineprimitives.h \
  minifile_fs.h disk.h interrupts.h minifile_cache.h queue_private.h \
- synch.h synch_private.h
+ synch.h minifile_inode.h synch_private.h

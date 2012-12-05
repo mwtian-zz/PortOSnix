@@ -66,7 +66,31 @@ int minifile_stat(char *path)
 
 int minifile_cd(char *path)
 {
-    return 0;
+	int cur_inodenum, new_inodenum;
+	mem_inode_t cur_dir, new_dir;
+	
+	cur_inodenum = minithread_wd();
+	cur_dir = minithread_wd_inode();
+	new_inodenum = namei(path);
+	/* Invalid path */
+	if (new_inodenum == 0) {
+		return -1;
+	}
+	if (iget(maindisk, new_inodenum, &new_dir) != 0) {
+		return -1;
+	}
+	/* Not a directory */
+	if (new_dir->type != MINIDIRECTORY) {
+		iput(maindisk, new_dir);
+		return -1;
+	}
+	/* Release previous directory inode if not root */
+	if (cur_inodenum != sb->root) {
+		iput(maindisk, cur_dir);
+	}
+	minithread_set_wd(new_inodenum);
+	minithread_set_wd_inode(new_dir);
+	return 0;
 }
 
 char **minifile_ls(char *path)
@@ -83,6 +107,10 @@ char **minifile_ls(char *path)
 		inodenum = minithread_wd();
 	} else {
 		inodenum = namei(path);
+	}
+	/* Not valid path */
+	if (inodenum == 0) {
+		return NULL;
 	}
 	if (iget(maindisk, inodenum, &dir) != 0) {
 		return NULL;

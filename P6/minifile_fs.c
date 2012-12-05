@@ -153,7 +153,7 @@ bfree(buf_block_t block)
 int
 blist_check(mem_sblock_t sbp)
 {
-
+    return 0;
 }
 
 /*

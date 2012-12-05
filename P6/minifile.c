@@ -68,7 +68,7 @@ int minifile_cd(char *path)
 {
 	int cur_inodenum, new_inodenum;
 	mem_inode_t cur_dir, new_dir;
-	
+
 	cur_inodenum = minithread_wd();
 	cur_dir = minithread_wd_inode();
 	new_inodenum = namei(path);
@@ -81,12 +81,12 @@ int minifile_cd(char *path)
 	}
 	/* Not a directory */
 	if (new_dir->type != MINIDIRECTORY) {
-		iput(maindisk, new_dir);
+		iput(new_dir);
 		return -1;
 	}
 	/* Release previous directory inode if not root */
-	if (cur_inodenum != sb->root) {
-		iput(maindisk, cur_dir);
+	if (cur_inodenum != mainsb->root_inum) {
+		iput(cur_dir);
 	}
 	minithread_set_wd(new_inodenum);
 	minithread_set_wd_inode(new_dir);

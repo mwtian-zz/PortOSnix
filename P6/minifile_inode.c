@@ -6,10 +6,6 @@
 #include "minifile_path.h"
 #include "minifile_util.h"
 
-/* Indirect block management */
-static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
-static blocknum_t double_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
-static blocknum_t triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
 
 /*
  * Clear the content of an inode, including indirect blocks

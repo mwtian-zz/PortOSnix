@@ -8,6 +8,7 @@
 extern blocknum_t bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset); 
 /* Block offset within inode to disk block number */
 extern blocknum_t blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset); 
-
+/* Find file name from path */
+extern char* pathtofile(char* path);
 
 #endif /* __MINIFILE_UTIL_H__ */

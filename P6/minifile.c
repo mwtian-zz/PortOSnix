@@ -77,12 +77,13 @@ char* minifile_pwd(void)
 {
 	inodenum_t cur_inodenum, parent_inodenum;
 	mem_inode_t cur_directory;
-	char* pwd, *tmp_path;
+	char* pwd;
 	char** path;
-	int path_len = 0, pwd_len = 2, tmp_path_len, i, entry_size;
+	int path_len = 0, pwd_len = 2, i, entry_size;
 	dir_entry_t* entries;
 	
 	cur_inodenum = minithread_wd();
+	cur_directory = minithread_wd_inode();
 	/* Current directory is root directory */
 	if (cur_inodenum == sb->root) {
 		pwd = malloc(2);
@@ -90,18 +91,14 @@ char* minifile_pwd(void)
 		return pwd;
 	}
 	
-	tmp_path_len = 4;
-	tmp_path = malloc(tmp_path_len);
-	strcpy(tmp_path, "../");
+	parent_inodenum = nameinode("..", cur_directory);
 	while (cur_inodenum != sb->root) {
-		parent_inodenum = namei(tmp_path);
 		if (iget(maindisk, parent_inodenum, &cur_directory) != 0) {
 			printf("Get inode error!\n");
 		}
 		semaphore_P(cur_directory->inode_lock);
 		entries = get_directory_entry(maindisk, cur_directory, &entry_size);
 		semaphore_V(cur_directory->inode_lock);
-		iput(maindisk, cur_directory);
 		for (i = 0; i < entry_size; i++) {
 			if (entries[i]->inode_num == cur_inodenum) {
 				break;
@@ -117,14 +114,14 @@ char* minifile_pwd(void)
 		strcpy(path[path_len - 1], entries[i]->name);
 		pwd_len += (strlen(entries[i]->name) + 1);
 		cur_inodenum = parent_inodenum;
-		tmp_path_len += 3;
-		tmp_path = realloc(tmp_path, tmp_path_len);
-		strcat(tmp_path, "../");
+		parent_inodenum = nameinode("..", cur_directory);
+		iput(maindisk, cur_directory);
 	}
 	pwd = malloc(pwd_len);
 	strcpy(pwd, "/");
 	for (i = path_len - 1; i >= 0; i--) {
 		strcat(pwd, path[i]);
+		strcat(pwd, "/");
 		free(path[i]);
 	}
 	free(path);

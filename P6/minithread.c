@@ -314,6 +314,10 @@ minithread_wd()
     return context->current_dir;
 }
 
+mem_inode_t
+minithread_wd_inode() {
+	return context->current_dir_inode;
+}
 
 /*
  * Initialization.

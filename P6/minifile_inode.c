@@ -107,15 +107,6 @@ int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 		}
 	}
 	(*inop)->ref_count = 1;
-	(*inop)->inode_lock = semaphore_create();
-	/* Fail to create lock */
-	if ((*inop)->inode_lock == NULL) {
-		brelse((*inop)->buf);     /* Release buffer */
-		itable_put_list((*inop)); /* Put inode back to free list */
-		semaphore_V(inode_lock);  /* Release lock */
-		return -1;
-	}
-	semaphore_initialize((*inop)->inode_lock, 1);
 	
 	/* Put to new queue */
 	itable_put_table(*inop);

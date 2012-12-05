@@ -9,8 +9,8 @@ static struct mem_inode free_inode[MAX_INODE_NUM]; /* Preallocated free inodes *
 static void itable_delete_from_list(mem_inode_t inode); /* Delete inode from free list */
 
 
-/* Initialize inode table */
-void
+/* Initialize inode table, return 0 on success, -1 on failure */
+int
 itable_init() {
 	int i;
 	
@@ -22,16 +22,30 @@ itable_init() {
 	free_inode[0].l_next = &free_inode[1];
 	free_inode[0].h_prev = NULL;
 	free_inode[0].h_next = NULL;
+	free_inode[0].inode_lock = semaphore_create();
+	if (free_inode[0].inode_lock == null) {
+		return -1;
+	}
+	semaphore_initialize(free_inode[0].inode_lock);
 	free_inode[MAX_INODE_NUM - 1].l_prev = &free_inode[MAX_INODE_NUM - 2];
 	free_inode[MAX_INODE_NUM - 1].l_next = NULL;
 	free_inode[MAX_INODE_NUM - 1].h_prev = NULL;
 	free_inode[MAX_INODE_NUM - 1].h_next = NULL;
-	
+	free_inode[MAX_INODE_NUM - 1].inode_lock = semaphore_create();
+	if (free_inode[MAX_INODE_NUM - 1].inode_lock == null) {
+		return -1;
+	}
+	semaphore_initialize(free_inode[MAX_INODE_NUM - 1].inode_lock);
 	for (i = 1; i < MAX_INODE_NUM - 1; i++) {
 		free_inode[i].l_prev = &free_inode[i - 1];
 		free_inode[i].l_next = &free_inode[i + 1];
 		free_inode[i].h_prev = NULL;
 		free_inode[i].h_next = NULL;
+		free_inode[i].inode_lock = semaphore_create();
+		if (free_inode[i].inode_lock == null) {
+			return -1;
+		}
+		semaphore_initialize(free_inode[i].inode_lock);
 	}
 	
 	itable.freelist_head = &free_inode[0];

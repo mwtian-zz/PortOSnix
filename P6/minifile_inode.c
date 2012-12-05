@@ -1,30 +1,61 @@
-#include "minifile_inode.h"
 #include <string.h>
 #include "minifile_fs.h"
+#include "minifile_inode.h"
+
 #include "minifile_inodetable.h"
 #include "minifile_path.h"
-
-/* Translate inode number to block number. Inode starts from 1 which is root directory */
-#define INODE_TO_BLOCK(num) ((((num) - 1) / INODE_PER_BLOCK) + INODE_START_BLOCK)
-/* Inode offset within a data block */
-#define INODE_OFFSET(num) ((((num) - 1) % INODE_PER_BLOCK) * INODE_SIZE)
-
-#define POINTER_PER_BLOCK 512
-#define INODE_INDIRECT_BLOCKS (512)
-#define INODE_DOUBLE_BLOCKS (512 * 512)
-#define INODE_TRIPLE_BLOCKS (512 * 512 * 512)
-#define INODE_MAX_FILE_BLOCKS (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS + INODE_TRIPLE_BLOCKS)
-
+#include "minifile_util.h"
 
 /* Indirect block management */
 static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
 static blocknum_t double_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
 static blocknum_t triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
 
-/* Clear the content of an inode, including indirect blocks */
+/*
+ * Clear the content of an inode, including indirect blocks
+ * iclear is probably only called in iput which means inode lock is grabbed
+ * and no other process is changing inode
+ */
 int
-iclear(disk_t* disk, inodenum_t n)
+iclear(mem_inode_t ino)
 {
+	int datablock_num, i, blocknum;
+	buf_block_t buf;
+	freespace_t freeblock;
+
+	if (ino->type == MINIDIRECTORY) {
+		if (ino->size <= 0) {
+			return 0;
+		} else {
+			datablock_num = (ino->size - 1) / ENTRY_NUM_PER_BLOCK + 1;
+		}
+	} else if (ino->type == MINIFILE) {
+		if (ino->size <= 0) {
+			return 0;
+		} else {
+			datablock_num = (ino->size - 1) / DISK_BLOCK_SIZE + 1;
+		}
+	} else {
+		return 0;
+	}
+
+	semaphore_P(sb_lock);
+	for (i = 0; i < datablock_num; i++) {
+		blocknum = blockmap(ino->disk, ino, i);
+		if (blocknum == -1) {
+			printf("Error on mapping block number!\n");
+			/* What to do here? */
+		}
+		if (bread(ino->disk, blocknum, &buf) == 0) {
+			freeblock = (freespace_t) buf->data;
+			freeblock->next = mainsb->free_blist_head;
+			mainsb->free_blist_head = buf->num;
+			mainsb->free_blocks++;
+			brelse(buf);
+		}
+	}
+	sblock_update(mainsb);
+
 	return 0;
 }
 
@@ -68,15 +99,6 @@ int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 		}
 	}
 	(*inop)->ref_count = 1;
-	(*inop)->inode_lock = semaphore_create();
-	/* Fail to create lock */
-	if ((*inop)->inode_lock == NULL) {
-		brelse((*inop)->buf);     /* Release buffer */
-		itable_put_list((*inop)); /* Put inode back to free list */
-		semaphore_V(inode_lock);  /* Release lock */
-		return -1;
-	}
-	semaphore_initialize((*inop)->inode_lock, 1);
 
 	/* Put to new queue */
 	itable_put_table(*inop);
@@ -93,7 +115,7 @@ void iput(mem_inode_t ino)
 	if (ino->ref_count == 0) {
 		/* Delete this file */
 		if (ino->status == TO_DELETE) {
-			/* Should free disk blocks as well */
+			iclear(ino);
 			ifree(ino);
 			/* Put inode back to free list, delete from table */
 			itable_delete_from_table(ino);
@@ -112,100 +134,9 @@ void iput(mem_inode_t ino)
 /* Return the inode and update it on the disk */
 int iupdate(mem_inode_t ino)
 {
+	semaphore_P(ino->inode_lock);
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
     bwrite(ino->buf);
+	semaphore_V(ino->inode_lock);
 	return 0;
-}
-
-
-/*
- * Block offset to block number
- * Return -1 on error
- */
-blocknum_t
-blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset) {
-	size_t offset;
-
-	/* Too small or too large */
-	if (block_offset < 0 || block_offset >= INODE_MAX_FILE_BLOCKS) {
-		return -1;
-	}
-
-	/* In direct block */
-	if (block_offset < INODE_DIRECT_BLOCKS) {
-		return ino->direct[block_offset];
-	}
-
-	/* In indirect block */
-	if (block_offset < INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) {
-		offset = block_offset - INODE_DIRECT_BLOCKS;
-		return indirect(disk, ino->indirect, offset);
-	}
-
-	/* In double indirect block */
-	if (block_offset < INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) {
-		offset = block_offset - INODE_DIRECT_BLOCKS - INODE_INDIRECT_BLOCKS;
-		return double_indirect(disk, ino->double_indirect, offset);
-	}
-
-	/* In triple indirect block */
-	offset = block_offset - INODE_DIRECT_BLOCKS - INODE_INDIRECT_BLOCKS - INODE_DOUBLE_BLOCKS;
-	return triple_indirect(disk, ino->triple_indirect, offset);
-}
-
-/*
- * Byte offset to block number
- * Return -1 on error
- */
-blocknum_t
-bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset) {
-	return blockmap(disk, ino, byte_offset / DISK_BLOCK_SIZE);
-}
-
-static blocknum_t
-indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
-	buf_block_t buf;
-	size_t offset_to_read;
-	blocknum_t ret_blocknum;
-
-	if (bread(disk, blocknum, &buf) != 0) {
-		return -1;
-	}
-	offset_to_read = block_offset % POINTER_PER_BLOCK;
-	ret_blocknum = (blocknum_t)(buf->data + offset_to_read * 8);
-	brelse(buf);
-
-	return ret_blocknum;
-}
-
-static blocknum_t
-double_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
-	buf_block_t buf;
-	size_t offset_to_read;
-	blocknum_t block_to_read;
-
-	if (bread(disk, blocknum, &buf) != 0) {
-		return -1;
-	}
-	offset_to_read = block_offset / POINTER_PER_BLOCK;
-	block_to_read = (blocknum_t)(buf->data + offset_to_read * 8);
-	brelse(buf);
-
-	return indirect(disk, block_to_read, block_offset - offset_to_read * POINTER_PER_BLOCK);
-}
-
-static blocknum_t
-triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
-	buf_block_t buf;
-	size_t offset_to_read;
-	blocknum_t block_to_read;
-
-	if (bread(disk, blocknum, &buf) != 0) {
-		return -1;
-	}
-	offset_to_read = block_offset / POINTER_PER_BLOCK / POINTER_PER_BLOCK;
-	block_to_read = (blocknum_t)(buf->data + offset_to_read * 8);
-	brelse(buf);
-
-	return double_indirect(disk, block_to_read, block_offset - offset_to_read * POINTER_PER_BLOCK * POINTER_PER_BLOCK);
 }

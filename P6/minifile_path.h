@@ -13,5 +13,10 @@ typedef struct dir_entry {
     inodenum_t inode_num;
 } *dir_entry_t;
 
-extern inodenum_t namei(char* path); /* Translate path to inode number, return 0 on failure*/
+/* Translate path to inode number base on working directory, return 0 on failure*/
+extern inodenum_t namei(char* path); 
+/* Translate path to inode number base on given inode, return 0 on failure*/
+extern inodenum_t nameinode(char* path, mem_inode_t ino);
+/* Get all the directory entries in directory inode, return NULL if no entries */
+extern dir_entry_t* get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size);
 #endif /* __MINIFILE_FS_H__ */

@@ -44,6 +44,7 @@ struct minithread {
     int priority;
     semaphore_t sleep_sem;
     inodenum_t current_dir;
+	mem_inode_t current_dir_inode;
 };
 
 #endif /*__MINITHREAD_PRIVATE_H__*/

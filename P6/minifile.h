@@ -6,7 +6,7 @@
 /*
  * Definitions for minifiles.
  *
- * You have to implement the fiunctions defined by this file that 
+ * You have to implement the functions defined by this file that 
  * provide a filesystem interface for the minithread package.
  * You have to provide the implementation of these functions in
  * the file minifile.c

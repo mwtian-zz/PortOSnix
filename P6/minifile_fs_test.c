@@ -10,7 +10,7 @@
 
 static blocknum_t total_blocks = 128;
 static semaphore_t sig;
-static int shift[10];
+//static int shift[10];
 
 int fs_multithread_test(int *arg)
 {
@@ -31,10 +31,10 @@ int fs_multithread_test(int *arg)
 
 int fs_test(int *arg)
 {
-    buf_block_t buf;
-    blocknum_t i, j;
-    blocknum_t* block;
-    blocknum_t inodes_blocks = total_blocks / INODE_PER_BLOCK;
+//    buf_block_t buf;
+//    blocknum_t i, j;
+//    blocknum_t* block;
+//    blocknum_t inodes_blocks = total_blocks / INODE_PER_BLOCK;
 
     /* Test super block read/write */
     sblock_get(maindisk, mainsb);
@@ -45,6 +45,7 @@ int fs_test(int *arg)
     sblock_put(mainsb);
 
     /* Test block allocation/free */
+
 //    bread(maindisk, 0, &buf);
 //    block = (blocknum_t*) buf->data;
 //    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i)

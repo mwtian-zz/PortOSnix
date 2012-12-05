@@ -147,7 +147,7 @@ bfree(buf_block_t block)
 
     /* Update superbock and the new free block */
     sblock_update(mainsb);
-    bwrite(buf);
+    bwrite(block);
 }
 
 int

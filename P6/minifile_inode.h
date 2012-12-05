@@ -60,14 +60,9 @@ semaphore_t inode_lock;         /* Inode lock for iget and iput */
 struct inode _root_inode;       /* Root inode */
 mem_inode_t root_inode;         /* Root inode number */
 
-extern int iclear(disk_t* disk, inodenum_t n);
+extern int iclear(mem_inode_t ino);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
-
-/* Byte offset within inode to disk block number */
-extern blocknum_t bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset);
-/* Block offset within inode to disk block number */
-extern blocknum_t blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset);
 
 #endif /* __MINIFILE_INODE_H__ */

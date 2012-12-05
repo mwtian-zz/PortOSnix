@@ -14,7 +14,7 @@ struct inode_table {
 	mem_inode_t freelist_tail;                           /* Inode free list tail */
 };
 
-extern void itable_init();    /* Initialize inode table */
+extern int itable_init();    /* Initialize inode table */
 
 /* Get inode from hash table, return 0 if found, -1 if not */
 extern int itable_get_from_table(inodenum_t, mem_inode_t* inode); 

@@ -3,6 +3,7 @@
 #include "minifile_fs.h"
 #include "minifile_inodetable.h"
 #include "minifile_path.h"
+#include "minifile_util.h"
 
 /*
  * Allocate a free inode and return a pointer to free inode
@@ -40,30 +41,71 @@ ialloc(disk_t* disk)
 
 /* Add an inode back to free list */
 void
-ifree(disk_t* disk, mem_inode_t inode)
+ifree(disk_t* disk, mem_inode_t ino)
 {
     freespace_t freeblk;
 	inodenum_t freeinode_num;
 
-    if (disk->layout.size <= inode->num) {
+    if (disk->layout.size <= ino->num) {
         return;
     }
 	
 	semaphore_P(sb_lock);
-	freeinode_num = inode->num;
-    freeblk = (freespace_t) (inode);
+	freeinode_num = ino->num;
+    freeblk = (freespace_t) (ino);
     freeblk->next = sb->free_ilist_head;
-	iupdate(inode);
+	iupdate(ino);
     sb->free_ilist_head = freeinode_num;
 	sb->free_inodes++;
     sblock_update(sb);
 	semaphore_V(sb_lock);
 }
 
-/* Clear the content of an inode, including indirect blocks */
+/* 
+ * Clear the content of an inode, including indirect blocks
+ * iclear is probably only called in iput which means inode lock is grabbed 
+ * and no other process is changing inode
+ */
 int
-iclear(disk_t* disk, inodenum_t n)
+iclear(disk_t* disk, mem_inode_t ino)
 {
+	int datablock_num, i, blocknum;
+	buf_block_t buf;
+	freespace_t freeblock;
+	
+	if (ino->type == MINIDIRECTORY) {
+		if (ino->size <= 0) {
+			return 0;
+		} else {
+			datablock_num = (ino->size - 1) / ENTRY_NUM_PER_BLOCK + 1;
+		}
+	} else if (ino->type == MINIFILE) {
+		if (ino->size <= 0) {
+			return 0;
+		} else {
+			datablock_num = (ino->size - 1) / DISK_BLOCK_SIZE + 1;
+		}
+	} else {
+		return 0;
+	}
+	
+	semaphore_P(sb_lock);
+	for (i = 0; i < datablock_num; i++) {
+		blocknum = blockmap(disk, ino, i);
+		if (blocknum == -1) {
+			printf("Error on mapping block number!\n");
+			/* What to do here? */
+		}
+		if (bread(disk, blocknum, &buf) == 0) {
+			freeblock = (freespace_t)buf->data;
+			freeblock->next = sb->free_blist_head;
+			sb->free_blist_head = buf->num;
+			sb->free_blocks++;
+			brelse(buf);
+		}
+	}
+	sblock_update(sb);
+	
 	return 0;
 }
 
@@ -123,7 +165,7 @@ void iput(disk_t* disk, mem_inode_t ino)
 	if (ino->ref_count == 0) {
 		/* Delete this file */
 		if (ino->status == TO_DELETE) {
-			/* Should free disk blocks as well */
+			iclear(disk, ino);
 			ifree(disk, ino);
 			/* Put inode back to free list, delete from table */
 			itable_delete_from_table(ino);
@@ -142,7 +184,9 @@ void iput(disk_t* disk, mem_inode_t ino)
 /* Return the inode and update it on the disk */
 int iupdate(mem_inode_t ino)
 {
+	semaphore_P(ino->inode_lock);
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
     bwrite(ino->buf);
+	semaphore_V(ino->inode_lock);
 	return 0;
 }

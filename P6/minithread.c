@@ -125,7 +125,8 @@ minithread_create(proc_t proc, arg_t arg)
     t->qnode.next = NULL;
     t->status = INITIAL;
     t->priority = 0;
-    //t->current_dir = sb->root;
+    t->current_dir = sb->root;
+	t->current_dir_inode = root_inode;
 
     semaphore_P(id_mutex);
     t->id = tid_count;
@@ -426,7 +427,9 @@ minithread_initialize_filesystem()
     sblock_put(sb);
 	
 	/* Initialize inode table */
-	itable_init();
+	if (itable_init() == -1) {
+		return -1;
+	}
 	
 	/* Create inode lock */
 	inode_lock = semaphore_create();

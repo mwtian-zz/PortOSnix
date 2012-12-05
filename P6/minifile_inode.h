@@ -76,8 +76,8 @@ struct inode _root_inode;       /* Root inode */
 mem_inode_t root_inode;         /* Root inode number */
 
 extern mem_inode_t ialloc(disk_t* disk);
-extern void ifree(disk_t* disk, mem_inode_t inode);
-extern int iclear(disk_t* disk, inodenum_t n);
+extern void ifree(disk_t* disk, mem_inode_t ino);
+extern int iclear(disk_t* disk, mem_inode_t ino);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(disk_t* disk, mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);

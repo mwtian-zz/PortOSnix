@@ -23,33 +23,35 @@ itable_init() {
 	free_inode[0].h_prev = NULL;
 	free_inode[0].h_next = NULL;
 	free_inode[0].inode_lock = semaphore_create();
-	if (free_inode[0].inode_lock == null) {
+	if (free_inode[0].inode_lock == NULL) {
 		return -1;
 	}
-	semaphore_initialize(free_inode[0].inode_lock);
+	semaphore_initialize(free_inode[0].inode_lock, 1);
 	free_inode[MAX_INODE_NUM - 1].l_prev = &free_inode[MAX_INODE_NUM - 2];
 	free_inode[MAX_INODE_NUM - 1].l_next = NULL;
 	free_inode[MAX_INODE_NUM - 1].h_prev = NULL;
 	free_inode[MAX_INODE_NUM - 1].h_next = NULL;
 	free_inode[MAX_INODE_NUM - 1].inode_lock = semaphore_create();
-	if (free_inode[MAX_INODE_NUM - 1].inode_lock == null) {
+	if (free_inode[MAX_INODE_NUM - 1].inode_lock == NULL) {
 		return -1;
 	}
-	semaphore_initialize(free_inode[MAX_INODE_NUM - 1].inode_lock);
+	semaphore_initialize(free_inode[MAX_INODE_NUM - 1].inode_lock, 1);
 	for (i = 1; i < MAX_INODE_NUM - 1; i++) {
 		free_inode[i].l_prev = &free_inode[i - 1];
 		free_inode[i].l_next = &free_inode[i + 1];
 		free_inode[i].h_prev = NULL;
 		free_inode[i].h_next = NULL;
 		free_inode[i].inode_lock = semaphore_create();
-		if (free_inode[i].inode_lock == null) {
+		if (free_inode[i].inode_lock == NULL) {
 			return -1;
 		}
-		semaphore_initialize(free_inode[i].inode_lock);
+		semaphore_initialize(free_inode[i].inode_lock, 1);
 	}
 	
 	itable.freelist_head = &free_inode[0];
 	itable.freelist_tail = &free_inode[MAX_INODE_NUM - 1];
+	
+	return 0;
 }
 
 /* Get inode from hash table, return 0 if found, -1 if not */

@@ -1,6 +1,7 @@
 #include "minifile_path.h"
 #include "minithread.h"
 #include <string.h>
+#include "minifile_util.h"
 
 /*
  * Translate path to inode number
@@ -27,10 +28,10 @@ namei(char* path) {
 	}
 	
 	/* Start with root directory */
-	if (path[0] == "/") {
+	if (path[0] == '/') {
 		working_inode = root_inode;
 	} else {
-		working_inodenum = minithread_self()->current_dir;
+		working_inodenum = minithread_wd();
 		if (iget(maindisk, working_inodenum, &working_inode) != 0) {
 			return 0;
 		}
@@ -68,7 +69,7 @@ namei(char* path) {
 				break;
 			}
 		}
-		semaphore_V(working_inode);
+		semaphore_V(working_inode->inode_lock);
 		if (working_inode != root_inode) {
 			iput(maindisk, working_inode);
 		}
@@ -84,4 +85,45 @@ namei(char* path) {
 		iput(maindisk, working_inode);
 	}
 	return ret_inodenum;
+}
+
+
+/* Get all the directory entries in directory inode, return NULL if no entries */
+dir_entry_t* 
+get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size) {
+	size_t block_num;             /* Number of data blocks in an inode */ 
+	size_t entry_num;             /* Number of entries in a directory inode */
+	size_t existing_entry;        /* Number of existing entries in a data block */
+	size_t left_entry;            /* Number of entries left to exam */
+	blocknum_t blocknum;          /* Data block number to read */
+	buf_block_t buf;              /* Block buffer */
+	dir_entry_t* dir_entries;
+	dir_entry_t entry, tmp_entry;
+	int i, j;
+	
+	entry_num = ino->size;
+	block_num = ino->size_blocks;
+	if (entry_num <= 0) {
+		entry_size = 0;
+		return NULL;
+	}
+	dir_entries = malloc(entry_num * sizeof(dir_entry_t));
+	memset(dir_entries, 0, entry_num * sizeof(dir_entry_t));
+	*entry_size = entry_num;
+	for (i = 0; i < block_num; i++) {
+		left_entry = entry_num - i * ENTRY_NUM_PER_BLOCK;
+		existing_entry = (left_entry > ENTRY_NUM_PER_BLOCK ? ENTRY_NUM_PER_BLOCK : left_entry);
+		blocknum = blockmap(maindisk, ino, i);
+		if (bread(disk, blocknum, &buf) != 0) {
+			continue;
+		}
+		tmp_entry = (dir_entry_t)buf->data;
+		for (j = 0; j < existing_entry; j++) {
+			entry = malloc(sizeof(struct dir_entry));
+			memcpy(entry, tmp_entry, sizeof(struct dir_entry));
+			dir_entries[i * ENTRY_NUM_PER_BLOCK + j] = entry;
+		}
+		brelse(buf);
+	}
+	return dir_entries;
 }

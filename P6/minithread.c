@@ -438,7 +438,9 @@ minithread_initialize_filesystem()
 	semaphore_initialize(sb_lock, 1);
 
     /* Get super block into memory */
-    mainsb = &(sb_table[0]);
+    if (mainsb = &(sb_table[0]) == -1) {
+		return -1;
+	}
     sblock_get(maindisk, mainsb);
     mainsb->init = 1;
     sblock_put(mainsb);
@@ -542,8 +544,8 @@ disk_handler(void* arg)
     disk_interrupt_arg_t *intrpt = arg;
     int block = intrpt->request.blocknum;
     int blocknum = BLOCK_NUM_HASH(block);
-    semaphore_V(bc->block_sig[blocknum]);
     bc->reply[blocknum] = intrpt->reply;
+	semaphore_V(bc->block_sig[blocknum]);
     free(arg);
     set_interrupt_level(oldlevel);
 }

@@ -438,10 +438,10 @@ minithread_initialize_filesystem()
 	semaphore_initialize(sb_lock, 1);
 
     /* Get super block into memory */
-    if (mainsb = &(sb_table[0]) == -1) {
+    mainsb = &(sb_table[0]);
+    if (sblock_get(maindisk, mainsb) != 0) {
 		return -1;
 	}
-    sblock_get(maindisk, mainsb);
     mainsb->init = 1;
     sblock_put(mainsb);
 

@@ -22,7 +22,6 @@ static void hash_add(buf_block_t block, blocknum_t bhash);
 static void hash_remove(buf_block_t block, blocknum_t bhash);
 static buf_block_t get_buf_block();
 static disk_reply_t blocking_read(buf_block_t buf);
-static disk_reply_t blocking_write(buf_block_t buf);
 
 /* Initialize buffer cache */
 int
@@ -160,7 +159,7 @@ blocking_read(buf_block_t buf)
     return bc->reply[bhash];
 }
 
-static disk_reply_t
+disk_reply_t
 blocking_write(buf_block_t buf)
 {
     interrupt_level_t oldlevel;
@@ -262,7 +261,7 @@ bpush(blocknum_t to_block, char* from)
     buf_block_t block;
     bread(maindisk, to_block, &block);
     memcpy(block->data, from, DISK_BLOCK_SIZE);
-    bwrite(block);
+    return bwrite(block);
 }
 
 /* 'Push' the content of char* onto disk block immediately, nonblocking */
@@ -273,4 +272,5 @@ bapush(blocknum_t to_block, char* from)
     bread(maindisk, to_block, &block);
     memcpy(block->data, from, DISK_BLOCK_SIZE);
     bawrite(block);
+    return 0;
 }

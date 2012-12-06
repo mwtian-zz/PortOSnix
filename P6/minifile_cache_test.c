@@ -5,7 +5,7 @@
 #include "minithread.h"
 #include "synch.h"
 
-static blocknum_t total_blocks = 128;
+static blocknum_t disk_num_blocks = 128;
 static semaphore_t sig;
 static int shift[10];
 
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
     use_existing_disk = 0;
     disk_name = "minidisk";
     disk_flags = DISK_READWRITE;
-    disk_size = total_blocks;
+    disk_size = disk_num_blocks;
 
     minithread_system_initialize(cache_test, NULL);
 

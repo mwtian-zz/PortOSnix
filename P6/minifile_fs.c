@@ -44,21 +44,22 @@ sblock_update(mem_sblock_t sbp)
  * Requires getting the super block before this and updating it after.
  */
 int
-sblock_init(mem_sblock_t sbp, blocknum_t total_blocks)
+sblock_init(mem_sblock_t sbp, blocknum_t disk_num_blocks)
 {
-    inodenum_t inode_blocks = total_blocks / INODE_PER_BLOCK;
+    inodenum_t inode_blocks = disk_num_blocks / INODE_PER_BLOCK;
     if (NULL == sbp)
         return -1;
 
     sbp->magic_number = MINIFS_MAGIC_NUMBER;
-    sbp->total_blocks = total_blocks;
+    sbp->disk_num_blocks = disk_num_blocks;
+    sbp->total_data_blocks = disk_num_blocks - inode_blocks - 1;
     sbp->free_blist_head = 1 + inode_blocks;
-    sbp->free_blist_tail = total_blocks - 1;
-    sbp->free_blocks = total_blocks - inode_blocks - 1;
-    sbp->total_inodes = total_blocks;
+    sbp->free_blist_tail = disk_num_blocks - 1;
+    sbp->free_blocks = disk_num_blocks - inode_blocks - 1;
+    sbp->total_inodes = disk_num_blocks;
     sbp->free_ilist_head = 1;
-    sbp->free_ilist_tail = total_blocks;
-    sbp->free_inodes = total_blocks;
+    sbp->free_ilist_tail = disk_num_blocks;
+    sbp->free_inodes = disk_num_blocks;
     sbp->first_inode_block = 1;
     sbp->first_data_block = 1 + inode_blocks;
     sbp->root_inum = 1;
@@ -81,7 +82,7 @@ void
 sblock_print(mem_sblock_t sbp)
 {
     printf("%-40s %-16X\n", "Magic number (4-byte HEX) :", sbp->magic_number);
-    printf("%-40s %-16ld\n", "Total disk blocks :", sbp->total_blocks);
+    printf("%-40s %-16ld\n", "Total disk blocks :", sbp->disk_num_blocks);
     printf("%-40s %-16ld\n", "Free block head :", sbp->free_blist_head);
     printf("%-40s %-16ld\n", "Free block tail :", sbp->free_blist_tail);
     printf("%-40s %-16ld\n", "Number of free blocks :",  sbp->free_blocks);
@@ -249,13 +250,13 @@ ilist_check(mem_sblock_t sbp)
 
     sblock_get(maindisk, mainsb);
     next = mainsb->free_ilist_head;
-    //printf("Next: %ld\n", next);
+    printf("Next: %ld\n", next);
     for (i = 0; i < mainsb->free_inodes; ++i) {
         if (iget(sbp->disk, next, &inode) != 0)
             break;
         freenode = (freenode_t) inode;
         next = freenode->next;
-        //printf("Next: %ld\n", next);
+        printf("Next: %ld\n", next);
         iput(inode);
     }
     sblock_put(mainsb);
@@ -278,8 +279,46 @@ iwrite(mem_inode_t ino)
     return 0;
 }
 
-void irelse(mem_inode_t ino)
+void
+irelse(mem_inode_t ino)
 {
 
 }
 
+/* Clear all bits in bitmap with 'num_bits' number of bits */
+void
+bitmap_zeroall(char* bitmap, size_t num_bits)
+{
+    size_t i = 0;
+    size_t num_bytes = ((num_bits - 1) >> 3) + 1;
+    for (i = 0; i < num_bytes; ++i) {
+        bitmap[i] = 0;
+    }
+}
+
+/* Set 'bit' in bitmap to 1. Index starts at 0. */
+void
+bitmap_set(char* bitmap, size_t bit)
+{
+    size_t i = bit >> 3;
+    bit &= 7;
+    bitmap[i] |= (1 << bit);
+}
+
+/* Set 'bit' in bitmap to 0. Index starts at 0. */
+void
+bitmap_clear(char* bitmap, size_t bit)
+{
+    size_t i = bit >> 3;
+    bit &= 7;
+    bitmap[i] &= ~(1 << bit);
+}
+
+/* Get 'bit' in bitmap. Index starts at 0. */
+char
+bitmap_get(char* bitmap, size_t bit)
+{
+    size_t i = bit >> 3;
+    bit &= 7;
+    return (bitmap[i] & (1 << bit));
+}

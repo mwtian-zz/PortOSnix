@@ -17,7 +17,8 @@ typedef uint32_t magicnum_t;
 /* Super block on disk */
 typedef struct sblock {
     magicnum_t magic_number;
-    blocknum_t total_blocks;
+    blocknum_t disk_num_blocks;
+    blocknum_t total_data_blocks;
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
     blocknum_t free_blocks;
@@ -33,7 +34,8 @@ typedef struct sblock {
 /* Super block in memory */
 typedef struct mem_sblock {
     magicnum_t magic_number;
-    blocknum_t total_blocks;
+    blocknum_t disk_num_blocks;
+    blocknum_t total_data_blocks;
     blocknum_t free_blist_head;
     blocknum_t free_blist_tail;
     blocknum_t free_blocks;
@@ -66,7 +68,7 @@ typedef struct freenode {
 extern int sblock_get(disk_t* disk, mem_sblock_t sbp);
 extern int sblock_update(mem_sblock_t sbp);
 extern void sblock_put(mem_sblock_t sbp);
-extern int sblock_init(mem_sblock_t sbp, blocknum_t total_blocks);
+extern int sblock_init(mem_sblock_t sbp, blocknum_t disk_num_blocks);
 extern int sblock_isvalid(mem_sblock_t sbp);
 extern void sblock_print(mem_sblock_t sbp);
 

@@ -64,5 +64,6 @@ extern int iclear(mem_inode_t ino);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
+extern int iadd_block(mem_inode_t ino, buf_block_t buf); /* Add a data block to inode */
 
 #endif /* __MINIFILE_INODE_H__ */

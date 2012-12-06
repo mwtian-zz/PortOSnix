@@ -230,7 +230,8 @@ brelse(buf_block_t buf)
 
 
 /* Immediately write buffer back to disk, block until write finishes */
-int bwrite(buf_block_t buf)
+int
+bwrite(buf_block_t buf)
 {
     blocking_write(buf);
     brelse(buf);
@@ -239,14 +240,37 @@ int bwrite(buf_block_t buf)
 
 
 /* Schedule write immediately, but do not block */
-void bawrite(buf_block_t buf)
+void
+bawrite(buf_block_t buf)
 {
     bdwrite(buf);
 }
 
 /* Only mark buffer dirty, no write scheduled */
-void bdwrite(buf_block_t buf)
+void
+bdwrite(buf_block_t buf)
 {
     buf->state = BLOCK_DIRTY;
     brelse(buf);
+}
+
+/* 'Push' the content of char* onto disk block immediately, blocking */
+int
+bpush(blocknum_t to_block, char* from)
+{
+    buf_block_t block;
+    bread(maindisk, to_block, &block);
+    memcpy(block->data, from, DISK_BLOCK_SIZE);
+    return bwrite(block);
+}
+
+/* 'Push' the content of char* onto disk block immediately, nonblocking */
+int
+bapush(blocknum_t to_block, char* from)
+{
+    buf_block_t block;
+    bread(maindisk, to_block, &block);
+    memcpy(block->data, from, DISK_BLOCK_SIZE);
+    bawrite(block);
+    return 0;
 }

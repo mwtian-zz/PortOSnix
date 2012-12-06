@@ -24,29 +24,29 @@ minifile_remkfs()
     inode->size = 0;
     iupdate(inode);
 
-    /* Initialize free inode list */
-    for (i = mainsb->free_ilist_head; i < mainsb->free_ilist_tail; ++i) {
-        iget(maindisk, i, &inode);
-        freenode = (freenode_t) inode;
-        freenode->next = i + 1;
-        iupdate(inode);
-    }
-    iget(maindisk, mainsb->free_ilist_tail, &inode);
-    freenode = (freenode_t) inode;
-    freenode->next = 0;
-    iupdate(inode);
-
-    /* Initialize free block list */
-    for (i = mainsb->free_blist_head; i < mainsb->free_blist_tail; ++i) {
-        bread(maindisk, i, &buf);
-        freenode = (freenode_t) buf->data;
-        freenode->next = i + 1;
-        bwrite(buf);
-    }
-    bread(maindisk, mainsb->free_blist_tail, &buf);
-    freenode = (freenode_t) buf->data;
-    freenode->next = 0;
-    bwrite(buf);
+//    /* Initialize free inode list */
+//    for (i = mainsb->free_ilist_head; i < mainsb->free_ilist_tail; ++i) {
+//        iget(maindisk, i, &inode);
+//        freenode = (freenode_t) inode;
+//        freenode->next = i + 1;
+//        iupdate(inode);
+//    }
+//    iget(maindisk, mainsb->free_ilist_tail, &inode);
+//    freenode = (freenode_t) inode;
+//    freenode->next = 0;
+//    iupdate(inode);
+//
+//    /* Initialize free block list */
+//    for (i = mainsb->free_blist_head; i < mainsb->free_blist_tail; ++i) {
+//        bread(maindisk, i, &buf);
+//        freenode = (freenode_t) buf->data;
+//        freenode->next = i + 1;
+//        bwrite(buf);
+//    }
+//    bread(maindisk, mainsb->free_blist_tail, &buf);
+//    freenode = (freenode_t) buf->data;
+//    freenode->next = 0;
+//    bwrite(buf);
 
     printf("minifile system established.\n");
 

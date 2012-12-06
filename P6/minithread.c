@@ -320,13 +320,13 @@ minithread_wd_inode() {
 }
 
 /* Set working directory inode number */
-void 
+void
 minithread_set_wd(inodenum_t inodenum) {
 	context->current_dir = inodenum;
 }
 
 /* Set working directory inode */
-void 
+void
 minithread_set_wd_inode(mem_inode_t ino) {
 	context->current_dir_inode = ino;
 }
@@ -445,15 +445,16 @@ minithread_initialize_filesystem()
     mainsb->init = 1;
     sblock_put(mainsb);
 
-//	/* Initialize inode table */
-//	itable_init();
-//
-//	/* Create inode lock */
-//	inode_lock = semaphore_create();
-//	if (inode_lock == NULL) {
-//		return -1;
-//	}
-//	semaphore_initialize(inode_lock, 1);
+	/* Initialize inode table */
+	itable_init();
+
+	/* Create inode lock */
+	inode_lock = semaphore_create();
+	if (inode_lock == NULL) {
+		return -1;
+	}
+	semaphore_initialize(inode_lock, 1);
+
 //
 //	/* Get root inode */
 //	if (iget(maindisk, mainsb->root_inum, &root_inode) != 0) {

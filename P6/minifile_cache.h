@@ -65,6 +65,7 @@ extern int brelse(buf_block_t buf);
 extern int bwrite(buf_block_t buf);
 extern void bawrite(buf_block_t buf);
 extern void bdwrite(buf_block_t buf);
-
+extern int bpush(blocknum_t to_block, char* from);
+extern int bapush(blocknum_t to_block, char* from);
 #endif /* __MINIFILE_CACHE_H__ */
 

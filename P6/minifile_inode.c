@@ -43,11 +43,7 @@ iclear(mem_inode_t ino)
 			/* What to do here? */
 		}
 		if (bread(ino->disk, blocknum, &buf) == 0) {
-			freeblock = (freenode_t) buf->data;
-			freeblock->next = mainsb->free_blist_head;
-			mainsb->free_blist_head = buf->num;
-			mainsb->free_blocks++;
-			brelse(buf);
+			bfree(buf);
 		}
 	}
 	sblock_update(mainsb);

@@ -11,47 +11,63 @@
 #define INODE_SIZE 128    /* Size of inode in bytes on disk */
 #define INODE_PER_BLOCK (DISK_BLOCK_SIZE / INODE_SIZE)   /* Number of inodes in one block */
 
+#define BITS_PER_BLOCK (8 * (DISK_BLOCK_SIZE))
+
 /* Magic number is four bytes */
 typedef uint32_t magicnum_t;
+
+/* Bitmap for free inodes and blocks */
+typedef unsigned char* bitmap_t;
 
 /* Super block on disk */
 typedef struct sblock {
     magicnum_t magic_number;
     blocknum_t disk_num_blocks;
-    blocknum_t total_data_blocks;
-    blocknum_t free_blist_head;
-    blocknum_t free_blist_tail;
-    blocknum_t free_blocks;
+
     inodenum_t total_inodes;
-    inodenum_t free_ilist_head;
-    inodenum_t free_ilist_tail;
-    inodenum_t free_inodes;
     inodenum_t first_inode_block;
-    inodenum_t first_data_block;
     inodenum_t root_inum;
+
+    blocknum_t inode_bitmap_first;
+    blocknum_t inode_bitmap_last;
+
+    blocknum_t block_bitmap_first;
+    blocknum_t block_bitmap_last;
+
+    blocknum_t total_data_blocks;
+    blocknum_t first_data_block;
 } *sblock_t;
 
 /* Super block in memory */
 typedef struct mem_sblock {
     magicnum_t magic_number;
     blocknum_t disk_num_blocks;
-    blocknum_t total_data_blocks;
-    blocknum_t free_blist_head;
-    blocknum_t free_blist_tail;
-    blocknum_t free_blocks;
+
     inodenum_t total_inodes;
-    inodenum_t free_ilist_head;
-    inodenum_t free_ilist_tail;
-    inodenum_t free_inodes;
     inodenum_t first_inode_block;
-    inodenum_t first_data_block;
     inodenum_t root_inum;
+
+    blocknum_t inode_bitmap_first;
+    blocknum_t inode_bitmap_last;
+
+    blocknum_t block_bitmap_first;
+    blocknum_t block_bitmap_last;
+
+    blocknum_t total_data_blocks;
+    blocknum_t first_data_block;
 
     disk_t* disk;
     blocknum_t pos;
-    buf_block_t buf;
-    semaphore_t lock;
+
+    buf_block_t sb_buf;
+
+    bitmap_t block_bitmap;
+    bitmap_t inode_bitmap;
+    blocknum_t free_blocks;
+    blocknum_t free_inodes;
+
     char init;
+    semaphore_t filesys_lock;
 } *mem_sblock_t;
 
 struct mem_sblock sb_table[8];

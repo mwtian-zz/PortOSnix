@@ -43,15 +43,11 @@ iclear(mem_inode_t ino)
 			/* What to do here? */
 		}
 		if (bread(ino->disk, blocknum, &buf) == 0) {
-			freeblock = (freenode_t) buf->data;
-			freeblock->next = mainsb->free_blist_head;
-			mainsb->free_blist_head = buf->num;
-			mainsb->free_blocks++;
-			brelse(buf);
+			bfree(buf);
 		}
 	}
-	sblock_update(mainsb);
-
+	semaphore_V(sb_lock);
+	
 	return 0;
 }
 
@@ -113,14 +109,13 @@ void iput(mem_inode_t ino)
 		if (ino->status == TO_DELETE) {
 			iclear(ino);
 			ifree(ino);
-			/* Put inode back to free list, delete from table */
-			itable_delete_from_table(ino);
-			itable_put_list(ino);
-		} else {
-			iupdate(ino);
-			/* Put inode back to free list */
-			itable_put_list(ino);
 		}
+		semaphore_P(ino->inode_lock);
+		iupdate(ino);
+		semaphore_V(ino->inode_lock);
+		/* Put inode back to free list, delete from table */
+		itable_delete_from_table(ino);
+		itable_put_list(ino);
 		/* Relase buffer */
 		brelse(ino->buf);
 	}
@@ -130,9 +125,6 @@ void iput(mem_inode_t ino)
 /* Return the inode and update it on the disk */
 int iupdate(mem_inode_t ino)
 {
-	semaphore_P(ino->inode_lock);
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
-    bwrite(ino->buf);
-	semaphore_V(ino->inode_lock);
-	return 0;
+    return blocking_write(ino->buf);
 }

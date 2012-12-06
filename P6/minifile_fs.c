@@ -132,6 +132,7 @@ bfree(buf_block_t block)
 {
     freenode_t freeblk;
 
+	semaphore_P(sb_lock);
     /* Get super block */
     sblock_get(block->disk, mainsb);
 
@@ -147,6 +148,7 @@ bfree(buf_block_t block)
 
     /* Update superbock and the new free block */
     sblock_update(mainsb);
+	semaphore_V(sb_lock);
     bwrite(block);
 }
 
@@ -227,15 +229,11 @@ ifree(mem_inode_t inode)
 
 	semaphore_P(sb_lock);
 	sblock_get(inode->disk, mainsb);
-	iget(inode->disk, inode->num, &inode);
-
 	freeinode_num = inode->num;
     freeblk = (freenode_t) inode;
     freeblk->next = mainsb->free_ilist_head;
     mainsb->free_ilist_head = freeinode_num;
 	mainsb->free_inodes++;
-
-	iupdate(inode);
     sblock_update(mainsb);
 	semaphore_V(sb_lock);
 }

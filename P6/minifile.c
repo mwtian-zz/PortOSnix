@@ -61,7 +61,26 @@ int minifile_rmdir(char *dirname)
 
 int minifile_stat(char *path)
 {
-    return 0;
+	inodenum_t inodenum;
+    mem_inode_t ino;
+	int retval;
+	
+	inodenum = namei(path);
+	if (inodenum == 0) {
+		return -1;
+	}
+	if (iget(maindisk, inodenum, &ino) != 0) {
+		return -1;
+	}
+	if (ino->type == MINIFILE) {
+		retval = ino->size;
+	} else if (ino->type == MINIDIRECTORY) {
+		retval = -2;
+	} else {
+		retval = -1;
+	}
+	iput(ino);
+	return retval;
 }
 
 int minifile_cd(char *path)
@@ -79,11 +98,15 @@ int minifile_cd(char *path)
 	if (iget(maindisk, new_inodenum, &new_dir) != 0) {
 		return -1;
 	}
-	/* Not a directory */
-	if (new_dir->type != MINIDIRECTORY) {
+	/* Not a directory or the dirctory is mark deleted. Can't create file there since can't delete non-emptry dir */
+	semaphore_P(new_dir->inode_lock);
+	if (new_dir->type != MINIDIRECTORY || new_dir->status == TO_DELETE) {
+		semaphore_V(new_dir->inode_lock);
 		iput(new_dir);
 		return -1;
 	}
+	semaphore_V(new_dir->inode_lock);
+	
 	/* Release previous directory inode if not root */
 	if (cur_inodenum != mainsb->root_inum) {
 		iput(cur_dir);

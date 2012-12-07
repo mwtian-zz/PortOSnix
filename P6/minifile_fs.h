@@ -99,12 +99,12 @@ void
 fs_unlock(mem_sblock_t sbp);
 
 /* Disk space management functions. Explained before implementations. */
-extern buf_block_t balloc(disk_t* disk);
-extern void bfree(buf_block_t block);
+extern blocknum_t balloc(disk_t* disk);
+extern void bfree(blocknum_t blocknum);
 extern int blist_check(mem_sblock_t sbp);
 
-extern mem_inode_t ialloc(disk_t* disk);
-extern void ifree(mem_inode_t inode);
+extern inodenum_t ialloc(disk_t* disk);
+extern void ifree(inodenum_t inum);
 int ilist_check(mem_sblock_t sbp);
 
 extern int iread(disk_t* disk, inodenum_t n, mem_inode_t *inop);

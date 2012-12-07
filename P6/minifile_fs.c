@@ -223,18 +223,17 @@ fs_unlock(mem_sblock_t sbp)
     semaphore_V(sbp->filesys_lock);
 }
 
-/* Get a free block from the disk and lock (bread) the block */
-buf_block_t
+/* Get a free block number from the disk and mark the block used */
+blocknum_t
 balloc(disk_t* disk)
 {
     blocknum_t free_bit = -1;
     blocknum_t block_offset = -1;
-    buf_block_t block;
 
     /* Get super block */
     fs_lock(mainsb);
     if (mainsb->free_blocks <= 0) {
-        return NULL;
+        return -1;
     }
 
     /* Get free block number */
@@ -242,7 +241,7 @@ balloc(disk_t* disk)
     block_offset = free_bit / BITS_PER_BLOCK;
     if (block_offset < 0 || block_offset >= mainsb->disk_num_blocks) {
         fs_unlock(mainsb);
-        return NULL;
+        return -1;
     }
 
     /* Set the free block to used */
@@ -253,14 +252,12 @@ balloc(disk_t* disk)
     mainsb->free_blocks--;
     fs_unlock(mainsb);
 
-    /* Get the block and return */
-    bread(maindisk, free_bit, &block);
-    return block;
+    return free_bit;
 }
 
 /* Free the block on disk and release control (bwrite) of the block */
 void
-bfree(buf_block_t block)
+bfree(blocknum_t blocknum)
 {
     blocknum_t bit = -1;
     blocknum_t block_offset;
@@ -269,7 +266,7 @@ bfree(buf_block_t block)
     fs_lock(mainsb);
 
     /* Set the block to free */
-    bit = block->num;
+    bit = blocknum;
     block_offset = bit / BITS_PER_BLOCK;
     bitmap_clear(mainsb->block_bitmap, bit);
     bpush(block_offset + mainsb->block_bitmap_first,
@@ -278,7 +275,6 @@ bfree(buf_block_t block)
     /* Unlock file system and update data block */
     mainsb->free_blocks++;
     fs_unlock(mainsb);
-    bwrite(block);
 }
 
 //
@@ -312,7 +308,7 @@ bfree(buf_block_t block)
  * Allocate a free inode and return a pointer to free inode
  * Return NULL if fail.
  */
-mem_inode_t
+inodenum_t
 ialloc(disk_t* disk)
 {
     inodenum_t free_bit = -1;
@@ -322,7 +318,7 @@ ialloc(disk_t* disk)
     /* Get super block */
     fs_lock(mainsb);
     if (mainsb->free_inodes <= 0) {
-        return NULL;
+        return -1;
     }
 
     /* Get free inode number */
@@ -330,7 +326,7 @@ ialloc(disk_t* disk)
     block_offset = free_bit / BITS_PER_BLOCK;
     if (block_offset < 0 || block_offset >= mainsb->disk_num_blocks) {
         fs_unlock(mainsb);
-        return NULL;
+        return -1;
     }
 
     /* Set the free inode to used */
@@ -341,23 +337,21 @@ ialloc(disk_t* disk)
     mainsb->free_inodes--;
     fs_unlock(mainsb);
 
-    /* Get the inode and return */
-    iget(disk, free_bit, &new_inode);
-    return new_inode;
+    return free_bit;
 }
 
 /* Add an inode back to free list */
 void
-ifree(mem_inode_t inode)
+ifree(inodenum_t inum)
 {
     blocknum_t bit = -1;
     blocknum_t block_offset;
 
     /* Lock file system */
     fs_lock(mainsb);
-printf("inode->num: %ld\n", inode->num);
+printf("inode number: %ld\n", inum);
     /* Set the inode to free */
-    bit = inode->num;
+    bit = inum;
     block_offset = bit / BITS_PER_BLOCK;
     bitmap_clear(mainsb->inode_bitmap, bit);
     bpush(block_offset + mainsb->inode_bitmap_first,
@@ -366,7 +360,6 @@ printf("bit: %ld\n", bit);
     /* Unlock file system and update inode */
     mainsb->free_inodes++;
     fs_unlock(mainsb);
-    iupdate(inode);
 printf("iupdate finished\n");
 }
 

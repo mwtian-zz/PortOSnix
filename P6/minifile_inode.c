@@ -7,10 +7,10 @@
 #include "minifile_util.h"
 
 
-static int free_single_indirect(buf_block_t buf); /* Free single indirect block */
-static int free_double_indirect(buf_block_t buf, int blocknum); /* Free double indirect */
-static int free_triple_indirect(buf_block_t buf, int blocknum); /* Free triple indirect */
-static int free_all_indirect(mem_inode_t ino, int blocknum); /* Free all indirect block */
+static int free_single_indirect(blocknum_t blocknum); /* Free single indirect block */
+static int free_double_indirect(blocknum_t blocknum, blocknum_t block_lim); /* Free double indirect */
+static int free_triple_indirect(blocknum_t blocknum, blocknum_t block_lim); /* Free triple indirect */
+static int free_all_indirect(mem_inode_t ino, blocknum_t blocknum); /* Free all indirect block */
 static int add_single_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum);
 static int add_double_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum);
 static int add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum);
@@ -54,9 +54,7 @@ iclear(mem_inode_t ino)
 			printf("Error on mapping block number!\n");
 			/* What to do here? */
 		}
-		if (bread(ino->disk, blocknum, &buf) == 0) {
-			bfree(buf);
-		}
+        bfree(blocknum);
 	}
 	free_all_indirect(ino, datablock_num);
 
@@ -71,6 +69,7 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 	blocknum_t block_to_read;
 
 	semaphore_P(inode_lock);
+
 	/* First find inode from table */
 	if (itable_get_from_table(n, inop) == 0) {
 		(*inop)->ref_count++;
@@ -109,6 +108,8 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 
 	/* Put to new queue */
 	itable_put_table(*inop);
+	brelse(buf);
+
 	semaphore_V(inode_lock);
 
     return 0;
@@ -124,7 +125,7 @@ iput(mem_inode_t ino)
 		/* Delete this file */
 		if (ino->status == TO_DELETE) {
 			iclear(ino);
-			ifree(ino);
+			ifree(ino->num);
 		} else {
 			semaphore_P(ino->inode_lock); /* Other process couldn't be using this inode, otherwise count won't be 0 */
 			iupdate(ino);
@@ -142,7 +143,7 @@ int
 iupdate(mem_inode_t ino)
 {
     printf("iupdate starts\n");
-
+    bread(maindisk, ino->buf->num, &(ino->buf));
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
     return bwrite(ino->buf);
 }
@@ -175,12 +176,12 @@ iadd_block(mem_inode_t ino, buf_block_t buf) {
 }
 
 /* Remove the last block of an inode, if any */
-int 
+int
 irm_block(mem_inode_t ino) {
 	int blocksize;
 	blocknum_t blocknum;
 	buf_block_t buf;
-	
+
 	if (ino->size <= 0 || ino->size_blocks <= 0) {
 		return 0;
 	}
@@ -191,7 +192,7 @@ irm_block(mem_inode_t ino) {
 		if (bread(ino->disk, blocknum, &buf) != 0) {
 			return -1;
 		}
-		bfree(buf);
+		bfree(blocknum);
 		return 0;
 	}
 	/* In indirect blocks */
@@ -207,7 +208,7 @@ irm_block(mem_inode_t ino) {
 	return -1;
 }
 
-int 
+int
 idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	size_t block_num;             /* Number of data blocks in an inode */
 	size_t entry_num;             /* Number of entries in a directory inode */
@@ -218,13 +219,13 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	dir_entry_t src_entry, target_entry;
 	int i, j, offset;
 	char is_found = 0;
-	
+
 	entry_num = ino->size;
 	block_num = ino->size_blocks;
 	if (entry_num <= 0) {
 		return -1;
 	}
-	
+
 	for (i = 0; i < block_num; i++) {
 		left_entry = entry_num - i * ENTRY_NUM_PER_BLOCK;
 		existing_entry = (left_entry > ENTRY_NUM_PER_BLOCK ? ENTRY_NUM_PER_BLOCK : left_entry);
@@ -261,7 +262,7 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	/* Copy last entry to this one */
 	/* Get last block */
 	offset = (ino->size - 1) % ENTRY_NUM_PER_BLOCK;
-	blocknum = blockmap(ino->disk, ino, block_num - 1); 
+	blocknum = blockmap(ino->disk, ino, block_num - 1);
 	if (blocknum == -1) {
 		brelse(buf);
 		return -1;
@@ -290,28 +291,24 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	return 0;
 }
 
-/* Remove single indirect */ 
+/* Remove single indirect */
 static int
 rm_single_indirect(mem_inode_t ino, int blocksize) {
 	int offset;
 	blocknum_t blocknum;
-	buf_block_t s_buf, buf;
-	
+	buf_block_t s_buf;
+
 	offset = single_offset(blocksize - INODE_DIRECT_BLOCKS - 1);
 	if (bread(ino->disk, ino->indirect, &s_buf) != 0) {
 		return -1;
 	}
-	blocknum = (blocknum_t)(s_buf->data + 8 * offset);
-	if (bread(ino->disk, blocknum, &buf) != 0) {
-		brelse(s_buf);
-		return -1;
-	}
+	blocknum = (blocknum_t) (s_buf->data + 8 * offset);
+
 	if (offset == 0) {
-		bfree(s_buf);
-	} else {
-		brelse(s_buf);
+		bfree(s_buf->num);
 	}
-	bfree(buf);
+	brelse(s_buf);
+	bfree(blocknum);
 	return 0;
 }
 
@@ -320,10 +317,10 @@ rm_double_indirect(mem_inode_t ino, int blocksize) {
 	int soffset, doffset;
 	blocknum_t blocknum;
 	buf_block_t d_buf, s_buf, buf;
-	
+
 	doffset = double_offset(blocksize - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1);
 	soffset = single_offset(blocksize - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1 - doffset * INODE_INDIRECT_BLOCKS);
-	
+
 	if (bread(ino->disk, ino->double_indirect, &d_buf) != 0) {
 		return -1;
 	}
@@ -339,17 +336,16 @@ rm_double_indirect(mem_inode_t ino, int blocksize) {
 		return -1;
 	}
 	if (soffset == 0) {
-		bfree(s_buf);
+		bfree(s_buf->num);
 		if (doffset == 0) {
-			bfree(d_buf);
-		} else {
-			brelse(d_buf);
+			bfree(d_buf->num);
 		}
-	} else {
-		brelse(d_buf);
-		brelse(s_buf);
 	}
-	bfree(buf);
+    brelse(d_buf);
+    brelse(s_buf);
+
+	bfree(buf->num);
+	brelse(buf);
 	return 0;
 }
 
@@ -362,7 +358,7 @@ rm_triple_indirect(mem_inode_t ino, int blocksize) {
 	toffset = triple_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS));
 	doffset = double_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) - INODE_DOUBLE_BLOCKS * toffset);
 	soffset = single_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) - INODE_DOUBLE_BLOCKS * toffset - INODE_INDIRECT_BLOCKS * doffset);
-	
+
 	if (bread(ino->disk, ino->triple_indirect, &t_buf) != 0) {
 		return -1;
 	}
@@ -385,106 +381,101 @@ rm_triple_indirect(mem_inode_t ino, int blocksize) {
 		return -1;
 	}
 	if (soffset == 0) {
-		bfree(s_buf);
+		bfree(s_buf->num);
 		if (doffset == 0) {
-			bfree(d_buf);
+			bfree(d_buf->num);
 			if (toffset == 0) {
-				bfree(t_buf);
-			} else {
-				brelse(t_buf);
+				bfree(t_buf->num);
 			}
-		} else {
-			brelse(d_buf);
-			brelse(t_buf);
 		}
-	} else {
-		brelse(s_buf);
-		brelse(d_buf);
-		brelse(t_buf);
 	}
-	bfree(buf);
+    brelse(s_buf);
+    brelse(d_buf);
+    brelse(t_buf);
+
+	bfree(buf->num);
+	brelse(buf);
+
 	return 0;
 }
 
 /* Free all indirect blocks */
 static int
-free_all_indirect(mem_inode_t ino, int datablock_num) {
+free_all_indirect(mem_inode_t ino, blocknum_t datablock_num)
+{
 	buf_block_t buf;
-	int relse_blocknum;
+	blocknum_t relse_blocknum;
 	blocknum_t blocknum;
 
 	if (datablock_num > INODE_DIRECT_BLOCKS) {
 		blocknum = ino->indirect;
-		if (bread(ino->disk, blocknum, &buf) == 0) {
-			free_single_indirect(buf);
-		}
+        free_single_indirect(blocknum);
 	}
 	if (datablock_num > (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS)) {
 		relse_blocknum = datablock_num - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS);
 		relse_blocknum = (relse_blocknum > (INODE_DOUBLE_BLOCKS)) ? INODE_DOUBLE_BLOCKS : relse_blocknum;
 		blocknum = ino->double_indirect;
-		if (bread(ino->disk, blocknum, &buf) == 0) {
-			free_double_indirect(buf, relse_blocknum);
-		}
+        //free_double_indirect(blocknum, relse_blocknum);
 	}
 	if (datablock_num > (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS)) {
 		relse_blocknum = datablock_num - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS);
 		blocknum = ino->triple_indirect;
-		if (bread(ino->disk, blocknum, &buf) == 0) {
-			free_triple_indirect(buf, relse_blocknum);
-		}
+        free_triple_indirect(blocknum, relse_blocknum);
 	}
 	return 0;
 }
 
 /* Free single indirect block */
 static int
-free_single_indirect(buf_block_t buf) {
-	bfree(buf);
+free_single_indirect(blocknum_t blocknum)
+{
+	bfree(blocknum);
 	return 0;
 }
 
 /* Free double indirect */
 static int
-free_double_indirect(buf_block_t buf, int blocknum) {
+free_double_indirect(blocknum_t blocknum, blocknum_t blockleft)
+{
 	blocknum_t bnum;
-	buf_block_t buf_to_relse;
+	buf_block_t buf;
 	int left_blocknum, relse_blocknum, i;
 
-	left_blocknum = blocknum;
+    bread(maindisk, blocknum, &buf);
+	left_blocknum = blockleft;
 	i = 0;
 	while (left_blocknum > 0) {
 		relse_blocknum = ((left_blocknum > INODE_INDIRECT_BLOCKS) ? INODE_INDIRECT_BLOCKS : left_blocknum);
 		left_blocknum -= relse_blocknum;
 		bnum = (blocknum_t)(buf->data + 8 * i);
-		if (bread(maindisk, bnum, &buf_to_relse) == 0) {
-			free_single_indirect(buf_to_relse);
-		}
+        free_single_indirect(bnum);
 		i++;
 	}
-	free_single_indirect(buf);
+	brelse(buf);
+	free_single_indirect(blocknum);
 	return 0;
 }
 
 /* Free triple indirect */
 static int
-free_triple_indirect(buf_block_t buf, int blocknum) {
+free_triple_indirect(blocknum_t blocknum, blocknum_t blockleft) {
 	blocknum_t bnum;
-	buf_block_t buf_to_relse;
-	int left_blocknum, relse_blocknum, i;
+	buf_block_t buf;
+	blocknum_t left_blocknum, relse_blocknum, i;
 
-	left_blocknum = blocknum;
+    bread(maindisk, blocknum, &buf);
+	left_blocknum = blockleft;
 	i = 0;
 	while (left_blocknum > 0) {
 		relse_blocknum = ((left_blocknum > INODE_DOUBLE_BLOCKS) ? INODE_DOUBLE_BLOCKS : left_blocknum);
 		left_blocknum -= relse_blocknum;
 		bnum = (blocknum_t)(buf->data + 8 * i);
-		if (bread(maindisk, bnum, & buf_to_relse) == 0) {
-			free_double_indirect(buf_to_relse, relse_blocknum);
-		}
+        free_double_indirect(bnum, relse_blocknum);
 		i++;
 	}
-	free_single_indirect(buf);
+	brelse(buf);
+
+	free_single_indirect(blocknum);
 	return 0;
 }
 
@@ -496,7 +487,8 @@ add_single_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 
 	/* Need a indirect block */
 	if (cur_blocknum == INODE_DIRECT_BLOCKS) {
-		new_buf = balloc(ino->disk);
+		blocknum = balloc(ino->disk);
+		bread(ino->disk, blocknum, &new_buf);
 		if (new_buf == NULL) {
 			return -1;
 		}
@@ -518,25 +510,26 @@ add_single_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 static int
 add_double_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 	buf_block_t new_buf, sec_buf;
-	blocknum_t blocknum;
+	blocknum_t blocknum_1, blocknum_2;
 	int soffset, doffset;
 
 	/* Need double indirect block */
 	if (cur_blocknum == (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS)) {
-		new_buf = balloc(ino->disk);
+		blocknum_1 = balloc(ino->disk);
+		bread(maindisk, blocknum_1, &new_buf);
 		if (new_buf == NULL) {
 			return -1;
 		}
-		blocknum = buf->num;
-		memcpy(new_buf->data, (void*)&blocknum, sizeof(blocknum_t));
-		blocknum = new_buf->num;
-		sec_buf = balloc(ino->disk);
+		memcpy(new_buf->data, (void*)&blocknum_1, sizeof(blocknum_t));
+
+		blocknum_2 = balloc(ino->disk);
+		bread(maindisk, blocknum_2, &sec_buf);
 		if (sec_buf == NULL) {
-			bfree(new_buf);
 			return -1;
 		}
-		memcpy(sec_buf->data, (void*)&blocknum, sizeof(blocknum_t));
+		memcpy(sec_buf->data, (void*)&blocknum_2, sizeof(blocknum_t));
 		ino->double_indirect = sec_buf->num;
+
 		bwrite(new_buf);
 		bwrite(sec_buf);
 		bwrite(buf);
@@ -549,27 +542,25 @@ add_double_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 		soffset = single_offset(cur_blocknum - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - doffset * INODE_INDIRECT_BLOCKS);
 		/* Need a new second level indirect block */
 		if (soffset == 0) {
-			sec_buf = balloc(ino->disk);
+			blocknum_1 = balloc(ino->disk);
+            bread(maindisk, blocknum_1, &sec_buf);
 			if (sec_buf == NULL) {
-				brelse(new_buf);
 				return -1;
 			}
-			blocknum = buf->num;
-			memcpy(sec_buf->data, (void*)&blocknum, sizeof(blocknum_t));
-			blocknum = sec_buf->num;
-			memcpy((new_buf->data + 8 * doffset), (void*)&blocknum, sizeof(blocknum_t));
+			memcpy(sec_buf->data, (void*)&blocknum_1, sizeof(blocknum_t));
+			memcpy((new_buf->data + 8 * doffset), (void*)&blocknum_1, sizeof(blocknum_t));
 			bwrite(sec_buf);
 			bwrite(new_buf);
 			bwrite(buf);
 			return 0;
 		} else {
-			blocknum = (blocknum_t)(new_buf->data + 8 * doffset);
-			if (bread(ino->disk, blocknum, &sec_buf) != 0) {
+			blocknum_1 = (blocknum_t)(new_buf->data + 8 * doffset);
+			if (bread(ino->disk, blocknum_1, &sec_buf) != 0) {
 				brelse(new_buf);
 				return -1;
 			}
-			blocknum = buf->num;
-			memcpy((sec_buf->data + 8 * soffset), (void*)&blocknum, sizeof(blocknum_t));
+			blocknum_1 = buf->num;
+			memcpy((sec_buf->data + 8 * soffset), (void*)&blocknum_1, sizeof(blocknum_t));
 			bwrite(sec_buf);
 			bwrite(buf);
 			brelse(new_buf);
@@ -577,6 +568,7 @@ add_double_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 	}
 	return 0;
 }
+
 static int
 add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 	buf_block_t new_buf, sec_buf, thr_buf;
@@ -585,28 +577,28 @@ add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 
 	/* Need to new triple indirect block */
 	if (cur_blocknum == (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS)) {
-		new_buf = balloc(ino->disk);
+		blocknum = balloc(ino->disk);
+		bread(maindisk, blocknum, &new_buf);
 		if (new_buf == NULL) {
 			return -1;
 		}
-		blocknum = buf->num;
 		memcpy(new_buf->data, (void*)&blocknum, sizeof(blocknum_t));
-		sec_buf = balloc(ino->disk);
-		if (new_buf == NULL) {
-			bfree(new_buf);
+
+		blocknum = balloc(ino->disk);
+		bread(maindisk, blocknum, &sec_buf);
+		if (sec_buf == NULL) {
 			return -1;
 		}
-		blocknum = new_buf->num;
 		memcpy(sec_buf->data, (void*)&blocknum, sizeof(blocknum_t));
-		thr_buf = balloc(ino->disk);
+
+		blocknum = balloc(ino->disk);
+		bread(maindisk, blocknum, &thr_buf);
 		if (thr_buf == NULL) {
-			bfree(sec_buf);
-			bfree(new_buf);
 			return -1;
 		}
-		blocknum = sec_buf->num;
 		memcpy(thr_buf->data, (void*)&blocknum, sizeof(blocknum_t));
-		ino->triple_indirect = thr_buf->num;
+
+		ino->triple_indirect = blocknum;
 		bwrite(new_buf);
 		bwrite(sec_buf);
 		bwrite(thr_buf);
@@ -620,7 +612,8 @@ add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 			return -1;
 		}
 		if (doffset == 0) {
-			sec_buf = balloc(ino->disk);
+		    blocknum = balloc(ino->disk);
+		    bread(maindisk, blocknum, &sec_buf);
 			if (sec_buf == NULL) {
 				brelse(thr_buf);
 				return -1;
@@ -633,10 +626,11 @@ add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 			}
 		}
 		if (soffset == 0) {
-			new_buf = balloc(ino->disk);
+		    blocknum = balloc(ino->disk);
+		    bread(maindisk,  blocknum, &new_buf);
 			if (new_buf == NULL) {
 				if (doffset == 0) {
-					bfree(sec_buf);
+					bfree(blocknum);
 				} else {
 					brelse(sec_buf);
 				}
@@ -647,7 +641,7 @@ add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 			blocknum = (blocknum_t)(sec_buf->data + 8 * doffset);
 			if (bread(ino->disk, blocknum, &new_buf) != 0) {
 				if (doffset == 0) {
-					bfree(sec_buf);
+					bfree(blocknum);
 				} else {
 					brelse(sec_buf);
 				}

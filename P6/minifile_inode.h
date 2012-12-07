@@ -8,7 +8,7 @@
 #define INODE_DIRECT_BLOCKS 11
 
 /* Address space of inodes */
-typedef uint64_t inodenum_t;
+typedef int64_t inodenum_t;
 
 /* Types of inodes */
 typedef enum inode_type {

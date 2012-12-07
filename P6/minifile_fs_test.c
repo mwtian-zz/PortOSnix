@@ -31,10 +31,11 @@ int fs_multithread_test(int *arg)
 
 int fs_test(int *arg)
 {
-    buf_block_t block[disk_num_blocks];
-    mem_inode_t inode[disk_num_blocks];
+    blocknum_t block[disk_num_blocks];
+    inodenum_t inode[disk_num_blocks];
+    buf_block_t buf;
     blocknum_t i, j;
-    freenode_t freenode;
+    char text[DISK_BLOCK_SIZE];
 //    blocknum_t* block;
 //    blocknum_t inodes_blocks = disk_num_blocks / INODE_PER_BLOCK;
 printf("In file system test.\n");
@@ -42,11 +43,13 @@ printf("In file system test.\n");
     fs_format(mainsb);
     sblock_print(mainsb);
 
+    memset(text, 'z', DISK_BLOCK_SIZE);
+
     /* Test block allocation/free */
     i = 0;
     while (mainsb->free_blocks > 0) {
         block[i] = balloc(maindisk);
-        block[i]->data[0] = 1;
+        bpush(block[i], text);
         //printf("Free blocks left: %ld.\n", mainsb->free_blocks);
         i++;
     }
@@ -65,9 +68,7 @@ printf("In file system test.\n");
     while (mainsb->free_inodes > 0) {
 printf("Allocating\n");
         inode[i] = ialloc(maindisk);
-printf("Got inode %ld\n", inode[i]->num);
-        iclear(inode[i]);
-        iput(inode[i]);
+printf("Got inode %ld\n", inode[i]);
         i++;
     }
     printf("Allocated all inodes. Free inodes left: %ld.\n", mainsb->free_inodes);
@@ -75,7 +76,6 @@ printf("Got inode %ld\n", inode[i]->num);
     i = 0;
     while (mainsb->free_inodes < mainsb->total_inodes) {
 printf("Freeing %ld\n", i);
-        iget(maindisk, i, &inode[i]);
         ifree(inode[i]);
         i++;
     }

@@ -1,7 +1,8 @@
+#include <string.h>
+
+#include "minifile_inode.h"
 #include "minifile_path.h"
 #include "minithread.h"
-#include <string.h>
-#include "minifile_util.h"
 
 /*
  * Translate path to inode number

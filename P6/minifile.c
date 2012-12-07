@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "defs.h"
 
 #include "minifile.h"
 #include "minifile_private.h"
 #include "minifile_path.h"
 #include "minifile_inode.h"
 #include "minithread.h"
-#include "minifile_util.h"
 
 minifile_t minifile_creat(char *filename)
 {

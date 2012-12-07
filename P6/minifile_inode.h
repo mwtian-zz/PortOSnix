@@ -64,11 +64,19 @@ mem_inode_t root_inode;         /* Root inode number */
 extern void ilock(mem_inode_t ino);
 extern void iunlock(mem_inode_t ino);
 extern int iclear(mem_inode_t ino);
+extern void izero(mem_inode_t ino);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
 extern int iadd_block(mem_inode_t ino, blocknum_t blocknum_to_add); /* Add a data block to inode */
 extern int irm_block(mem_inode_t ino); /* Remove the last block of an inode, if any */
 extern int idelete_from_dir(mem_inode_t ino, inodenum_t inodenum); /* Delete inodenum from directory */
+
+/* Byte offset within inode to disk block number */
+extern blocknum_t bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset);
+/* Block offset within inode to disk block number */
+extern blocknum_t blockmap(disk_t* disk, mem_inode_t ino, size_t block_offset);
+/* Find file name from path */
+extern char* pathtofile(char* path);
 
 #endif /* __MINIFILE_INODE_H__ */

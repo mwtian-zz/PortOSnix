@@ -36,7 +36,6 @@ OBJ = \
     minifile_inode.o \
     minifile_inodetable.o \
     minifile_path.o \
-    minifile_util.o \
     miniheader.o \
     minimsg.o \
     minisocket.o \

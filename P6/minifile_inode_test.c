@@ -33,9 +33,9 @@ int inode_multithread(int *arg)
 int inode_test(int *arg)
 {
     blocknum_t block[disk_num_blocks];
+	mem_inode_t inode[disk_num_blocks];
     inodenum_t inode_num[disk_num_blocks];
     blocknum_t i, j, inode_count;
-    mem_inode_t inode;
     char text[DISK_BLOCK_SIZE];
 
     printf("In inode system test.\n");
@@ -46,27 +46,43 @@ int inode_test(int *arg)
     memset(text, 'z', DISK_BLOCK_SIZE);
 
     i = 0;
-    while ((inode_num[i++] = ialloc(maindisk)) != -1) {
-        iget(maindisk, inode_num[i], &inode);
-        ilock(inode);
+    while ((inode_num[i] = ialloc(maindisk)) != -1) {
+        iget(maindisk, inode_num[i], &inode[i]);
+        ilock(inode[i]);
         for (j = 0; j < 11; ++j) {
-            inode->direct[j] = inode->num + j;
+            inode[i]->direct[j] = inode[i]->num + j;
         }
+		printf("Written in inode %ld\n", inode_num[i]);
+		iunlock(inode[i]);
+		i++;
     }
     inode_count = i;
-
+	
     for (i = 0; i < inode_count; ++i) {
-        iget(maindisk, inode_num[i], &inode);
-        ilock(inode);
+        ilock(inode[i]);
         for (j = 0; j < 11; ++j) {
-            if (inode->direct[j] != (inode->num + j))
+            if (inode[i]->direct[j] != (inode[i]->num + j))
                 printf("Error at inode %ld direct %ld\n", inode_num[i], j);
         }
-        iunlock(inode);
-        iput(inode);
+		printf("Checked inode %ld\n", inode_num[i]);
+        iunlock(inode[i]);
+        iput(inode[i]);
     }
+	
+	for (i = 0; i < inode_count; i++) {
+		iget(maindisk, inode_num[i], &inode[i]);
+		ilock(inode[i]);
+		printf("Inode number is %d\n", inode[i]->num);
+		printf("Direct block number is :\n");
+		for (j = 0; j < 11; j++) {
+			printf("%d ", inode[i]->direct[j]);
+		}
+		printf("\n");
+		iunlock(inode[i]);
+		iput(inode[i]);
+	}
 
-//    /* Test block allocation/free */
+//    /* Test block alloca0tion/free */
 //    i = 0;
 //    while (mainsb->free_blocks > 0) {
 //        block[i] = balloc(maindisk);

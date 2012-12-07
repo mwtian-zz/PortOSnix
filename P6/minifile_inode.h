@@ -67,7 +67,7 @@ extern int iclear(mem_inode_t ino);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);
 extern int iupdate(mem_inode_t ino);
-extern int iadd_block(mem_inode_t ino, buf_block_t buf); /* Add a data block to inode */
+extern int iadd_block(mem_inode_t ino, blocknum_t blocknum_to_add); /* Add a data block to inode */
 extern int irm_block(mem_inode_t ino); /* Remove the last block of an inode, if any */
 extern int idelete_from_dir(mem_inode_t ino, inodenum_t inodenum); /* Delete inodenum from directory */
 

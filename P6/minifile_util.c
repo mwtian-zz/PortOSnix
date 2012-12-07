@@ -80,7 +80,7 @@ indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
 		return -1;
 	}
 	offset_to_read = block_offset % POINTER_PER_BLOCK;
-	ret_blocknum = (blocknum_t)(buf->data + offset_to_read * 8);
+	memcpy((void*)&ret_blocknum, (buf->data + 8 * offset_to_read), sizeof(blocknum_t));
 	brelse(buf);
 
 	return ret_blocknum;
@@ -96,7 +96,7 @@ double_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
 		return -1;
 	}
 	offset_to_read = block_offset / POINTER_PER_BLOCK;
-	block_to_read = (blocknum_t)(buf->data + offset_to_read * 8);
+	memcpy((void*)&block_to_read, (buf->data + 8 * offset_to_read), sizeof(blocknum_t));
 	brelse(buf);
 
 	return indirect(disk, block_to_read, block_offset - offset_to_read * POINTER_PER_BLOCK);
@@ -112,7 +112,7 @@ triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {
 		return -1;
 	}
 	offset_to_read = block_offset / POINTER_PER_BLOCK / POINTER_PER_BLOCK;
-	block_to_read = (blocknum_t)(buf->data + offset_to_read * 8);
+	memcpy((void*)&block_to_read, (buf->data + 8 * offset_to_read), sizeof(blocknum_t));
 	brelse(buf);
 
 	return double_indirect(disk, block_to_read, block_offset - offset_to_read * POINTER_PER_BLOCK * POINTER_PER_BLOCK);

@@ -14,6 +14,9 @@ static int free_all_indirect(mem_inode_t ino, int blocknum); /* Free all indirec
 static int add_single_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum);
 static int add_double_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum);
 static int add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum);
+static int rm_single_indirect(mem_inode_t ino, int blocksize);
+static int rm_double_indirect(mem_inode_t ino, int blocksize);
+static int rm_triple_indirect(mem_inode_t ino, int blocksize);
 static int single_offset(blocknum_t blocknum);
 static int double_offset(blocknum_t blocknum);
 static int triple_offset(blocknum_t blocknum);
@@ -46,7 +49,7 @@ iclear(mem_inode_t ino)
 	}
 
 	for (i = 0; i < datablock_num; i++) {
-		blocknum = blockmap(ino->disk, ino, i);
+		blocknum = blockmap(ino->disk, ino, i);    /* A little inefficient to do this... */
 		if (blocknum == -1) {
 			printf("Error on mapping block number!\n");
 			/* What to do here? */
@@ -172,6 +175,154 @@ iadd_block(mem_inode_t ino, buf_block_t buf) {
 	return -1;
 }
 
+/* Remove the last block of an inode, if any */
+int 
+irm_block(mem_inode_t ino) {
+	int blocksize;
+	blocknum_t blocknum;
+	buf_block_t buf;
+	
+	if (ino->size <= 0 || ino->size_blocks <= 0) {
+		return 0;
+	}
+	blocksize = ino->size_blocks;
+	/* In direct block */
+	if (blocksize <= INODE_DIRECT_BLOCKS) {
+		blocknum = ino->direct[blocksize - 1];
+		if (bread(ino->disk, blocknum, &buf) != 0) {
+			return -1;
+		}
+		bfree(buf);
+		return 0;
+	}
+	/* In indirect blocks */
+	if (blocksize <= (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS)) {
+		return rm_single_indirect(ino, blocksize);
+	}
+	if (blocksize <= (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS)) {
+		return rm_double_indirect(ino, blocksize);
+	}
+	if (blocksize <= (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS + INODE_TRIPLE_BLOCKS)) {
+		return rm_triple_indirect(ino, blocksize);
+	}
+	return -1;
+}
+
+/* Remove single indirect */ 
+static int
+rm_single_indirect(mem_inode_t ino, int blocksize) {
+	int offset;
+	blocknum_t blocknum;
+	buf_block_t s_buf, buf;
+	
+	offset = single_offset(blocksize - INODE_DIRECT_BLOCKS - 1);
+	if (bread(ino->disk, ino->indirect, &s_buf) != 0) {
+		return -1;
+	}
+	blocknum = (blocknum_t)(s_buf->data + 8 * offset);
+	if (bread(ino->disk, blocknum, &buf) != 0) {
+		brelse(s_buf);
+		return -1;
+	}
+	if (offset == 0) {
+		bfree(s_buf);
+	} else {
+		brelse(s_buf);
+	}
+	bfree(buf);
+	return 0;
+}
+
+static int
+rm_double_indirect(mem_inode_t ino, int blocksize) {
+	int soffset, doffset;
+	blocknum_t blocknum;
+	buf_block_t d_buf, s_buf, buf;
+	
+	doffset = double_offset(blocksize - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1);
+	soffset = single_offset(blocksize - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1 - doffset * INODE_INDIRECT_BLOCKS);
+	
+	if (bread(ino->disk, ino->double_indirect, &d_buf) != 0) {
+		return -1;
+	}
+	blocknum = (blocknum_t)(d_buf->data + 8 * doffset);
+	if (bread(ino->disk, blocknum, &s_buf) != 0) {
+		brelse(d_buf);
+		return -1;
+	}
+	blocknum = (blocknum_t)(s_buf->data + 8 * soffset);
+	if (bread(ino->disk, blocknum, &buf) != 0) {
+		brelse(d_buf);
+		brelse(s_buf);
+		return -1;
+	}
+	if (soffset == 0) {
+		bfree(s_buf);
+		if (doffset == 0) {
+			bfree(d_buf);
+		} else {
+			brelse(d_buf);
+		}
+	} else {
+		brelse(d_buf);
+		brelse(s_buf);
+	}
+	bfree(buf);
+	return 0;
+}
+
+static int
+rm_triple_indirect(mem_inode_t ino, int blocksize) {
+	int soffset, doffset, toffset;
+	blocknum_t blocknum;
+	buf_block_t s_buf, d_buf, t_buf, buf;
+
+	toffset = triple_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS));
+	doffset = double_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) - INODE_DOUBLE_BLOCKS * toffset);
+	soffset = single_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) - INODE_DOUBLE_BLOCKS * toffset - INODE_INDIRECT_BLOCKS * doffset);
+	
+	if (bread(ino->disk, ino->triple_indirect, &t_buf) != 0) {
+		return -1;
+	}
+	blocknum = (blocknum_t)(t_buf->data + 8 * toffset);
+	if (bread(ino->disk, blocknum, &d_buf) != 0) {
+		brelse(t_buf);
+		return -1;
+	}
+	blocknum = (blocknum_t)(d_buf->data + 8 * doffset);
+	if (bread(ino->disk, blocknum, &s_buf) != 0) {
+		brelse(t_buf);
+		brelse(d_buf);
+		return -1;
+	}
+	blocknum = (blocknum_t)(s_buf->data + 8 * soffset);
+	if (bread(ino->disk, blocknum, &buf) != 0) {
+		brelse(t_buf);
+		brelse(d_buf);
+		brelse(s_buf);
+		return -1;
+	}
+	if (soffset == 0) {
+		bfree(s_buf);
+		if (doffset == 0) {
+			bfree(d_buf);
+			if (toffset == 0) {
+				bfree(t_buf);
+			} else {
+				brelse(t_buf);
+			}
+		} else {
+			brelse(d_buf);
+			brelse(t_buf);
+		}
+	} else {
+		brelse(s_buf);
+		brelse(d_buf);
+		brelse(t_buf);
+	}
+	bfree(buf);
+	return 0;
+}
 
 /* Free all indirect blocks */
 static int

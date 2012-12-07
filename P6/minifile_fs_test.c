@@ -8,24 +8,24 @@
 #include "minithread.h"
 #include "synch.h"
 
-static blocknum_t disk_num_blocks = 32;
+static blocknum_t disk_num_blocks = 128;
 static semaphore_t sig;
-//static int shift[10];
 
-int fs_multithread_test(int *arg)
+int fs_multithread_alloc(int *arg)
 {
-    buf_block_t buf;
-    blocknum_t i;
-    blocknum_t* block;
-
-    bread(maindisk, 0, &buf);
-    block = (blocknum_t*) buf->data;
-    for (i = 0; i < DISK_BLOCK_SIZE / sizeof(blocknum_t); ++i)
-        block[i] = i + *arg;
-    printf("Multi threaded write with block[0] = %ld\n", block[0]);
-    bwrite(buf);
-
+    inodenum_t inode;
+    while ((inode = ialloc(maindisk)) != -1) {
+//        int i;
+//        printf("Alocated: %ld\n", inode);
+//        printf("Inode bit map: ");
+//        for (i = 0; i < mainsb->disk_num_blocks / 8; ++i) {
+//            printf("%d ", mainsb->inode_bitmap[i]);
+//        }
+//        printf("\n");
+    }
     semaphore_V(sig);
+    printf("Multithreaded allocation returns.\n");
+
     return 0;
 }
 
@@ -33,12 +33,10 @@ int fs_test(int *arg)
 {
     blocknum_t block[disk_num_blocks];
     inodenum_t inode[disk_num_blocks];
-    buf_block_t buf;
-    blocknum_t i, j;
+    blocknum_t i;
     char text[DISK_BLOCK_SIZE];
-//    blocknum_t* block;
-//    blocknum_t inodes_blocks = disk_num_blocks / INODE_PER_BLOCK;
-printf("In file system test.\n");
+
+    printf("In file system test.\n");
     /* Test super block read/write */
     fs_format(mainsb);
     sblock_print(mainsb);
@@ -54,6 +52,11 @@ printf("In file system test.\n");
         i++;
     }
     printf("Allocated all blocks. Free blocks left: %ld.\n", mainsb->free_blocks);
+    printf("Block bit map: ");
+    for (i = 0; i < mainsb->disk_num_blocks / 8; ++i) {
+        printf("%d ", mainsb->block_bitmap[i]);
+    }
+    printf("\n");
 
     i = 0;
     while (mainsb->free_blocks < mainsb->total_data_blocks) {
@@ -62,25 +65,53 @@ printf("In file system test.\n");
         i++;
     }
     printf("Freed all blocks. Free block left: %ld.\n", mainsb->free_blocks);
+    printf("Block bit map: ");
+    for (i = 0; i < mainsb->disk_num_blocks / 8; ++i) {
+        printf("%d ", mainsb->block_bitmap[i]);
+    }
+    printf("\n");
 
     /* Test inode allocation/free */
     i = 0;
     while (mainsb->free_inodes > 0) {
-printf("Allocating\n");
         inode[i] = ialloc(maindisk);
-printf("Got inode %ld\n", inode[i]);
+        //printf("Got inode %ld\n", inode[i]);
         i++;
     }
     printf("Allocated all inodes. Free inodes left: %ld.\n", mainsb->free_inodes);
+    printf("Inode bit map: ");
+    for (i = 0; i < mainsb->disk_num_blocks / 8; ++i) {
+        printf("%d ", mainsb->inode_bitmap[i]);
+    }
+    printf("\n");
 
     i = 0;
     while (mainsb->free_inodes < mainsb->total_inodes) {
-printf("Freeing %ld\n", i);
+        //printf("Freeing %ld\n", inode[i]);
         ifree(inode[i]);
         i++;
     }
-
     printf("Freed all inodes. Free inode left: %ld.\n", mainsb->free_inodes);
+    printf("Inode bit map: ");
+    for (i = 0; i < mainsb->disk_num_blocks / 8; ++i) {
+        printf("%d ", mainsb->inode_bitmap[i]);
+    }
+    printf("\n");
+
+    printf("Multithreaded allocation starts.\n");
+    sig = semaphore_new(0);
+    for (i = 0; i < 10; ++i)
+        minithread_fork(fs_multithread_alloc, NULL);
+    for (i = 0; i < 10; ++i)
+        semaphore_P(sig);
+    fs_lock(mainsb);
+    printf("Allocated all inodes. Free inodes left: %ld.\n", mainsb->free_inodes);
+    printf("Inode bit map: ");
+    for (i = 0; i < mainsb->disk_num_blocks / 8; ++i) {
+        printf("%d ", mainsb->inode_bitmap[i]);
+    }
+    printf("\n");
+    fs_unlock(mainsb);
 
     return 0;
 }

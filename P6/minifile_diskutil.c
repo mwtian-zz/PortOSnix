@@ -8,10 +8,7 @@
 int
 minifile_remkfs()
 {
-    buf_block_t buf;
     mem_inode_t inode;
-    freenode_t freenode;
-    blocknum_t i;
 
     /* Initialize superblock */
     sblock_get(maindisk, mainsb);

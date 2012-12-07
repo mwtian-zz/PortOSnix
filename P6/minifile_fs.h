@@ -1,6 +1,7 @@
 #ifndef __MINIFILE_FS_H__
 #define __MINIFILE_FS_H__
 
+#include "bitmap.h"
 #include "disk.h"
 #include "minifile_cache.h"
 #include "minifile_inode.h"
@@ -13,11 +14,9 @@
 
 #define BITS_PER_BLOCK (8 * (DISK_BLOCK_SIZE))
 
+
 /* Magic number is four bytes */
 typedef uint32_t magicnum_t;
-
-/* Bitmap for free inodes and blocks */
-typedef unsigned char* bitmap_t;
 
 /* Super block on disk */
 typedef struct sblock {
@@ -89,14 +88,10 @@ extern int sblock_isvalid(mem_sblock_t sbp);
 extern void sblock_print(mem_sblock_t sbp);
 
 /* File system management */
-int
-fs_format(mem_sblock_t sbp);
-int
-fs_init(mem_sblock_t sbp);
-void
-fs_lock(mem_sblock_t sbp);
-void
-fs_unlock(mem_sblock_t sbp);
+extern int fs_format(mem_sblock_t sbp);
+extern int fs_init(mem_sblock_t sbp);
+extern void fs_lock(mem_sblock_t sbp);
+extern void fs_unlock(mem_sblock_t sbp);
 
 /* Disk space management functions. Explained before implementations. */
 extern blocknum_t balloc(disk_t* disk);

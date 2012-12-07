@@ -22,6 +22,7 @@ OUTPUT_MAIN = minithread
 OBJ = \
     alarm.o \
     alarm_queue.o \
+    bitmap.o \
     disk.o \
     miniroute_cache.o \
     interrupts.o \

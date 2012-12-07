@@ -187,6 +187,9 @@ get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size) {
 		left_entry = entry_num - i * ENTRY_NUM_PER_BLOCK;
 		existing_entry = (left_entry > ENTRY_NUM_PER_BLOCK ? ENTRY_NUM_PER_BLOCK : left_entry);
 		blocknum = blockmap(maindisk, ino, i);
+		if (blocknum == -1) {
+			continue;
+		}
 		if (bread(disk, blocknum, &buf) != 0) {
 			continue;
 		}

@@ -207,6 +207,89 @@ irm_block(mem_inode_t ino) {
 	return -1;
 }
 
+int 
+idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
+	size_t block_num;             /* Number of data blocks in an inode */
+	size_t entry_num;             /* Number of entries in a directory inode */
+	size_t existing_entry;        /* Number of existing entries in a data block */
+	size_t left_entry;            /* Number of entries left to exam */
+	blocknum_t blocknum;          /* Data block number to read */
+	buf_block_t buf, last_buf;    /* Block buffer */
+	dir_entry_t src_entry, target_entry;
+	int i, j, offset;
+	char is_found = 0;
+	
+	entry_num = ino->size;
+	block_num = ino->size_blocks;
+	if (entry_num <= 0) {
+		return -1;
+	}
+	
+	for (i = 0; i < block_num; i++) {
+		left_entry = entry_num - i * ENTRY_NUM_PER_BLOCK;
+		existing_entry = (left_entry > ENTRY_NUM_PER_BLOCK ? ENTRY_NUM_PER_BLOCK : left_entry);
+		blocknum = blockmap(maindisk, ino, i);
+		if (blocknum == -1) {
+			continue;
+		}
+		if (bread(ino->disk, blocknum, &buf) != 0) {
+			continue;
+		}
+		target_entry = (dir_entry_t)buf->data;
+		for (j = 0; j < existing_entry; j++) {
+			if (target_entry->inode_num == inodenum) {
+				is_found = 1;
+				break;
+			}
+		}
+		if (is_found == 1) {
+			break;
+		} else {
+			brelse(buf);
+		}
+	}
+	if (is_found == 0) {
+		return -1;
+	}
+	/* Only one entry in this directory, remove last data block */
+	if (ino->size == 1) {
+		brelse(buf);
+		irm_block(ino);
+		ino->size_blocks = 0;
+		return 0;
+	}
+	/* Copy last entry to this one */
+	/* Get last block */
+	offset = (ino->size - 1) % ENTRY_NUM_PER_BLOCK;
+	blocknum = blockmap(ino->disk, ino, block_num - 1); 
+	if (blocknum == -1) {
+		brelse(buf);
+		return -1;
+	}
+	/* Is buf */
+	if (blocknum == buf->num) {
+		src_entry = (dir_entry_t)buf->data;
+		src_entry += offset;
+		memcpy(target_entry, src_entry, sizeof(struct dir_entry));
+		bwrite(buf);
+		return 0;
+	}
+	if (bread(ino->disk, blocknum, &last_buf) != 0) {
+		brelse(buf);
+		return -1;
+	}
+	src_entry = (dir_entry_t)last_buf->data;
+	src_entry += offset;
+	memcpy(target_entry, src_entry, sizeof(struct dir_entry));
+	bwrite(buf);
+	brelse(last_buf);
+	/* Only 1 entry in last block, so remove the block */
+	if (offset == 0) {
+		irm_block(ino);
+	}
+	return 0;
+}
+
 /* Remove single indirect */ 
 static int
 rm_single_indirect(mem_inode_t ino, int blocksize) {

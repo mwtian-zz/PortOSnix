@@ -51,12 +51,61 @@ int minifile_unlink(char *filename)
 
 int minifile_mkdir(char *dirname)
 {
-    return 0;
+	return 0;
 }
 
 int minifile_rmdir(char *dirname)
 {
-    return 0;
+    inodenum_t inodenum, parent_inodenum;
+	mem_inode_t ino, parent_ino;
+	
+	if (strcmp(dirname, "/") == 0) {
+		printf("Forbide you remove root!!!\n");
+		return -1;
+	}
+	
+	inodenum = namei(dirname);
+	if (inodenum == 0) {
+		return -1;
+	}
+	if (iget(maindisk, inodenum, &ino) != 0) {
+		return -1;
+	}
+	
+	parent_inodenum = nameinode("..", ino);
+	if (iget(maindisk, parent_inodenum, &parent_ino) != 0) {
+		iput(ino);
+		return -1;
+	}
+	
+	/* When want to create file in this dirctory by other process
+	 * they first grab lock and check if this directory is deleted
+	 * If delete, should return path not found to user
+	 * If this functions grabs lock later, the directory is not empty then
+	 */
+	semaphore_P(ino->inode_lock);
+	if (ino->size > 0) {
+		semaphore_V(ino->inode_lock);
+		iput(parent_ino);
+		iput(ino);
+		return -1;
+	}
+	ino->status = TO_DELETE;
+	semaphore_V(ino->inode_lock);
+	iput(ino);
+	
+	/* Remove this inodenum from parent inode */
+	semaphore_P(parent_ino->inode_lock);
+	if (idelete_from_dir(parent_ino, inodenum) != 0) {
+		semaphore_V(parent_ino->inode_lock);
+		iput(parent_ino);
+		return -1;
+	}
+	parent_ino->size--; /* Should update inode to disk after this */
+	semaphore_V(parent_ino->inode_lock);
+	iput(ino);
+	
+	return 0;
 }
 
 int minifile_stat(char *path)
@@ -185,7 +234,8 @@ char* minifile_pwd(void)
 		strcpy(pwd, "/");
 		return pwd;
 	}
-
+	
+	
 	parent_inodenum = nameinode("..", cur_directory);
 	while (cur_inodenum != mainsb->root_inum) {
 		if (iget(maindisk, parent_inodenum, &cur_directory) != 0) {
@@ -209,6 +259,7 @@ char* minifile_pwd(void)
 		strcpy(path[path_len - 1], entries[i]->name);
 		pwd_len += (strlen(entries[i]->name) + 1);
 		cur_inodenum = parent_inodenum;
+		
 		parent_inodenum = nameinode("..", cur_directory);
 		iput(cur_directory);
 	}

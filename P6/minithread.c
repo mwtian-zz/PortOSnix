@@ -437,13 +437,10 @@ minithread_initialize_filesystem()
 	}
 	semaphore_initialize(sb_lock, 1);
 
-    /* Get super block into memory */
+    /* Initialize file system */
     mainsb = &(sb_table[0]);
-    if (sblock_get(maindisk, mainsb) != 0) {
-		return -1;
-	}
-    mainsb->init = 1;
-    sblock_put(mainsb);
+    if (use_existing_disk != 0)
+        fs_init(mainsb);
 
 	/* Initialize inode table */
 	itable_init();

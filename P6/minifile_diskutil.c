@@ -15,7 +15,7 @@ minifile_remkfs()
 
     /* Initialize superblock */
     sblock_get(maindisk, mainsb);
-    sblock_init(mainsb, disk_size);
+    sblock_format(mainsb, disk_size);
     sblock_update(mainsb);
 
     /* Initialize root inode */

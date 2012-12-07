@@ -65,6 +65,7 @@ extern int brelse(buf_block_t buf);
 extern int bwrite(buf_block_t buf);
 extern void bawrite(buf_block_t buf);
 extern void bdwrite(buf_block_t buf);
+extern int bpull(blocknum_t from_block, char* to);
 extern int bpush(blocknum_t to_block, char* from);
 extern int bapush(blocknum_t to_block, char* from);
 extern disk_reply_t blocking_write(buf_block_t buf);

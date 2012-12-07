@@ -39,62 +39,29 @@ int fs_test(int *arg)
 //    blocknum_t inodes_blocks = disk_num_blocks / INODE_PER_BLOCK;
 printf("In file system test.\n");
     /* Test super block read/write */
-    sblock_get(maindisk, mainsb);
-    sblock_init(mainsb, disk_num_blocks);
-    sblock_update(mainsb);
-    sblock_get(maindisk, mainsb);
+    fs_format(mainsb);
     sblock_print(mainsb);
+
+    /* Test block allocation/free */
+    i = 0;
+    while (mainsb->free_blocks > 0) {
+        block[i] = balloc(maindisk);
+        block[i]->data[0] = 1;
+        printf("Free blocks left: %ld.\n", mainsb->free_blocks);
+        i++;
+    }
+    sblock_get(maindisk, mainsb);
+    printf("Allocated all blocks. Free blocks left: %ld.\n", mainsb->free_blocks);
     sblock_put(mainsb);
 
-//    /* Initialize free block list */
-//    sblock_get(maindisk, mainsb);
-//    for (i = mainsb->free_blist_head; i < mainsb->free_blist_tail; ++i) {
-//        bread(maindisk, i, &block[0]);
-//        freenode = (freenode_t) block[0]->data;
-//        freenode->next = i + 1;
-//        bwrite(block[0]);
-//    }
-//    bread(maindisk, mainsb->free_blist_tail, &block[0]);
-//    freenode = (freenode_t) block[0]->data;
-//    freenode->next = 0;
-//    bwrite(block[0]);
-//    sblock_put(mainsb);
-//    printf("Free block list initialized.\n");
-//    if (0 == blist_check(mainsb))
-//        printf("Free block list correct.\n");
-//    else
-//        printf("Free block list incorrect.\n");
-//
-//    /* Test block allocation/free */
-//    i = 0;
-//    while (mainsb->free_blocks > 0) {
-//        block[i] = balloc(maindisk);
-//        block[i]->data[0] = 1;
-//        sblock_get(maindisk, mainsb);
-//        printf("Free blocks left: %ld.\n", mainsb->free_blocks);
-//        sblock_put(mainsb);
-//        i++;
-//    }
-//    sblock_get(maindisk, mainsb);
-//    printf("Allocated all blocks. Free blocks left: %ld.\n", mainsb->free_blocks);
-//    sblock_put(mainsb);
-//
-//    i = 0;
-//    while (mainsb->free_blocks < mainsb->total_data_blocks) {
-//        bfree(block[i]);
-//        sblock_get(maindisk, mainsb);
-//        printf("Free blocks left: %ld.\n", mainsb->free_blocks);
-//        sblock_put(mainsb);
-//        i++;
-//    }
-//    sblock_get(maindisk, mainsb);
-//    printf("Freed all blocks. Free block left: %ld.\n", mainsb->free_blocks);
-//    sblock_put(mainsb);
-//
-//    if (0 == blist_check(mainsb))
-//        printf("Free block list correct.\n");
-//    else
-//        printf("Free block list incorrect.\n");
+    i = 0;
+    while (mainsb->free_blocks < mainsb->total_data_blocks) {
+        bfree(block[i]);
+        printf("Free blocks left: %ld.\n", mainsb->free_blocks);
+        i++;
+    }
+    printf("Freed all blocks. Free block left: %ld.\n", mainsb->free_blocks);
+
 //
 //    /* Initialize free inode list */
 //    sblock_get(maindisk, mainsb);

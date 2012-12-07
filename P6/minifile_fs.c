@@ -17,10 +17,6 @@ void
 bitmap_clear(bitmap_t bitmap, size_t bit);
 void
 bitmap_set(bitmap_t bitmap, size_t bit);
-void
-fs_lock(mem_sblock_t sbp);
-void
-fs_unlock(mem_sblock_t sbp);
 
 /* Get super block into a memory struct */
 int
@@ -35,7 +31,6 @@ sblock_get(disk_t* disk, mem_sblock_t sbp)
     sbp->pos = 0;
     sbp->sb_buf = buf;
     sbp->init = 1;
-    sbp->filesys_lock = semaphore_new(1);
 
     return 0;
 }
@@ -61,10 +56,10 @@ sblock_update(mem_sblock_t sbp)
  * Requires getting the super block before this and updating it after.
  */
 int
-sblock_init(mem_sblock_t sbp, blocknum_t disk_num_blocks)
+sblock_format(mem_sblock_t sbp, blocknum_t disk_num_blocks)
 {
-    inodenum_t inode_blocks = disk_num_blocks / INODE_PER_BLOCK + 1;
-    blocknum_t bitmap_blocks = disk_num_blocks / BITS_PER_BLOCK + 1;
+    inodenum_t inode_blocks = (disk_num_blocks - 1) / INODE_PER_BLOCK + 1;
+    blocknum_t bitmap_blocks = (disk_num_blocks - 1) / BITS_PER_BLOCK + 1;
     if (NULL == sbp)
         return -1;
 
@@ -88,6 +83,99 @@ sblock_init(mem_sblock_t sbp, blocknum_t disk_num_blocks)
     return 0;
 }
 
+/* Establish the file system and write it to disk */
+int
+fs_format(mem_sblock_t sbp)
+{
+    blocknum_t inode_bitmap_size;
+    blocknum_t block_bitmap_size;
+    blocknum_t i;
+    sbp->filesys_lock = semaphore_new(1);
+    if (NULL == sbp->filesys_lock) {
+        return -1;
+    }
+
+    fs_lock(sbp);
+
+    /* Format super block */
+    sblock_get(maindisk, sbp);
+    sblock_format(sbp, disk_size);
+    sblock_update(sbp);
+
+    /* Format inode and block bitmaps */
+    inode_bitmap_size = sbp->inode_bitmap_last - sbp->inode_bitmap_first + 1;
+    sbp->inode_bitmap = malloc(inode_bitmap_size * DISK_BLOCK_SIZE);
+    block_bitmap_size = sbp->block_bitmap_last - sbp->block_bitmap_first + 1;
+    sbp->block_bitmap = malloc(block_bitmap_size * DISK_BLOCK_SIZE);
+    if (NULL == sbp->block_bitmap || NULL == sbp->inode_bitmap) {
+        semaphore_V(sbp->filesys_lock);
+        return -1;
+    }
+    bitmap_zeroall(sbp->inode_bitmap, inode_bitmap_size * BITS_PER_BLOCK);
+    bitmap_zeroall(sbp->block_bitmap, block_bitmap_size * BITS_PER_BLOCK);
+    for (i = 0; i <= sbp->block_bitmap_last; ++i) {
+        bitmap_set(sbp->block_bitmap, i);
+    }
+    for (i = sbp->inode_bitmap_first; i <= sbp->inode_bitmap_last; ++i) {
+        bpush(i, (char*) sbp->inode_bitmap + (i - sbp->inode_bitmap_first)
+              * DISK_BLOCK_SIZE);
+    }
+    for (i = sbp->block_bitmap_first; i <= sbp->block_bitmap_last; ++i) {
+        bpush(i, (char*) sbp->block_bitmap + (i - sbp->block_bitmap_first)
+              * DISK_BLOCK_SIZE);
+    }
+
+    mainsb->free_inodes = bitmap_count_zero(mainsb->inode_bitmap,
+                                            mainsb->total_inodes);
+    mainsb->free_blocks = bitmap_count_zero(mainsb->block_bitmap,
+                                            mainsb->disk_num_blocks);
+
+    fs_unlock(sbp);
+    return 0;
+}
+
+/* Initialize the file system structure from disk */
+int
+fs_init(mem_sblock_t sbp)
+{
+    blocknum_t inode_bitmap_size;
+    blocknum_t block_bitmap_size;
+    blocknum_t i;
+    sbp->filesys_lock = semaphore_new(1);
+    if (NULL == sbp->filesys_lock) {
+        return -1;
+    }
+
+    semaphore_P(sbp->filesys_lock);
+    sblock_get(maindisk, sbp);
+    sblock_put(sbp);
+
+    inode_bitmap_size = sbp->inode_bitmap_last - sbp->inode_bitmap_first + 1;
+    sbp->inode_bitmap = malloc(inode_bitmap_size * DISK_BLOCK_SIZE);
+    block_bitmap_size = sbp->block_bitmap_last - sbp->block_bitmap_first + 1;
+    sbp->block_bitmap = malloc(block_bitmap_size * DISK_BLOCK_SIZE);
+    if (NULL == sbp->block_bitmap || NULL == sbp->inode_bitmap) {
+        semaphore_V(sbp->filesys_lock);
+        return -1;
+    }
+
+    for (i = sbp->inode_bitmap_first; i <= sbp->inode_bitmap_last; ++i) {
+        bpull(i, (char*) sbp->inode_bitmap + (i - sbp->inode_bitmap_first)
+              * DISK_BLOCK_SIZE);
+    }
+    for (i = sbp->block_bitmap_first; i <= sbp->block_bitmap_last; ++i) {
+        bpull(i, (char*) sbp->block_bitmap + (i - sbp->block_bitmap_first)
+              * DISK_BLOCK_SIZE);
+    }
+    mainsb->free_inodes = bitmap_count_zero(mainsb->inode_bitmap,
+                                            mainsb->total_inodes);
+    mainsb->free_blocks = bitmap_count_zero(mainsb->block_bitmap,
+                                            mainsb->disk_num_blocks);
+
+    semaphore_V(sbp->filesys_lock);
+    return 0;
+}
+
 /* Check if a file system is valid. Return 0 (false) if invalid. */
 int
 sblock_isvalid(mem_sblock_t sbp)
@@ -99,6 +187,8 @@ sblock_isvalid(mem_sblock_t sbp)
 void
 sblock_print(mem_sblock_t sbp)
 {
+    int i;
+
     printf("%-40s %-16X\n", "Magic number (4-byte HEX) :", sbp->magic_number);
     printf("%-40s %-16ld\n", "Total disk blocks :", sbp->disk_num_blocks);
 
@@ -116,6 +206,9 @@ sblock_print(mem_sblock_t sbp)
 
     printf("%-40s %-16ld\n", "Block number of 1st data block :", sbp->first_data_block);
 
+//    for (i = 0; i < sbp->disk_num_blocks / 8; ++i) {
+//        printf("%d ", sbp->block_bitmap[i]);
+//    }
 }
 
 void
@@ -134,9 +227,8 @@ fs_unlock(mem_sblock_t sbp)
 buf_block_t
 balloc(disk_t* disk)
 {
-    blocknum_t i;
-    blocknum_t free_bit_in_buf = -1;
-    blocknum_t free_bit_ind = -1;
+    blocknum_t free_bit = -1;
+    blocknum_t block_offset = -1;
     buf_block_t block;
 
     /* Get super block */
@@ -146,31 +238,23 @@ balloc(disk_t* disk)
     }
 
     /* Get free block number */
-    for (i = mainsb->block_bitmap_first; i <= mainsb->block_bitmap_last; ++i) {
-        bread(maindisk, i, &block);
-        free_bit_in_buf = bitmap_next_zero((bitmap_t) block->data, BITS_PER_BLOCK);
-        if (free_bit_in_buf > -1) {
-            break;
-        }
-        brelse(block);
-    }
-    if (free_bit_in_buf < 0) {
-        return NULL;
-    }
-    free_bit_ind = free_bit_in_buf + i * BITS_PER_BLOCK;
-    if (free_bit_ind >= mainsb->disk_num_blocks) {
-        brelse(block);
+    free_bit = bitmap_next_zero(mainsb->block_bitmap, mainsb->disk_num_blocks);
+    block_offset = free_bit / BITS_PER_BLOCK;
+    if (block_offset < 0 || block_offset >= mainsb->disk_num_blocks) {
+        fs_unlock(mainsb);
         return NULL;
     }
 
-    /* Indicate block is used */
-    bitmap_set((bitmap_t)block->data, free_bit_in_buf);
-    bwrite(block);
+    /* Set the free block to used */
+    bitmap_set(mainsb->block_bitmap, free_bit);
+    bpush(block_offset + mainsb->block_bitmap_first,
+          (char*) mainsb->block_bitmap + block_offset * DISK_BLOCK_SIZE);
+
     mainsb->free_blocks--;
     fs_unlock(mainsb);
 
     /* Get the block and return */
-    bread(disk, free_bit_ind, &block);
+    bread(maindisk, free_bit, &block);
     return block;
 }
 
@@ -178,28 +262,25 @@ balloc(disk_t* disk)
 void
 bfree(buf_block_t block)
 {
-    blocknum_t bit_in_buf = -1;
-
-    blocknum_t bitmap_block_num;
-    buf_block_t bitmap_block;
+    blocknum_t bit = -1;
+    blocknum_t block_offset;
 
     /* Get super block */
     fs_lock(mainsb);
 
-    /* Get bitmap block */
-    bitmap_block_num = block->num / BITS_PER_BLOCK + mainsb->block_bitmap_first;
-    bread(maindisk, bitmap_block_num, &bitmap_block);
-    bit_in_buf = block->num % BITS_PER_BLOCK;
+    /* Set the block to free */
+    bit = block->num;
+    block_offset = bit / BITS_PER_BLOCK;
+    bitmap_clear(mainsb->block_bitmap, bit);
+    bpush(block_offset + mainsb->block_bitmap_first,
+          (char*) mainsb->block_bitmap + block_offset * DISK_BLOCK_SIZE);
 
-    /* Indicate block is used */
-    bitmap_set((bitmap_t) block->data, bit_in_buf);
-    bwrite(bitmap_block);
-
-    /* Update super block and data block */
+    /* Unlock file system and update data block */
     mainsb->free_blocks++;
     fs_unlock(mainsb);
     bwrite(block);
 }
+
 //
 //int
 //blist_check(mem_sblock_t sbp)
@@ -234,35 +315,35 @@ bfree(buf_block_t block)
 mem_inode_t
 ialloc(disk_t* disk)
 {
-//    inodenum_t freeinode_num;
-//    freenode_t freeblk;
-//	mem_inode_t new_inode;
-//
-//	semaphore_P(sb_lock);
-//	sblock_get(disk, mainsb);
-//	/* No more free blocks */
-//    if (mainsb->free_blocks <= 0 || mainsb->free_inodes <= 0) {
-//		goto err1;
-//    }
-//
-//    /* Get free block number and next free block */
-//    freeinode_num = mainsb->free_ilist_head;
-//	if (iget(disk, freeinode_num, &new_inode) != 0) {
-//		goto err1;
-//	}
-//	freeblk = (freenode_t) new_inode;
-//    mainsb->free_ilist_head = freeblk->next;
-//	mainsb->free_inodes--;
-//
-//    /* Update superbock and release the empty block */
-//    sblock_update(mainsb);
-//	semaphore_V(sb_lock);
-//    return new_inode;
-//
-//err1:
-//    sblock_put(mainsb);
-//    semaphore_V(sb_lock);
-    return NULL;
+    inodenum_t free_bit = -1;
+    inodenum_t block_offset = -1;
+    mem_inode_t new_inode;
+
+    /* Get super block */
+    fs_lock(mainsb);
+    if (mainsb->free_inodes <= 0) {
+        return NULL;
+    }
+
+    /* Get free inode number */
+    free_bit = bitmap_next_zero(mainsb->inode_bitmap, mainsb->disk_num_blocks);
+    block_offset = free_bit / BITS_PER_BLOCK;
+    if (block_offset < 0 || block_offset >= mainsb->disk_num_blocks) {
+        fs_unlock(mainsb);
+        return NULL;
+    }
+
+    /* Set the free inode to used */
+    bitmap_set(mainsb->inode_bitmap, free_bit);
+    bpush(block_offset + mainsb->inode_bitmap_first,
+          (char*) mainsb->inode_bitmap + block_offset * DISK_BLOCK_SIZE);
+
+    mainsb->free_inodes--;
+    fs_unlock(mainsb);
+
+    /* Get the inode and return */
+    iget(disk, free_bit, &new_inode);
+    return new_inode;
 }
 
 /* Add an inode back to free list */
@@ -377,20 +458,24 @@ bitmap_get(bitmap_t bitmap, size_t bit)
 int
 bitmap_next_zero(bitmap_t bitmap, size_t bit_size)
 {
-    size_t i = 0;
-    size_t j = 0;
+    int i = 0;
+    int j = 0;
+    int check_bit = 0;
 
     while (bit_size > 0) {
         /* Check if the byte contains zero */
-        if (((~bitmap[i]) | 0) != 0) {
-            for (j = 0; j < 8; ++j) {
-                /* Check for the bit that contains zero */
-                if (((~bitmap[i]) & (1 << j)) != 0)
-                    return (i * 8 + j);
-            }
+        if (bit_size > 8) {
+            check_bit = 8;
         } else {
-            ++i;
+            check_bit = bit_size;
         }
+        bit_size -= check_bit;
+        /* Count bits in char that are zero */
+        for (j = 0; j < check_bit; ++j) {
+            if (((~bitmap[i]) & (1 << j)) != 0)
+                return (i * 8 + j);
+        }
+        ++i;
     }
 
     return -1;
@@ -400,21 +485,25 @@ bitmap_next_zero(bitmap_t bitmap, size_t bit_size)
 int
 bitmap_count_zero(bitmap_t bitmap, size_t bit_size)
 {
-    size_t i = 0;
-    size_t j = 0;
+    int i = 0;
+    int j = 0;
+    int check_bit = 0;
+    int count = 0;
 
     while (bit_size > 0) {
-        /* Check if the byte contains zero */
-        if (((~bitmap[i]) | 0) != 0) {
-            for (j = 0; j < 8; ++j) {
-                /* Check for the bit that contains zero */
-                if (((~bitmap[i]) & (1 << j)) != 0)
-                    return (i * 8 + j);
-            }
+        /* Number of bits in char to check */
+        if (bit_size > 8) {
+            check_bit = 8;
         } else {
-            ++i;
+            check_bit = bit_size;
         }
+        bit_size -= check_bit;
+        /* Count bits in char that are zero */
+        for (j = 0; j < check_bit; ++j) {
+            if (((~bitmap[i]) & (1 << j)) != 0)
+                count++;
+        }
+        ++i;
     }
-
-    return -1;
+    return count;
 }

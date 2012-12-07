@@ -254,6 +254,17 @@ bdwrite(buf_block_t buf)
     brelse(buf);
 }
 
+/* 'Pull' data from disk */
+int
+bpull(blocknum_t from_block, char* to)
+{
+    buf_block_t block;
+    int r = bread(maindisk, from_block, &block);
+    memcpy(to, block->data, DISK_BLOCK_SIZE);
+    brelse(block);
+    return r;
+}
+
 /* 'Push' the content of char* onto disk block immediately, blocking */
 int
 bpush(blocknum_t to_block, char* from)

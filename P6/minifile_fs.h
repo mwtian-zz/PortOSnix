@@ -84,9 +84,19 @@ typedef struct freenode {
 extern int sblock_get(disk_t* disk, mem_sblock_t sbp);
 extern int sblock_update(mem_sblock_t sbp);
 extern void sblock_put(mem_sblock_t sbp);
-extern int sblock_init(mem_sblock_t sbp, blocknum_t disk_num_blocks);
+extern int sblock_format(mem_sblock_t sbp, blocknum_t disk_num_blocks);
 extern int sblock_isvalid(mem_sblock_t sbp);
 extern void sblock_print(mem_sblock_t sbp);
+
+/* File system management */
+int
+fs_format(mem_sblock_t sbp);
+int
+fs_init(mem_sblock_t sbp);
+void
+fs_lock(mem_sblock_t sbp);
+void
+fs_unlock(mem_sblock_t sbp);
 
 /* Disk space management functions. Explained before implementations. */
 extern buf_block_t balloc(disk_t* disk);

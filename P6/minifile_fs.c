@@ -340,6 +340,7 @@ ialloc(disk_t* disk)
 
     mainsb->free_inodes--;
     fs_unlock(mainsb);
+printf("iget node %ld\n", free_bit);
 
     /* Get the inode and return */
     iget(disk, free_bit, &new_inode);

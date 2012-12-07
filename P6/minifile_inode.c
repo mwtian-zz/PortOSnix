@@ -45,7 +45,6 @@ iclear(mem_inode_t ino)
 		return 0;
 	}
 
-	semaphore_P(sb_lock);
 	for (i = 0; i < datablock_num; i++) {
 		blocknum = blockmap(ino->disk, ino, i);
 		if (blocknum == -1) {
@@ -56,14 +55,13 @@ iclear(mem_inode_t ino)
 			bfree(buf);
 		}
 	}
-	semaphore_V(sb_lock);
 	free_all_indirect(ino, datablock_num);
-	
+
 	return 0;
 }
 
 /* Get the content of the inode with inode number n. Return 0 if success, -1 if not */
-int 
+int
 iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 {
 	buf_block_t buf;
@@ -112,17 +110,22 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 }
 
 /* Return the inode and no write to disk */
-void 
+void
 iput(mem_inode_t ino)
 {
+printf("iput - 0.\n");
 	semaphore_P(inode_lock);
+printf("iput - acquired lock.\n");
 	ino->ref_count--;
 	if (ino->ref_count == 0) {
 		/* Delete this file */
 		if (ino->status == TO_DELETE) {
+printf("iput - iclear.\n");
 			iclear(ino);
+printf("iput - ifree.\n");
 			ifree(ino);
 		}
+printf("iput - clearing 1.\n");
 		semaphore_P(ino->inode_lock);
 		iupdate(ino);
 		semaphore_V(ino->inode_lock);
@@ -136,7 +139,7 @@ iput(mem_inode_t ino)
 }
 
 /* Return the inode and update it on the disk */
-int 
+int
 iupdate(mem_inode_t ino)
 {
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
@@ -144,10 +147,10 @@ iupdate(mem_inode_t ino)
 }
 
 /* Add a block to inode in memory */
-int 
+int
 iadd_block(mem_inode_t ino, buf_block_t buf) {
 	int cur_blocknum;
-	
+
 	cur_blocknum = ino->size_blocks;
 	/* Still have direct block */
 	if (cur_blocknum < INODE_DIRECT_BLOCKS) {
@@ -172,12 +175,12 @@ iadd_block(mem_inode_t ino, buf_block_t buf) {
 
 
 /* Free all indirect blocks */
-static int 
+static int
 free_all_indirect(mem_inode_t ino, int datablock_num) {
 	buf_block_t buf;
 	int relse_blocknum;
 	blocknum_t blocknum;
-	
+
 	if (datablock_num > INODE_DIRECT_BLOCKS) {
 		blocknum = ino->indirect;
 		if (bread(ino->disk, blocknum, &buf) == 0) {
@@ -203,19 +206,19 @@ free_all_indirect(mem_inode_t ino, int datablock_num) {
 }
 
 /* Free single indirect block */
-static int 
+static int
 free_single_indirect(buf_block_t buf) {
 	bfree(buf);
 	return 0;
 }
 
 /* Free double indirect */
-static int 
+static int
 free_double_indirect(buf_block_t buf, int blocknum) {
 	blocknum_t bnum;
 	buf_block_t buf_to_relse;
 	int left_blocknum, relse_blocknum, i;
-	
+
 	left_blocknum = blocknum;
 	i = 0;
 	while (left_blocknum > 0) {
@@ -232,12 +235,12 @@ free_double_indirect(buf_block_t buf, int blocknum) {
 }
 
 /* Free triple indirect */
-static int 
+static int
 free_triple_indirect(buf_block_t buf, int blocknum) {
 	blocknum_t bnum;
 	buf_block_t buf_to_relse;
 	int left_blocknum, relse_blocknum, i;
-	
+
 	left_blocknum = blocknum;
 	i = 0;
 	while (left_blocknum > 0) {
@@ -253,12 +256,12 @@ free_triple_indirect(buf_block_t buf, int blocknum) {
 	return 0;
 }
 
-static int 
+static int
 add_single_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 	buf_block_t new_buf;
 	int soffset;
 	blocknum_t blocknum;
-	
+
 	/* Need a indirect block */
 	if (cur_blocknum == INODE_DIRECT_BLOCKS) {
 		new_buf = balloc(ino->disk);
@@ -280,12 +283,12 @@ add_single_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 }
 
 
-static int 
+static int
 add_double_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 	buf_block_t new_buf, sec_buf;
 	blocknum_t blocknum;
 	int soffset, doffset;
-	
+
 	/* Need double indirect block */
 	if (cur_blocknum == (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS)) {
 		new_buf = balloc(ino->disk);
@@ -342,12 +345,12 @@ add_double_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 	}
 	return 0;
 }
-static int 
+static int
 add_triple_indirect(mem_inode_t ino, buf_block_t buf, int cur_blocknum) {
 	buf_block_t new_buf, sec_buf, thr_buf;
 	blocknum_t blocknum;
 	int soffset, doffset, toffset;
-	
+
 	/* Need to new triple indirect block */
 	if (cur_blocknum == (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS)) {
 		new_buf = balloc(ino->disk);

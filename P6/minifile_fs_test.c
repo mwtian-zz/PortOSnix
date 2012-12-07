@@ -47,65 +47,39 @@ printf("In file system test.\n");
     while (mainsb->free_blocks > 0) {
         block[i] = balloc(maindisk);
         block[i]->data[0] = 1;
-        printf("Free blocks left: %ld.\n", mainsb->free_blocks);
+        //printf("Free blocks left: %ld.\n", mainsb->free_blocks);
         i++;
     }
-    sblock_get(maindisk, mainsb);
     printf("Allocated all blocks. Free blocks left: %ld.\n", mainsb->free_blocks);
-    sblock_put(mainsb);
 
     i = 0;
     while (mainsb->free_blocks < mainsb->total_data_blocks) {
         bfree(block[i]);
-        printf("Free blocks left: %ld.\n", mainsb->free_blocks);
+        //printf("Free blocks left: %ld.\n", mainsb->free_blocks);
         i++;
     }
     printf("Freed all blocks. Free block left: %ld.\n", mainsb->free_blocks);
 
-//
-//    /* Initialize free inode list */
-//    sblock_get(maindisk, mainsb);
-//    for (i = mainsb->free_ilist_head; i < mainsb->free_ilist_tail; ++i) {
-//        iget(maindisk, i, &inode[0]);
-//        freenode = (freenode_t) inode[0];
-//        freenode->next = i + 1;
-//        iupdate(inode[0]);
-//    }
-//    iget(maindisk, mainsb->free_blist_tail, &inode[0]);
-//    freenode = (freenode_t) inode[0];
-//    freenode->next = 0;
-//    iupdate(inode[0]);
-//    sblock_put(mainsb);
-//    printf("Free inode list initialized.\n");
-//
-//    if (0 == ilist_check(mainsb))
-//        printf("Free inode list correct.\n");
-//    else
-//        printf("Free inode list incorrect.\n");
-//
-//    /* Test inode allocation/free */
-//    i = 0;
-//    while (mainsb->free_inodes > 0) {
-//printf("Allocating %ld\n", i);
-//        inode[i] = ialloc(maindisk);
-//printf("Clearing %ld\n", i);
-//        iclear(inode[i]);
-//    }
-//
-//    i = 0;
-//    while (mainsb->free_inodes < mainsb->total_inodes) {
-//printf("Freeing %ld\n", i);
-//        ifree(inode[i]);
-//    }
-//
-//
-//    sblock_get(maindisk, mainsb);
-//    printf("Allocated and free all inodes. Free inode left: %ld.\n", mainsb->free_inodes);
-//    sblock_put(mainsb);
-//    if (0 == ilist_check(mainsb))
-//        printf("Free block list correct.\n");
-//    else
-//        printf("Free block list incorrect.\n");
+    /* Test inode allocation/free */
+    i = 0;
+    while (mainsb->free_inodes > 0) {
+printf("Allocating\n");
+        inode[i] = ialloc(maindisk);
+printf("Got inode %ld\n", inode[i]->num);
+        iclear(inode[i]);
+        iput(inode[i]);
+        i++;
+    }
+    printf("Allocated all inodes. Free inodes left: %ld.\n", mainsb->free_inodes);
+
+    i = 0;
+    while (mainsb->free_inodes < mainsb->total_inodes) {
+printf("Freeing %ld\n", i);
+        ifree(inode[i]);
+        i++;
+    }
+
+    printf("Allocated and free all inodes. Free inode left: %ld.\n", mainsb->free_inodes);
 
 //    bread(maindisk, 0, &buf);
 //    block = (blocknum_t*) buf->data;

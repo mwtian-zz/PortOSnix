@@ -20,10 +20,15 @@ double reordering_rate = 0.0;
    then call disk_initialize. Upon successful startup, disk_flags and disk_size will
    be correctly initialized.
  */
-int use_existing_disk;	/* Set to 1 if using an existing disk, 0 to create a new one */
-const char* disk_name;	/* Linux filename that stores your virtual disk */
-int disk_flags;			/* Set to DISK_READWRITE or DISK_READONLY */
-int disk_size;			/* Set to the number of blocks allocated for disk */
+
+/* Set to 1 if using an existing disk, 0 to create a new one */
+int use_existing_disk = 1;
+/* Linux filename that stores your virtual disk */
+const char* disk_name = "minidisk";
+/* Set to DISK_READWRITE or DISK_READONLY */
+int disk_flags = DISK_READWRITE;
+/* Set to the number of blocks allocated for disk */
+int disk_size = 128;
 
 void start_disk_poll(disk_t* disk); /* forward declaration */
 

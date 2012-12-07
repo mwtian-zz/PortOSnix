@@ -37,7 +37,7 @@ int fs_test(int *arg)
     char text[DISK_BLOCK_SIZE];
 
     printf("In file system test.\n");
-    /* Test super block read/write */
+    /* Format super block */
     fs_format(mainsb);
     sblock_print(mainsb);
 

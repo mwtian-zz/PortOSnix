@@ -42,13 +42,14 @@ typedef struct mem_inode {
     blocknum_t double_indirect;
     blocknum_t triple_indirect;
 
+    semaphore_t inode_lock;     /* Read write lock */
     disk_t* disk;               /* Logic disk */
     inodenum_t num;             /* Inode number */
     buf_block_t buf;            /* Buffer cache containing this inode */
+    blocknum_t blocknum;        /* Block number of this inode */
+    istatus_t status;           /* Inode status: modified, to delete, etc... */
     blocknum_t size_blocks;     /* Number of blocks in data */
-    size_t ref_count;           /* Reference count */
-	istatus_t status;           /* Inode status: modified, to delete, etc... */
-    semaphore_t inode_lock;     /* Read write lock */
+    size_t ref_count;          /* Reference count */
 
 	struct mem_inode* h_prev;   /* Hash table previous */
 	struct mem_inode* h_next;   /* Hash table next */
@@ -56,10 +57,12 @@ typedef struct mem_inode {
 	struct mem_inode* l_next;   /* Free list next */
 } *mem_inode_t;
 
-semaphore_t inode_lock;         /* Inode lock for iget and iput */
+semaphore_t itable_lock;         /* Inode lock for iget and iput */
 struct inode _root_inode;       /* Root inode */
 mem_inode_t root_inode;         /* Root inode number */
 
+extern void ilock(mem_inode_t ino);
+extern void iunlock(mem_inode_t ino);
 extern int iclear(mem_inode_t ino);
 extern int iget(disk_t* disk, inodenum_t n, mem_inode_t *inop);
 extern void iput(mem_inode_t ino);

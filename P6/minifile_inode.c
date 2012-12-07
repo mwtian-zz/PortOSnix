@@ -21,6 +21,19 @@ static int single_offset(blocknum_t blocknum);
 static int double_offset(blocknum_t blocknum);
 static int triple_offset(blocknum_t blocknum);
 
+/* Lock and unlock a single inode */
+void
+ilock(mem_inode_t ino)
+{
+    semaphore_P(ino->inode_lock);
+}
+
+void
+iunlock(mem_inode_t ino)
+{
+    semaphore_V(ino->inode_lock);
+}
+
 /*
  * Clear the content of an inode, including indirect blocks
  * iclear is probably only called in iput which means inode lock is grabbed
@@ -30,7 +43,6 @@ int
 iclear(mem_inode_t ino)
 {
 	int datablock_num, i, blocknum;
-	buf_block_t buf;
 
 	if (ino->type == MINIDIRECTORY) {
 		if (ino->size <= 0) {
@@ -67,34 +79,45 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 {
 	buf_block_t buf;
 	blocknum_t block_to_read;
+	int sig = 0;
 
-	semaphore_P(inode_lock);
+	semaphore_P(itable_lock);
 
 	/* First find inode from table */
 	if (itable_get_from_table(n, inop) == 0) {
 		(*inop)->ref_count++;
-		semaphore_V(inode_lock);
-		return 0;
+
+		goto ret;
 	}
 
 	/* No free inode */
 	if (itable_get_free_inode(inop) != 0) {
-	    semaphore_V(inode_lock);
-		return -1;
+	    sig = -1;
+	    goto ret;
 	}
 
 	/* Read from disk */
 	block_to_read = INODE_TO_BLOCK(n);
 	if (bread(disk, block_to_read, &buf) != 0) {
 		itable_put_list(*inop);
-		semaphore_V(inode_lock);
-		return -1;
+		sig = -1;
+		goto ret;
 	}
 
 	memcpy((*inop), buf->data + INODE_OFFSET(n), sizeof(struct inode));
+
+	(*inop)->inode_lock = semaphore_new(1);
+	if (NULL == (*inop)->inode_lock) {
+        brelse(buf);
+        sig = -1;
+        goto ret;
+	}
 	(*inop)->disk = disk;
 	(*inop)->num = n;
 	(*inop)->buf = buf;
+	(*inop)->blocknum = block_to_read;
+	(*inop)->status = UNCHANGED;
+
 	if ((*inop)->size <= 0) {
 		(*inop)->size_blocks = 0;
 	} else {
@@ -110,16 +133,16 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 	itable_put_table(*inop);
 	brelse(buf);
 
-	semaphore_V(inode_lock);
-
-    return 0;
+ret:
+    semaphore_V(itable_lock);
+    return sig;
 }
 
 /* Return the inode and no write to disk */
 void
 iput(mem_inode_t ino)
 {
-	semaphore_P(inode_lock);
+	semaphore_P(itable_lock);
 	ino->ref_count--;
 	if (ino->ref_count == 0) {
 		/* Delete this file */
@@ -135,14 +158,13 @@ iput(mem_inode_t ino)
 		itable_delete_from_table(ino);
 		itable_put_list(ino);
 	}
-	semaphore_V(inode_lock);
+	semaphore_V(itable_lock);
 }
 
 /* Return the inode and update it on the disk */
 int
 iupdate(mem_inode_t ino)
 {
-    printf("iupdate starts\n");
     bread(maindisk, ino->buf->num, &(ino->buf));
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
     return bwrite(ino->buf);
@@ -158,7 +180,7 @@ iadd_block(mem_inode_t ino, buf_block_t buf) {
 	if (cur_blocknum < INODE_DIRECT_BLOCKS) {
 		ino->direct[cur_blocknum] = buf->num;
 		ino->size_blocks++;
-		bwrite(buf); /* Could be brelse */
+		//bwrite(buf); /* Could be brelse */
 		return 0;
 	}
 	/* Fit in indirect block */
@@ -403,7 +425,6 @@ rm_triple_indirect(mem_inode_t ino, int blocksize) {
 static int
 free_all_indirect(mem_inode_t ino, blocknum_t datablock_num)
 {
-	buf_block_t buf;
 	blocknum_t relse_blocknum;
 	blocknum_t blocknum;
 

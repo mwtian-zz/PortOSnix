@@ -445,12 +445,11 @@ minithread_initialize_filesystem()
 	/* Initialize inode table */
 	itable_init();
 
-	/* Create inode lock */
-	inode_lock = semaphore_create();
-	if (inode_lock == NULL) {
+	/* Create inode table lock */
+	itable_lock = semaphore_new(1);
+	if (itable_lock  == NULL) {
 		return -1;
 	}
-	semaphore_initialize(inode_lock, 1);
 
 //
 //	/* Get root inode */

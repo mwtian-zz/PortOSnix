@@ -1,23 +1,13 @@
-#include "minifile.h"
-#include "minifile_path.h"
-#include "minifile_inode.h"
-#include "minithread.h"
-#include "minifile_util.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * struct minifile:
- *     This is the structure that keeps the information about
- *     the opened file like the position of the cursor, etc.
- */
-
-struct minifile {
-    /* add members here */
-    int dummy;
-};
+#include "minifile.h"
+#include "minifile_private.h"
+#include "minifile_path.h"
+#include "minifile_inode.h"
+#include "minithread.h"
+#include "minifile_util.h"
 
 minifile_t minifile_creat(char *filename)
 {
@@ -26,6 +16,7 @@ minifile_t minifile_creat(char *filename)
 
 minifile_t minifile_open(char *filename, char *mode)
 {
+
     return NULL;
 }
 
@@ -58,12 +49,12 @@ int minifile_rmdir(char *dirname)
 {
     inodenum_t inodenum, parent_inodenum;
 	mem_inode_t ino, parent_ino;
-	
+
 	if (strcmp(dirname, "/") == 0) {
 		printf("Forbide you remove root!!!\n");
 		return -1;
 	}
-	
+
 	inodenum = namei(dirname);
 	if (inodenum == 0) {
 		return -1;
@@ -71,13 +62,13 @@ int minifile_rmdir(char *dirname)
 	if (iget(maindisk, inodenum, &ino) != 0) {
 		return -1;
 	}
-	
+
 	parent_inodenum = nameinode("..", ino);
 	if (iget(maindisk, parent_inodenum, &parent_ino) != 0) {
 		iput(ino);
 		return -1;
 	}
-	
+
 	/* When want to create file in this dirctory by other process
 	 * they first grab lock and check if this directory is deleted
 	 * If delete, should return path not found to user
@@ -93,7 +84,7 @@ int minifile_rmdir(char *dirname)
 	ino->status = TO_DELETE;
 	semaphore_V(ino->inode_lock);
 	iput(ino);
-	
+
 	/* Remove this inodenum from parent inode */
 	semaphore_P(parent_ino->inode_lock);
 	if (idelete_from_dir(parent_ino, inodenum) != 0) {
@@ -104,7 +95,7 @@ int minifile_rmdir(char *dirname)
 	parent_ino->size--; /* Should update inode to disk after this */
 	semaphore_V(parent_ino->inode_lock);
 	iput(ino);
-	
+
 	return 0;
 }
 
@@ -113,7 +104,7 @@ int minifile_stat(char *path)
 	inodenum_t inodenum;
     mem_inode_t ino;
 	int retval;
-	
+
 	inodenum = namei(path);
 	if (inodenum == 0) {
 		return -1;
@@ -155,7 +146,7 @@ int minifile_cd(char *path)
 		return -1;
 	}
 	semaphore_V(new_dir->inode_lock);
-	
+
 	/* Release previous directory inode if not root */
 	if (cur_inodenum != mainsb->root_inum) {
 		iput(cur_dir);
@@ -234,8 +225,8 @@ char* minifile_pwd(void)
 		strcpy(pwd, "/");
 		return pwd;
 	}
-	
-	
+
+
 	parent_inodenum = nameinode("..", cur_directory);
 	while (cur_inodenum != mainsb->root_inum) {
 		if (iget(maindisk, parent_inodenum, &cur_directory) != 0) {
@@ -259,7 +250,7 @@ char* minifile_pwd(void)
 		strcpy(path[path_len - 1], entries[i]->name);
 		pwd_len += (strlen(entries[i]->name) + 1);
 		cur_inodenum = parent_inodenum;
-		
+
 		parent_inodenum = nameinode("..", cur_directory);
 		iput(cur_directory);
 	}

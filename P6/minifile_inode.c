@@ -125,15 +125,14 @@ iput(mem_inode_t ino)
 		if (ino->status == TO_DELETE) {
 			iclear(ino);
 			ifree(ino);
+		} else {
+			semaphore_P(ino->inode_lock); /* Other process couldn't be using this inode, otherwise count won't be 0 */
+			iupdate(ino);
+			semaphore_V(ino->inode_lock);
 		}
-		semaphore_P(ino->inode_lock);
-		iupdate(ino);
-		semaphore_V(ino->inode_lock);
 		/* Put inode back to free list, delete from table */
 		itable_delete_from_table(ino);
 		itable_put_list(ino);
-		/* Relase buffer */
-		brelse(ino->buf);
 	}
 	semaphore_V(inode_lock);
 }

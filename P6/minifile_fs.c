@@ -83,6 +83,41 @@ sblock_format(mem_sblock_t sbp, blocknum_t disk_num_blocks)
     return 0;
 }
 
+/* Check if a file system is valid. Return 0 (false) if invalid. */
+int
+sblock_isvalid(mem_sblock_t sbp)
+{
+    return (MINIFS_MAGIC_NUMBER == sbp->magic_number);
+}
+
+/* Print the super block in memory in a readable way */
+void
+sblock_print(mem_sblock_t sbp)
+{
+    int i;
+
+    printf("%-40s %-16X\n", "Magic number (4-byte HEX) :", sbp->magic_number);
+    printf("%-40s %-16ld\n", "Total disk blocks :", sbp->disk_num_blocks);
+
+    printf("%-40s %-16ld\n", "Total disk inodes :", sbp->total_inodes);
+    printf("%-40s %-16ld\n", "Block number of 1st inode :", sbp->first_inode_block);
+    printf("%-40s %-16ld\n", "Inode number of root :", sbp->root_inum);
+
+    printf("%-40s %-16ld\n", "First inode-bitmap :", sbp->inode_bitmap_first);
+    printf("%-40s %-16ld\n", "Last inode-bitmap :", sbp->inode_bitmap_last);
+    printf("%-40s %-16ld\n", "Number of free inodes :", sbp->free_inodes);
+
+    printf("%-40s %-16ld\n", "First block-bitmap :", sbp->block_bitmap_first);
+    printf("%-40s %-16ld\n", "Last block-bitmap :", sbp->block_bitmap_last);
+    printf("%-40s %-16ld\n", "Number of free blocks :",  sbp->free_blocks);
+
+    printf("%-40s %-16ld\n", "Block number of 1st data block :", sbp->first_data_block);
+
+//    for (i = 0; i < sbp->disk_num_blocks / 8; ++i) {
+//        printf("%d ", sbp->block_bitmap[i]);
+//    }
+}
+
 /* Establish the file system and write it to disk */
 int
 fs_format(mem_sblock_t sbp)
@@ -174,41 +209,6 @@ fs_init(mem_sblock_t sbp)
 
     semaphore_V(sbp->filesys_lock);
     return 0;
-}
-
-/* Check if a file system is valid. Return 0 (false) if invalid. */
-int
-sblock_isvalid(mem_sblock_t sbp)
-{
-    return (MINIFS_MAGIC_NUMBER == sbp->magic_number);
-}
-
-/* Print the super block in memory in a readable way */
-void
-sblock_print(mem_sblock_t sbp)
-{
-    int i;
-
-    printf("%-40s %-16X\n", "Magic number (4-byte HEX) :", sbp->magic_number);
-    printf("%-40s %-16ld\n", "Total disk blocks :", sbp->disk_num_blocks);
-
-    printf("%-40s %-16ld\n", "Total disk inodes :", sbp->total_inodes);
-    printf("%-40s %-16ld\n", "Block number of 1st inode :", sbp->first_inode_block);
-    printf("%-40s %-16ld\n", "Inode number of root :", sbp->root_inum);
-
-    printf("%-40s %-16ld\n", "First inode-bitmap :", sbp->inode_bitmap_first);
-    printf("%-40s %-16ld\n", "Last inode-bitmap :", sbp->inode_bitmap_last);
-    printf("%-40s %-16ld\n", "Number of free inodes :", sbp->free_inodes);
-
-    printf("%-40s %-16ld\n", "First block-bitmap :", sbp->block_bitmap_first);
-    printf("%-40s %-16ld\n", "Last block-bitmap :", sbp->block_bitmap_last);
-    printf("%-40s %-16ld\n", "Number of free blocks :",  sbp->free_blocks);
-
-    printf("%-40s %-16ld\n", "Block number of 1st data block :", sbp->first_data_block);
-
-//    for (i = 0; i < sbp->disk_num_blocks / 8; ++i) {
-//        printf("%d ", sbp->block_bitmap[i]);
-//    }
 }
 
 void

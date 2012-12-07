@@ -340,7 +340,6 @@ ialloc(disk_t* disk)
 
     mainsb->free_inodes--;
     fs_unlock(mainsb);
-printf("iget node %ld\n", free_bit);
 
     /* Get the inode and return */
     iget(disk, free_bit, &new_inode);
@@ -351,26 +350,24 @@ printf("iget node %ld\n", free_bit);
 void
 ifree(mem_inode_t inode)
 {
-//    freenode_t freeblk;
-//	inodenum_t freeinode_num;
-//
-//    if (inode->disk->layout.size <= inode->num) {
-//        return;
-//    }
-//
-//	semaphore_P(sb_lock);
-//	sblock_get(inode->disk, mainsb);
-//	iget(inode->disk, inode->num, &inode);
-//
-//	freeinode_num = inode->num;
-//    freeblk = (freenode_t) inode;
-//    freeblk->next = mainsb->free_ilist_head;
-//    mainsb->free_ilist_head = freeinode_num;
-//	mainsb->free_inodes++;
-//
-//	iupdate(inode);
-//    sblock_update(mainsb);
-//	semaphore_V(sb_lock);
+    blocknum_t bit = -1;
+    blocknum_t block_offset;
+
+    /* Lock file system */
+    fs_lock(mainsb);
+printf("inode->num: %ld\n", inode->num);
+    /* Set the inode to free */
+    bit = inode->num;
+    block_offset = bit / BITS_PER_BLOCK;
+    bitmap_clear(mainsb->inode_bitmap, bit);
+    bpush(block_offset + mainsb->inode_bitmap_first,
+          (char*) mainsb->inode_bitmap + block_offset * DISK_BLOCK_SIZE);
+printf("bit: %ld\n", bit);
+    /* Unlock file system and update inode */
+    mainsb->free_inodes++;
+    fs_unlock(mainsb);
+    iupdate(inode);
+printf("iupdate finished\n");
 }
 
 //int

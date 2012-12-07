@@ -75,11 +75,12 @@ printf("Got inode %ld\n", inode[i]->num);
     i = 0;
     while (mainsb->free_inodes < mainsb->total_inodes) {
 printf("Freeing %ld\n", i);
+        iget(maindisk, i, &inode[i]);
         ifree(inode[i]);
         i++;
     }
 
-    printf("Allocated and free all inodes. Free inode left: %ld.\n", mainsb->free_inodes);
+    printf("Freed all inodes. Free inode left: %ld.\n", mainsb->free_inodes);
 
 //    bread(maindisk, 0, &buf);
 //    block = (blocknum_t*) buf->data;

@@ -5,9 +5,9 @@
 #include "minifile_inode.h"
 
 /* Translate inode number to block number. Inode starts from 1 which is root directory */
-#define INODE_TO_BLOCK(num) ((((num) - 1) / INODE_PER_BLOCK) + INODE_START_BLOCK)
+#define INODE_TO_BLOCK(num) (((num) / INODE_PER_BLOCK) + INODE_START_BLOCK)
 /* Inode offset within a data block */
-#define INODE_OFFSET(num) ((((num) - 1) % INODE_PER_BLOCK) * INODE_SIZE)
+#define INODE_OFFSET(num) (((num) % INODE_PER_BLOCK) * INODE_SIZE)
 
 #define POINTER_PER_BLOCK 512
 #define INODE_INDIRECT_BLOCKS (512)

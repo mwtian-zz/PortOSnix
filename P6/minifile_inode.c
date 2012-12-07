@@ -77,6 +77,7 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 
 	/* No free inode */
 	if (itable_get_free_inode(inop) != 0) {
+	    semaphore_V(inode_lock);
 		return -1;
 	}
 
@@ -84,6 +85,7 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 	block_to_read = INODE_TO_BLOCK(n);
 	if (bread(disk, block_to_read, &buf) != 0) {
 		itable_put_list(*inop);
+		semaphore_V(inode_lock);
 		return -1;
 	}
 
@@ -113,19 +115,14 @@ iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)
 void
 iput(mem_inode_t ino)
 {
-printf("iput - 0.\n");
 	semaphore_P(inode_lock);
-printf("iput - acquired lock.\n");
 	ino->ref_count--;
 	if (ino->ref_count == 0) {
 		/* Delete this file */
 		if (ino->status == TO_DELETE) {
-printf("iput - iclear.\n");
 			iclear(ino);
-printf("iput - ifree.\n");
 			ifree(ino);
 		}
-printf("iput - clearing 1.\n");
 		semaphore_P(ino->inode_lock);
 		iupdate(ino);
 		semaphore_V(ino->inode_lock);
@@ -142,8 +139,10 @@ printf("iput - clearing 1.\n");
 int
 iupdate(mem_inode_t ino)
 {
+    printf("iupdate starts\n");
+
     memcpy(ino->buf->data + INODE_OFFSET(ino->num), ino, sizeof(struct inode));
-    return blocking_write(ino->buf);
+    return bwrite(ino->buf);
 }
 
 /* Add a block to inode in memory */

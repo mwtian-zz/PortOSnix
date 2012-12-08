@@ -304,6 +304,7 @@ int minifile_mkdir(char *dirname)
 	} else {
 		parent_inum = namei(parent);
 	}
+	
 	if (parent_inum == 0) {
 		free(parent);
 		free(name);
@@ -317,7 +318,7 @@ int minifile_mkdir(char *dirname)
         return -1;
     } else {
         inum = ialloc(maindisk);
-        if (0 == inum) {
+        if (0 == inum || -1 == inum) {
             return -1;
         }
     }
@@ -448,13 +449,13 @@ int minifile_cd(char *path)
 		return -1;
 	}
 	/* Not a directory or the dirctory is mark deleted. Can't create file there since can't delete non-emptry dir */
-	semaphore_P(new_dir->inode_lock);
+	ilock(new_dir);
 	if (new_dir->type != MINIDIRECTORY || new_dir->status == TO_DELETE) {
-		semaphore_V(new_dir->inode_lock);
+		iunlock(new_dir);
 		iput(new_dir);
 		return -1;
 	}
-	semaphore_V(new_dir->inode_lock);
+	iunlock(new_dir);
 
 	/* Release previous directory inode if not root */
 	if (cur_inodenum != mainsb->root_inum) {

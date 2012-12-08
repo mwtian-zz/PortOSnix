@@ -17,11 +17,11 @@ minifile_t minifile_creat(char *filename)
     inodenum_t inum, parent_inum;
     mem_inode_t inode, parent_inode;
 	char* name, *parent;
-	
+
 	if (filename == NULL || strlen(filename) == 0 || filename[strlen(filename) - 1] == '/') {
 		return NULL;
 	}
-	
+
     file = malloc(sizeof(struct minifile));
     if (NULL == file) {
         return NULL;
@@ -243,7 +243,7 @@ int minifile_unlink(char *filename)
     char* parent;
 	mem_inode_t parent_inode, inode;
 	inodenum_t parent_inum, inum;
-	
+
 	if (filename == NULL) {
 		return -1;
 	}
@@ -291,14 +291,14 @@ int minifile_mkdir(char *dirname)
     mem_inode_t inode, parent_inode;
     dir_entry_t dir;
 	char* parent, *name;
-	
+
 	if (dirname == NULL || strlen(dirname) == 0) {
 		return -1;
 	}
-	
+
 	parent = get_path(dirname);
 	name = get_filename(dirname);
-	
+
 	if (parent == NULL) {
 		parent_inum = minithread_wd();
 	} else {
@@ -310,7 +310,7 @@ int minifile_mkdir(char *dirname)
 		return -1;
 	}
 	iget(maindisk, parent_inum, &parent_inode);
-	
+
     /* Do not create dir if duplicate path and name exists */
     inum = namei(dirname);
     if (0 != inum) {
@@ -480,6 +480,7 @@ char **minifile_ls(char *path)
 	} else {
 		inodenum = namei(path);
 	}
+
 	/* Not valid path */
 	if (inodenum == 0) {
 		return NULL;
@@ -499,6 +500,7 @@ char **minifile_ls(char *path)
 		entries[1] = NULL;
 		return entries;
 	}
+
 	semaphore_P(dir->inode_lock);
 	dir_entries = get_directory_entry(maindisk, dir, &entries_size);
 	semaphore_V(dir->inode_lock);
@@ -506,6 +508,7 @@ char **minifile_ls(char *path)
 	entries = malloc(entries_size * sizeof(char*));
 	for (i = 0; i < entries_size; i++) {
 		if (dir_entries[i] != NULL) {
+		    printf("dir entry %d: %s\n", i, dir_entries[i]->name);
 			entries[count] = malloc(strlen(dir_entries[i]->name) + 1);
 			strcpy(entries[count], dir_entries[i]->name);
 			count++;

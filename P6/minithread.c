@@ -86,6 +86,7 @@ static int minithread_initialize_interrupts();
 static int minithread_initialize_sys_sems();
 static int minithread_initialize_diskio();
 static int minithread_initialize_filesystem();
+static int minithread_fs_init_idle(int *arg);
 static void clock_handler(void* arg);
 static void network_handler(void* arg);
 static void disk_handler(void* arg);
@@ -365,11 +366,11 @@ minithread_system_initialize(proc_t mainproc, arg_t mainarg)
     if (minithread_initialize_sys_threads() != 0) {
         exit(-1);
     }
-    if (minithread_fork(mainproc, mainarg) == NULL) {
-        exit(-1);
-    }
     if (minithread_initialize_filesystem() != 0) {
         printf("File system initialization failure.\n");
+        exit(-1);
+    }
+    if (minithread_fork(mainproc, mainarg) == NULL) {
         exit(-1);
     }
 
@@ -458,24 +459,6 @@ minithread_initialize_diskio()
     return 0;
 }
 
-static int
-minithread_initialize_filesystem()
-{
-    /* Initialize file system */
-    if (use_existing_disk != 0) {
-        if (fs_init(mainsb) != 0) {
-            return -1;
-        }
-    }
-
-//
-//	/* Get root inode */
-//	if (iget(maindisk, mainsb->root_inum, &root_inode) != 0) {
-//		return -1;
-//	}
-
-    return 0;
-}
 
 static int
 minithread_initialize_interrupts()
@@ -497,6 +480,34 @@ minithread_initialize_interrupts()
 
     set_interrupt_level(ENABLED);
 
+    return 0;
+}
+
+static int
+minithread_initialize_filesystem()
+{
+    /* Idle thread during initialization */
+    minithread_fork(minithread_fs_init_idle, NULL);
+
+    /* Initialize file system */
+    if (use_existing_disk != 0) {
+        if (fs_init(mainsb) != 0) {
+            return -1;
+        }
+    }
+
+	/* Get root inode */
+	if (iget(maindisk, mainsb->root_inum, &root_inode) != 0) {
+		return -1;
+	}
+
+    return 0;
+}
+
+static int
+minithread_fs_init_idle(int *arg) {
+    while (mainsb->root_inum == 0 || root_inode == NULL)
+        ;
     return 0;
 }
 

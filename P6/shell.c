@@ -187,7 +187,9 @@ void help_screen()
 
 void put_prompt()
 {
-    printf("%d@localhost: %s %%",minithread_id(), minifile_pwd());
+    printf("thread%d@localhost", minithread_id());
+    printf(": %s %% ", minifile_pwd());
+    fflush(stdout);
 }
 
 int shell(int *g)
@@ -219,8 +221,7 @@ int shell(int *g)
                 printf("\t%s\n",files[i]);
                 free(files[i]);
             }
-            if(files != NULL)
-                free(files);
+            free(files);
         } else if(strcmp(func,"pwd") == 0)
             printf("%s\n", minifile_pwd());
         else if(strcmp(func,"mkdir") == 0)

@@ -11,7 +11,7 @@
 inodenum_t
 namei(char* path) {
 	inodenum_t working_inodenum;  /* Current working inode number */
-	inodenum_t ret_inodenum;      /* Inode number to return */
+	inodenum_t ret_inodenum = 1;      /* Inode number to return */
 	mem_inode_t working_inode;    /* Current working inode */
 	char* pch;                    /* Parsed path */
 	size_t block_num;             /* Number of data blocks in an inode */
@@ -24,13 +24,13 @@ namei(char* path) {
 	char isFound = 0;             /* If a directory is found */
 	int i, j;
 	char* path_buf;
-	
+
 	if (strlen(path) <= 0) {
 		return 0;
 	}
 	path_buf = malloc(strlen(path) + 1);
 	strcpy(path_buf, path);
-	
+
 	/* Start with root directory */
 	if (path_buf[0] == '/') {
 		working_inode = root_inode;
@@ -91,6 +91,7 @@ namei(char* path) {
 		iput(working_inode);
 	}
 	free(path_buf);
+
 	return ret_inodenum;
 }
 
@@ -111,13 +112,13 @@ nameinode(char* path, mem_inode_t ino) {
 	char isFound = 0;             /* If a directory is found */
 	int i, j;
 	char* path_buf;
-	
+
 	if (strlen(path) <= 0) {
 		return 0;
 	}
 	path_buf = malloc(strlen(path) + 1);
 	strcpy(path_buf, path);
-	
+
 	working_inode = ino;
 	working_inodenum = ino->num;
 
@@ -203,15 +204,15 @@ get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size) {
 		existing_entry = (left_entry > ENTRY_NUM_PER_BLOCK ? ENTRY_NUM_PER_BLOCK : left_entry);
 		blocknum = blockmap(maindisk, ino, i);
 		if (blocknum == -1) {
-			continue;
+			break;
 		}
 		if (bread(disk, blocknum, &buf) != 0) {
-			continue;
+			break;
 		}
 		tmp_entry = (dir_entry_t)buf->data;
 		for (j = 0; j < existing_entry; j++) {
 			entry = malloc(sizeof(struct dir_entry));
-			memcpy(entry, tmp_entry, sizeof(struct dir_entry));
+			memcpy(entry, tmp_entry++, sizeof(struct dir_entry));
 			dir_entries[i * ENTRY_NUM_PER_BLOCK + j] = entry;
 		}
 		brelse(buf);
@@ -219,12 +220,12 @@ get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size) {
 	return dir_entries;
 }
 
-char* 
+char*
 get_filename(char* path) {
 	char* pch;
 	char* filename = NULL;
 	char* path_buf;
-	
+
 	path_buf = malloc(strlen(path) + 1);
 	strcpy(path_buf, path);
 	pch = strtok(path_buf, "/");
@@ -242,7 +243,7 @@ get_path(char* filepath) {
 	char* path;
 	char* filename;
 	char* path_buf;
-	
+
 	path_buf = malloc(strlen(filepath) + 1);
 	strcpy(path_buf, filepath);
 	if (path_buf[strlen(path_buf) - 1] == '/') {

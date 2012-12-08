@@ -188,14 +188,18 @@ int minifile_write(minifile_t file, char *data, int len)
     }
 
     while (len > 0) {
+        blocknum = 0;
         /* Allocate block if needed */
         if (file->block_cursor * DISK_BLOCK_SIZE < file->byte_cursor + 1) {
             blocknum = balloc(maindisk);
+            /* Update disk inode block list */
             ilock(file->inode);
-            iadd_block(file->inode, blocknum);
+            if (iadd_block(file->inode, blocknum) == 0)
+                file->inode->size_blocks++;
             iupdate(file->inode);
             iunlock(file->inode);
         }
+
         /* Get step size */
         if (file->byte_in_block + len - 1 > DISK_BLOCK_SIZE) {
             step = DISK_BLOCK_SIZE - file->byte_in_block;
@@ -214,6 +218,11 @@ int minifile_write(minifile_t file, char *data, int len)
         /* Update upon success */
         minifile_cursor_shift(file, step);
         len -= step;
+        /* Update disk inode size */
+        ilock(file->inode);
+        file->inode->size += step;
+        iupdate(file->inode);
+        iunlock(file->inode);
     }
 
     return 0;
@@ -269,12 +278,13 @@ int minifile_mkdir(char *dirname)
     }
 
     iget(maindisk, inum, &inode);
-    /* Create root inode */
     ilock(inode);
     inode->type = MINIDIRECTORY;
     inode->size = 2;
     blocknum = balloc(maindisk);
-    /* Create root inode entries */
+    iadd_block(inode, blocknum);
+    iupdate(inode);
+    iunlock(inode);
     if (bread(maindisk, blocknum, &buf) != 0)
         return -1;
     dir = (dir_entry_t) buf->data;

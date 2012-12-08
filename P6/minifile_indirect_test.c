@@ -35,9 +35,9 @@ int inode_multithread(int *arg)
 int
 inode_test(int *arg)
 {
-    blocknum_t block[disk_num_blocks];
-	mem_inode_t inode[disk_num_blocks];
-    inodenum_t inode_num[disk_num_blocks];
+    blocknum_t *block = malloc(disk_num_blocks * sizeof(blocknum_t));
+    inodenum_t *inode_num = malloc(disk_num_blocks * sizeof(inodenum_t));
+	mem_inode_t *inode = malloc(disk_num_blocks * sizeof(mem_inode_t));
     blocknum_t i, j;
     char text[DISK_BLOCK_SIZE];
 	blocknum_t k;
@@ -50,7 +50,7 @@ inode_test(int *arg)
 	printf("%s\n", get_path("/lihao/lihaosky/"));
 	printf("%s\n", get_path("lihao/lihaosky/"));
 	printf("%s\n", get_path("abcd.txt/"));
-	
+	printf("%s\n", get_path("abcd.txt"));
     printf("In inode system test.\n");
     /* Format super block */
     fs_format(mainsb);

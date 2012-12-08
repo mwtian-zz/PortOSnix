@@ -9,7 +9,6 @@
 #include "minithread.h"
 #include "synch.h"
 
-/* This value should be limited to not overflow inode_test stack */
 static blocknum_t disk_num_blocks = 128;
 static semaphore_t sig;
 
@@ -33,8 +32,9 @@ int inode_multithread(int *arg)
 
 int inode_test(int *arg)
 {
-    blocknum_t block[disk_num_blocks];
-	mem_inode_t inode[disk_num_blocks];
+    blocknum_t *block = malloc(disk_num_blocks * sizeof(blocknum_t));
+    inodenum_t *inode_num = malloc(disk_num_blocks * sizeof(inodenum_t));
+	mem_inode_t *inode = malloc(disk_num_blocks * sizeof(mem_inode_t));
     inodenum_t inode_num[disk_num_blocks];
     blocknum_t i, j, inode_count;
     char text[DISK_BLOCK_SIZE];

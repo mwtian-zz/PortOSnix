@@ -301,7 +301,7 @@ char **minifile_ls(char *path)
 	}
 	if (dir->type == MINIFILE) {
 		entries = malloc(2 * sizeof(char*));
-		filename = pathtofile(path);
+		filename = get_filename(path);
 		if (filename == NULL) {
 			return NULL;
 		}

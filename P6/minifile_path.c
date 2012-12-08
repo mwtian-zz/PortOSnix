@@ -23,13 +23,16 @@ namei(char* path) {
 	dir_entry_t entry;            /* Directory entry */
 	char isFound = 0;             /* If a directory is found */
 	int i, j;
-
+	char* path_buf;
+	
 	if (strlen(path) <= 0) {
 		return 0;
 	}
-
+	path_buf = malloc(strlen(path) + 1);
+	strcpy(path_buf, path);
+	
 	/* Start with root directory */
-	if (path[0] == '/') {
+	if (path_buf[0] == '/') {
 		working_inode = root_inode;
 	} else {
 		working_inodenum = minithread_wd();
@@ -38,7 +41,7 @@ namei(char* path) {
 		}
 	}
 
-	pch = strtok(path, "/");
+	pch = strtok(path_buf, "/");
 	while (pch != NULL) {
 		semaphore_P(working_inode->inode_lock);
 		if (working_inode->type != MINIDIRECTORY || working_inode->status == TO_DELETE) {
@@ -75,9 +78,11 @@ namei(char* path) {
 			iput(working_inode);
 		}
 		if (isFound == 0) {
+			free(path_buf);
 			return 0;
 		}
 		if (iget(maindisk, working_inodenum, &working_inode) != 0) {
+			free(path_buf);
 			return 0;
 		}
 		pch = strtok(NULL, "/");
@@ -85,6 +90,7 @@ namei(char* path) {
 	if (working_inode != root_inode) {
 		iput(working_inode);
 	}
+	free(path_buf);
 	return ret_inodenum;
 }
 
@@ -104,18 +110,22 @@ nameinode(char* path, mem_inode_t ino) {
 	dir_entry_t entry;            /* Directory entry */
 	char isFound = 0;             /* If a directory is found */
 	int i, j;
-
+	char* path_buf;
+	
 	if (strlen(path) <= 0) {
 		return 0;
 	}
-
+	path_buf = malloc(strlen(path) + 1);
+	strcpy(path_buf, path);
+	
 	working_inode = ino;
 	working_inodenum = ino->num;
 
-	pch = strtok(path, "/");
+	pch = strtok(path_buf, "/");
 	while (pch != NULL) {
 		semaphore_P(working_inode->inode_lock);
 		if (working_inode->type != MINIDIRECTORY) {
+			free(path_buf);
 			return 0;
 		}
 		entry_num = working_inode->size;
@@ -126,6 +136,7 @@ nameinode(char* path, mem_inode_t ino) {
 			existing_entry = (left_entry > ENTRY_NUM_PER_BLOCK ? ENTRY_NUM_PER_BLOCK : left_entry);
 			blocknum = blockmap(maindisk, working_inode, i);
 			if (bread(maindisk, blocknum, &buf) != 0) {
+				free(path_buf);
 				return 0;
 			}
 			entry = (dir_entry_t)buf->data;
@@ -149,9 +160,11 @@ nameinode(char* path, mem_inode_t ino) {
 			iput(working_inode);
 		}
 		if (isFound == 0) {
+			free(path_buf);
 			return 0;
 		}
 		if (iget(maindisk, working_inodenum, &working_inode) != 0) {
+			free(path_buf);
 			return 0;
 		}
 		pch = strtok(NULL, "/");
@@ -159,6 +172,7 @@ nameinode(char* path, mem_inode_t ino) {
 	if (working_inode != root_inode) {
 		iput(working_inode);
 	}
+	free(path_buf);
 	return ret_inodenum;
 }
 
@@ -203,4 +217,39 @@ get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size) {
 		brelse(buf);
 	}
 	return dir_entries;
+}
+
+char* 
+get_filename(char* path) {
+	char* pch;
+	char* filename = NULL;
+	char* path_buf;
+	
+	path_buf = malloc(strlen(path) + 1);
+	strcpy(path_buf, path);
+	pch = strtok(path_buf, "/");
+	while (pch != NULL) {
+		filename = realloc(filename, strlen(pch) + 1);
+		strcpy(filename, pch);
+		pch = strtok(NULL, "/");
+	}
+	free(path_buf);
+	return filename;
+}
+
+char*
+get_path(char* filepath) {
+	char* path;
+	char* filename;
+	
+	filename = get_filename(filepath);
+	if (strcmp(filename, filepath) == 0) {
+		free(filename);
+		return NULL;
+	}
+	path = malloc(strlen(filepath) - strlen(filename) + 1);
+	strncpy(path, filepath, (strlen(filepath) - strlen(filename)));
+	path[strlen(filepath) - strlen(filename)] = '\0';
+	free(filename);
+	return path;
 }

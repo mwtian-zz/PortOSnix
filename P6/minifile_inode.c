@@ -754,21 +754,6 @@ bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset) {
 	return blockmap(disk, ino, byte_offset / DISK_BLOCK_SIZE);
 }
 
-/* Find file name from path */
-char* pathtofile(char* path) {
-	char* pch;
-	char* filename = NULL;
-
-	pch = strtok(path, "/");
-	while (pch != NULL) {
-		filename = realloc(filename, strlen(pch) + 1);
-		strcpy(filename, pch);
-		pch = strtok(NULL, "/");
-	}
-
-	return filename;
-}
-
 
 static blocknum_t
 indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset) {

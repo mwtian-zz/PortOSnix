@@ -11,9 +11,11 @@
  */
 
 struct minifile {
+    mem_inode_t inode;
     inodenum_t inode_num;
     blocknum_t block_cursor;
     size_t byte_cursor;
+    char mode[3];
 };
 
 #endif /* __MINIFILE_PRIVATE_H__ */

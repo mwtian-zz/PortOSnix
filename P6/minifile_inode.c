@@ -100,6 +100,13 @@ izero(mem_inode_t ino)
     ino->double_indirect = 0;
     ino->triple_indirect = 0;
 }
+
+void
+iinit(mem_inode_t ino)
+{
+
+}
+
 /* Get the content of the inode with inode number n. Return 0 if success, -1 if not */
 int
 iget(disk_t* disk, inodenum_t n, mem_inode_t *inop)

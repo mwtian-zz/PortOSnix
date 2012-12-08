@@ -11,13 +11,80 @@
 
 minifile_t minifile_creat(char *filename)
 {
-    return NULL;
+    minifile_t file = NULL;
+    inodenum_t inum;
+    mem_inode_t inode;
+
+    file = malloc(sizeof(struct minifile));
+    if (NULL == file) {
+        return NULL;
+    }
+
+    inum = namei(filename);
+    if (0 == inum) {
+        inum = ialloc(mainsb);
+        iget(maindisk, inum, &inode);
+        ilock(inode);
+        izero(inode);
+        inode->type = MINIFILE;
+        inode->size = 0;
+        iunlock(inode);
+    } else {
+        iget(maindisk, inum, &inode);
+    }
+
+    file->inode = inode;
+    file->inode_num = inum;
+    file->block_cursor = 0;
+    file->byte_cursor = 0;
+    file->mode[0] = 'w';
+
+    return file;
 }
 
 minifile_t minifile_open(char *filename, char *mode)
 {
 
-    return NULL;
+    minifile_t file = NULL;
+    inodenum_t inum;
+    mem_inode_t inode;
+
+    inum = namei(filename);
+    if (0 == inum) {
+        return NULL;
+    }
+    file = malloc(sizeof(struct minifile));
+    if (NULL == file) {
+        return NULL;
+    }
+
+    iget(maindisk, inum, &inode);
+    if (NULL == inode) {
+        free(file);
+        return NULL;
+    }
+    ilock(inode);
+    if (MINIDIRECTORY == inode->type) {
+        free(file);
+        iunlock(inode);
+        iput(inode);
+        return NULL;
+    }
+
+    file->inode = inode;
+    file->inode_num = inum;
+    if ('+' == mode[1]) {
+        file->block_cursor = inode->size;
+        file->byte_cursor = inode->size_blocks;
+    } else {
+        file->block_cursor = 0;
+        file->byte_cursor = 0;
+    }
+    file->mode[0] = 'w';
+
+    iunlock(inode);
+
+    return file;
 }
 
 int minifile_read(minifile_t file, char *data, int maxlen)

@@ -1,17 +1,17 @@
-#include "minithread.h"
-#include "synch.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
 #include "minifile.h"
+#include "minithread.h"
+#include "read.h"
+#include "synch.h"
 
 #define COPY_BUFFER_SIZE 1024
 
 #define IDstring "PortOS filesystem v1.0"
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE 256
 
 //move file from NT to our file system
 int importfile(char *fname,char *ntfname)
@@ -207,7 +207,8 @@ int shell(int *g)
         memset(arg1,'\0',BUFFER_SIZE);
         memset(arg2,'\0',BUFFER_SIZE);
         put_prompt();
-        gets(command);
+        //gets(command);
+        miniterm_read(command, BUFFER_SIZE);
         //extract first three strings in command (delimited by spaces)
         sscanf(command,"%s %s %s",func,arg1,arg2);
         if(strcmp(func,"help") == 0)

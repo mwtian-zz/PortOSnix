@@ -504,11 +504,12 @@ char **minifile_ls(char *path)
 	semaphore_P(dir->inode_lock);
 	dir_entries = get_directory_entry(maindisk, dir, &entries_size);
 	semaphore_V(dir->inode_lock);
+
 	iput(dir);
-	entries = malloc(entries_size * sizeof(char*));
+	entries = malloc((entries_size + 1) * sizeof(char*));
+
 	for (i = 0; i < entries_size; i++) {
 		if (dir_entries[i] != NULL) {
-		    printf("dir entry %d: %s\n", i, dir_entries[i]->name);
 			entries[count] = malloc(strlen(dir_entries[i]->name) + 1);
 			strcpy(entries[count], dir_entries[i]->name);
 			count++;
@@ -517,6 +518,7 @@ char **minifile_ls(char *path)
 	}
 	entries[count] = NULL;
 	free(dir_entries);
+
 	return entries;
 }
 

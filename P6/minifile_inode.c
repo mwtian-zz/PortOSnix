@@ -326,7 +326,7 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	if (blocknum == buf->num) {
 		src_entry = (dir_entry_t)buf->data;
 		src_entry += offset;
-		memcpy(target_entry, src_entry, sizeof(struct dir_entry));
+		memcpy(target_entry, src_entry, DIR_ENTRY_SIZE);
 		bwrite(buf);
 		return 0;
 	}
@@ -342,7 +342,46 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	/* Only 1 entry in last block, so remove the block */
 	if (offset == 0) {
 		irm_block(ino);
+		ino->size_blocks--;
 	}
+	return 0;
+}
+
+/* Add entry to directy, size is not incremented */
+int 
+iadd_to_dir(mem_inode_t ino, char* filename, inodenum_t inodenum) {
+	struct dir_entry entry;
+	int entry_num;
+	blocknum_t blocknum;
+	buf_block_t buf;
+	int offset;
+	
+	if (ino == NULL || ino->type != MINIDIRECTORY || ino->status == TO_DELETE) {
+		return -1;
+	}
+	strcpy(entry.name, filename);
+	entry.inode_num = inodenum;
+	
+	entry_num = ino->size;
+	/* Need a new block */
+	if (entry_num % ENTRY_NUM_PER_BLOCK == 0) {
+		blocknum = balloc(maindisk);
+		if (bread(maindisk, blocknum, &buf) != 0) {
+			return -1;
+		}
+		memcpy(buf, (void*)&entry, DIR_ENTRY_SIZE);
+		bwrite(buf);
+		iadd_block(ino, blocknum);
+		ino->size_blocks++;
+		return 0;
+	}
+	blocknum = blockmap(maindisk, ino, ino->size_blocks - 1);
+	if (bread(maindisk, blocknum, &buf) != 0) {
+		return -1;
+	}
+	offset = entry_num % ENTRY_NUM_PER_BLOCK;
+	memcpy(buf->data + offset * DIR_ENTRY_SIZE, (void*)&entry, DIR_ENTRY_SIZE);
+	bwrite(buf);
 	return 0;
 }
 

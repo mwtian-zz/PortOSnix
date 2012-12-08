@@ -280,26 +280,27 @@ int minifile_rmdir(char *dirname)
 	 * If delete, should return path not found to user
 	 * If this functions grabs lock later, the directory is not empty then
 	 */
-	semaphore_P(ino->inode_lock);
+	ilock(ino);
 	if (ino->size > 0) {
-		semaphore_V(ino->inode_lock);
+		iunlock(ino);
 		iput(parent_ino);
 		iput(ino);
 		return -1;
 	}
 	ino->status = TO_DELETE;
-	semaphore_V(ino->inode_lock);
+	iunlock(ino);
 	iput(ino);
 
 	/* Remove this inodenum from parent inode */
-	semaphore_P(parent_ino->inode_lock);
+	ilock(parent_ino);
 	if (idelete_from_dir(parent_ino, inodenum) != 0) {
-		semaphore_V(parent_ino->inode_lock);
+		iunlock(parent_ino);
 		iput(parent_ino);
 		return -1;
 	}
 	parent_ino->size--; /* Should update inode to disk after this */
-	semaphore_V(parent_ino->inode_lock);
+	iupdate(parent_ino);
+	iunlock(parent_ino);
 	iput(ino);
 
 	return 0;

@@ -358,8 +358,10 @@ rm_single_indirect(mem_inode_t ino, int blocksize) {
 		return -1;
 	}
 	memcpy((void*)&blocknum, (s_buf->data + 8 * offset), sizeof(blocknum_t));
-
+	printf("block number to remove is %ld\n", blocknum);
+	
 	if (offset == 0) {
+		printf("Need to remove indirect block %ld\n", s_buf->num);
 		bfree(s_buf->num);
 	}
 	brelse(s_buf);
@@ -371,7 +373,7 @@ static int
 rm_double_indirect(mem_inode_t ino, int blocksize) {
 	int soffset, doffset;
 	blocknum_t blocknum;
-	buf_block_t d_buf, s_buf, buf;
+	buf_block_t d_buf, s_buf;
 
 	doffset = double_offset(blocksize - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1);
 	soffset = single_offset(blocksize - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1 - doffset * INODE_INDIRECT_BLOCKS);
@@ -386,11 +388,7 @@ rm_double_indirect(mem_inode_t ino, int blocksize) {
 		return -1;
 	}
 	memcpy((void*)&blocknum, (s_buf->data + 8 * soffset), sizeof(blocknum_t));
-	if (bread(ino->disk, blocknum, &buf) != 0) {
-		brelse(d_buf);
-		brelse(s_buf);
-		return -1;
-	}
+	
 	if (soffset == 0) {
 		bfree(s_buf->num);
 		if (doffset == 0) {
@@ -400,8 +398,7 @@ rm_double_indirect(mem_inode_t ino, int blocksize) {
     brelse(d_buf);
     brelse(s_buf);
 
-	bfree(buf->num);
-	brelse(buf);
+	bfree(blocknum);
 	return 0;
 }
 
@@ -409,7 +406,7 @@ static int
 rm_triple_indirect(mem_inode_t ino, int blocksize) {
 	int soffset, doffset, toffset;
 	blocknum_t blocknum;
-	buf_block_t s_buf, d_buf, t_buf, buf;
+	buf_block_t s_buf, d_buf, t_buf;
 
 	toffset = triple_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS));
 	doffset = double_offset(blocksize - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) - INODE_DOUBLE_BLOCKS * toffset);
@@ -431,12 +428,6 @@ rm_triple_indirect(mem_inode_t ino, int blocksize) {
 		return -1;
 	}
 	memcpy((void*)&blocknum, (s_buf->data + 8 * soffset), sizeof(blocknum_t));
-	if (bread(ino->disk, blocknum, &buf) != 0) {
-		brelse(t_buf);
-		brelse(d_buf);
-		brelse(s_buf);
-		return -1;
-	}
 	if (soffset == 0) {
 		bfree(s_buf->num);
 		if (doffset == 0) {
@@ -449,10 +440,8 @@ rm_triple_indirect(mem_inode_t ino, int blocksize) {
     brelse(s_buf);
     brelse(d_buf);
     brelse(t_buf);
-
-	bfree(buf->num);
-	brelse(buf);
-
+	bfree(blocknum);
+	
 	return 0;
 }
 

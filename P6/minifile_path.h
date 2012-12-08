@@ -14,11 +14,12 @@ typedef struct dir_entry {
 } *dir_entry_t;
 
 /* Translate path to inode number base on working directory, return 0 on failure*/
-extern inodenum_t namei(char* path); 
+extern inodenum_t namei(char* path);
 /* Translate path to inode number base on given inode, return 0 on failure*/
 extern inodenum_t nameinode(char* path, mem_inode_t ino);
 /* Get all the directory entries in directory inode, return NULL if no entries */
 extern dir_entry_t* get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size);
+
 /* Get filename without absolute path */
 extern char* get_filename(char* path);
 /* Get path to file, return NULL if is working directory */

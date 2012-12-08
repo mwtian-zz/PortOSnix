@@ -10,6 +10,7 @@
 #include "minithread.h"
 #include "synch.h"
 
+/* This value should be limited to not overflow inode_test stack */
 static blocknum_t disk_num_blocks = 128;
 static semaphore_t sig;
 

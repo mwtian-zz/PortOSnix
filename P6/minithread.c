@@ -431,11 +431,10 @@ minithread_initialize_filesystem()
     minifile_buf_cache_init();
 
 	/* Create super block lock */
-	sb_lock = semaphore_create();
+	sb_lock = semaphore_new(1);
 	if (sb_lock == NULL) {
 		return -1;
 	}
-	semaphore_initialize(sb_lock, 1);
 
     /* Initialize file system */
     mainsb = &(sb_table[0]);

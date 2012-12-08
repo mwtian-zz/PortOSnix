@@ -8,7 +8,8 @@
 #include "minithread.h"
 #include "synch.h"
 
-static blocknum_t disk_num_blocks = 128;
+/* This value should be limited to not overflow fs_test stack */
+static blocknum_t disk_num_blocks = 1024;
 static semaphore_t sig;
 
 int fs_multithread_alloc(int *arg)
@@ -48,7 +49,7 @@ int fs_test(int *arg)
     while (mainsb->free_blocks > 0) {
         block[i] = balloc(maindisk);
         bpush(block[i], text);
-        //printf("Free blocks left: %ld.\n", mainsb->free_blocks);
+        printf("Free blocks left: %ld.\n", mainsb->free_blocks);
         i++;
     }
     printf("Allocated all blocks. Free blocks left: %ld.\n", mainsb->free_blocks);

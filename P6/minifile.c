@@ -33,7 +33,7 @@ minifile_t minifile_creat(char *filename)
         iunlock(inode);
         iupdate(inode);
         /*
-         * Put inode number and filename in directory
+         * Put inode number and filename in directory minithread_wd();
          */
     } else {
         iget(maindisk, inum, &inode);
@@ -130,7 +130,6 @@ int minifile_read(minifile_t file, char *data, int maxlen)
         ilock(file->inode);
         disk_block = blockmap(maindisk, file->inode, file->block_cursor);
         iunlock(file->inode);
-
         /* Copy disk block */
         if (bread(maindisk, disk_block, &buf) != 0)
             return count;
@@ -157,10 +156,12 @@ int minifile_write(minifile_t file, char *data, int len)
     }
 
     while (len > 0) {
+        /* Allocate block if needed */
         if (file->block_cursor * DISK_BLOCK_SIZE < file->byte_cursor + 1) {
             blocknum = balloc(maindisk);
             ilock(file->inode);
             iadd_block(file->inode, blocknum);
+            iupdate(file->inode);
             iunlock(file->inode);
         }
         /* Get step size */
@@ -198,6 +199,46 @@ int minifile_unlink(char *filename)
 
 int minifile_mkdir(char *dirname)
 {
+    buf_block_t buf;
+    blocknum_t blocknum;
+    inodenum_t inum;
+    mem_inode_t inode;
+    dir_entry_t dir;
+
+    /* Do not create dir if duplicate path and name exists */
+    inum = namei(dirname);
+    if (0 != inum) {
+        return -1;
+    } else {
+        inum = ialloc(maindisk);
+        if (0 != inum) {
+            return -1;
+        }
+    }
+
+    iget(maindisk, inum, &inode);
+
+    /* Create root inode */
+    ilock(inode);
+    inode->type = MINIDIRECTORY;
+    inode->size = 2;
+    blocknum = balloc(maindisk);
+    iadd_block(inode, blocknum);
+    iupdate(inode);
+    iunlock(inode);
+
+    /* Create root inode entries */
+    if (bread(maindisk, blocknum, &buf) != 0)
+        return -1;
+    dir = (dir_entry_t) buf->data;
+    strcpy(dir[0].name, ".");
+    dir[0].inode_num = inum;
+    strcpy(dir[1].name, "..");
+    dir[1].inode_num = minithread_wd();
+    bwrite(buf);
+
+    iput(inode);
+
 	return 0;
 }
 

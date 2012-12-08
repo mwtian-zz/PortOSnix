@@ -129,11 +129,16 @@ fs_format(mem_sblock_t sbp)
         semaphore_V(sbp->filesys_lock);
         return -1;
     }
+    /* Clear bitmaps */
     bitmap_zeroall(sbp->inode_bitmap, inode_bitmap_size * BITS_PER_BLOCK);
     bitmap_zeroall(sbp->block_bitmap, block_bitmap_size * BITS_PER_BLOCK);
+    /* Set file system blocks to be occupied */
     for (i = 0; i <= sbp->block_bitmap_last; ++i) {
         bitmap_set(sbp->block_bitmap, i);
     }
+    /* Set inode 0 to be occupied */
+    bitmap_set(sbp->inode_bitmap, 1);
+    /* Push updates to disk */
     for (i = sbp->inode_bitmap_first; i <= sbp->inode_bitmap_last; ++i) {
         bpush(i, (char*) sbp->inode_bitmap + (i - sbp->inode_bitmap_first)
               * DISK_BLOCK_SIZE);
@@ -143,6 +148,7 @@ fs_format(mem_sblock_t sbp)
               * DISK_BLOCK_SIZE);
     }
 
+    /* Count free inodes and free blocks */
     mainsb->free_inodes = bitmap_count_zero(mainsb->inode_bitmap,
                                             mainsb->total_inodes);
     mainsb->free_blocks = bitmap_count_zero(mainsb->block_bitmap,
@@ -177,6 +183,7 @@ fs_init(mem_sblock_t sbp)
         return -1;
     }
 
+    /* Get disk bitmap */
     for (i = sbp->inode_bitmap_first; i <= sbp->inode_bitmap_last; ++i) {
         bpull(i, (char*) sbp->inode_bitmap + (i - sbp->inode_bitmap_first)
               * DISK_BLOCK_SIZE);
@@ -185,6 +192,8 @@ fs_init(mem_sblock_t sbp)
         bpull(i, (char*) sbp->block_bitmap + (i - sbp->block_bitmap_first)
               * DISK_BLOCK_SIZE);
     }
+
+    /* Count free inodes and free blocks */
     mainsb->free_inodes = bitmap_count_zero(mainsb->inode_bitmap,
                                             mainsb->total_inodes);
     mainsb->free_blocks = bitmap_count_zero(mainsb->block_bitmap,

@@ -8,7 +8,6 @@
 #include "minithread.h"
 #include "synch.h"
 
-/* This value should be limited to not overflow fs_test stack */
 static blocknum_t disk_num_blocks = 1024;
 static semaphore_t sig;
 
@@ -32,8 +31,8 @@ int fs_multithread_alloc(int *arg)
 
 int fs_test(int *arg)
 {
-    blocknum_t block[disk_num_blocks];
-    inodenum_t inode[disk_num_blocks];
+    blocknum_t *block = malloc(disk_num_blocks * sizeof(blocknum_t));
+    inodenum_t *inode_num = malloc(disk_num_blocks * sizeof(inodenum_t));
     blocknum_t i;
     char text[DISK_BLOCK_SIZE];
 
@@ -75,8 +74,8 @@ int fs_test(int *arg)
     /* Test inode allocation/free */
     i = 0;
     while (mainsb->free_inodes > 0) {
-        inode[i] = ialloc(maindisk);
-        //printf("Got inode %ld\n", inode[i]);
+        inode_num[i] = ialloc(maindisk);
+        //printf("Got inode %ld\n", inode_num[i]);
         i++;
     }
     printf("Allocated all inodes. Free inodes left: %ld.\n", mainsb->free_inodes);
@@ -88,8 +87,8 @@ int fs_test(int *arg)
 
     i = 0;
     while (mainsb->free_inodes < mainsb->total_inodes) {
-        //printf("Freeing %ld\n", inode[i]);
-        ifree(inode[i]);
+        //printf("Freeing %ld\n", inode_num[i]);
+        ifree(inode_num[i]);
         i++;
     }
     printf("Freed all inodes. Free inode left: %ld.\n", mainsb->free_inodes);

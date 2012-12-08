@@ -265,11 +265,38 @@ bfree(blocknum_t blocknum)
     block_offset = bit / BITS_PER_BLOCK;
 
     if (bitmap_get(mainsb->block_bitmap, bit) == 1) {
+        bitmap_clear(mainsb->block_bitmap, bit);
+        bpush(block_offset + mainsb->block_bitmap_first,
+            (char*) mainsb->block_bitmap + block_offset * DISK_BLOCK_SIZE);
         mainsb->free_blocks++;
     }
-    bitmap_clear(mainsb->block_bitmap, bit);
-    bpush(block_offset + mainsb->block_bitmap_first,
-          (char*) mainsb->block_bitmap + block_offset * DISK_BLOCK_SIZE);
+
+    fs_unlock(mainsb);
+}
+
+/* Set a block to used */
+void
+bset(blocknum_t blocknum)
+{
+    blocknum_t bit = -1;
+    blocknum_t block_offset;
+
+    fs_lock(mainsb);
+    if (blocknum <= mainsb->block_bitmap_last || blocknum >=mainsb->disk_num_blocks) {
+        fs_unlock(mainsb);
+        return;
+    }
+
+    /* Set the block to free */
+    bit = blocknum;
+    block_offset = bit / BITS_PER_BLOCK;
+
+    if (bitmap_get(mainsb->block_bitmap, bit) == 0) {
+        bitmap_set(mainsb->block_bitmap, bit);
+        bpush(block_offset + mainsb->block_bitmap_first,
+            (char*) mainsb->block_bitmap + block_offset * DISK_BLOCK_SIZE);
+        mainsb->free_blocks--;
+    }
 
     fs_unlock(mainsb);
 }

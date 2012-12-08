@@ -298,6 +298,7 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 				is_found = 1;
 				break;
 			}
+			target_entry++;
 		}
 		if (is_found == 1) {
 			break;

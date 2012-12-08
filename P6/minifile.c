@@ -252,7 +252,12 @@ int minifile_unlink(char *filename)
 		return -1;
 	}
 	parent = get_path(filename);
-	parent_inum = namei(parent);
+	if (parent == NULL) {
+		parent_inum = minithread_wd();
+	} else {
+		parent_inum = namei(parent);
+	}
+	free(parent);
 	if (parent_inum == 0) {
 		free(parent);
 		return -1;
@@ -260,14 +265,12 @@ int minifile_unlink(char *filename)
 	iget(maindisk, inum, &inode);
 	if (inode->type != MINIFILE) {
 		iput(inode);
-		free(parent);
 		return -1;
 	}
 	iget(maindisk, parent_inum, &parent_inode);
 	if (parent_inode->type != MINIDIRECTORY) {
 		iput(inode);
 		iput(parent_inode);
-		free(parent);
 		return -1;
 	}
 	ilock(inode);
@@ -358,7 +361,7 @@ int minifile_rmdir(char *dirname)
 {
     inodenum_t inodenum, parent_inodenum;
 	mem_inode_t ino, parent_ino;
-printf("in rmdir.\n");
+    char* parent;
 
 	/* Need further changes to handle parent and name */
 	if (strcmp(dirname, "/") == 0) {
@@ -366,20 +369,23 @@ printf("in rmdir.\n");
 		return -1;
 	}
 
-    inodenum = namei(dirname);
-	if (inodenum == 0) {
-	    printf("Not found\n");
-		return -1;
-	}
-	if (iget(maindisk, inodenum, &ino) != 0) {
-		return -1;
-	}
+    parent = get_path(dirname);
 
-	parent_inodenum = nameinode("..", ino);
-	if (iget(maindisk, parent_inodenum, &parent_ino) != 0) {
-		iput(ino);
+    if (parent == NULL) {
+		parent_inodenum = minithread_wd();
+	} else {
+		parent_inodenum = namei(parent);
+	}
+	free(parent);
+
+	inodenum = namei(dirname);
+	if (parent_inodenum == 0 || inodenum == 0) {
 		return -1;
 	}
+	iget(maindisk, parent_inodenum, &parent_ino);
+
+	printf("Inode to delete is %ld\n", inodenum);
+    iget(maindisk, inodenum, &ino);
 
 	/* When want to create file in this dirctory by other process
 	 * they first grab lock and check if this directory is deleted
@@ -387,8 +393,7 @@ printf("in rmdir.\n");
 	 * If this functions grabs lock later, the directory is not empty then
 	 */
 	ilock(ino);
-printf("got lock.\n");
-	if (ino->size > 2) {
+	if (ino->type != MINIDIRECTORY || ino->size > 2) {
 		iunlock(ino);
 		iput(parent_ino);
 		iput(ino);
@@ -400,20 +405,15 @@ printf("got lock.\n");
 
 	/* Remove this inodenum from parent inode */
 	ilock(parent_ino);
-	printf("parent: %ld\n", parent_inodenum);
-	printf("child: %ld\n", inodenum);
 	if (idelete_from_dir(parent_ino, inodenum) != 0) {
 		iunlock(parent_ino);
 		iput(parent_ino);
-		printf("delete fails.\n");
-
 		return -1;
 	}
 	parent_ino->size--; /* Should update inode to disk after this */
 	iupdate(parent_ino);
 	iunlock(parent_ino);
 	iput(ino);
-printf("returned.\n");
 
 	return 0;
 }

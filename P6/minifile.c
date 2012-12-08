@@ -54,7 +54,11 @@ minifile_t minifile_open(char *filename, char *mode)
 
     inum = namei(filename);
     if (0 == inum) {
-        return NULL;
+        if ('r' == mode[0]) {
+            return NULL;
+        } else {
+
+        }
     }
     file = malloc(sizeof(struct minifile));
     if (NULL == file) {
@@ -76,16 +80,19 @@ minifile_t minifile_open(char *filename, char *mode)
 
     file->inode = inode;
     file->inode_num = inum;
+
+    file->mode[0] = mode[0];
     file->mode[1] = '\0';
     file->mode[2] = '\0';
     file->block_cursor = 0;
     file->byte_cursor = 0;
     file->byte_in_block = 0;
-    if ('+' == mode[1]) {
+    if ('a' == mode[0]) {
         minifile_cursor_shift(file, inode->size);
+    }
+    if ('+' == mode[1]) {
         file->mode[1] = '+';
     }
-    file->mode[0] = mode[0];
 
     iunlock(inode);
 
@@ -132,6 +139,15 @@ int minifile_read(minifile_t file, char *data, int maxlen)
 
 int minifile_write(minifile_t file, char *data, int len)
 {
+    int count = 0;
+    int left_byte = 0;
+    int disk_block = 0;
+    buf_block_t buf;
+    int step = 0;
+    if ("r" == file->mode) {
+        return -1;
+    }
+
     return 0;
 }
 
@@ -330,7 +346,6 @@ char* minifile_pwd(void)
 		strcpy(pwd, "/");
 		return pwd;
 	}
-
 
 	parent_inodenum = nameinode("..", cur_directory);
 	while (cur_inodenum != mainsb->root_inum) {

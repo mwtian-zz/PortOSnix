@@ -97,8 +97,8 @@ inode_test(int *arg)
     printf("\n");
     */
     printf("Allocating all free blocks.\n");
-    inode[i]->type = MINIFILE;
     iget(maindisk, inode_num[i], &inode[i]);
+    inode[i]->type = MINIFILE;
     while (mainsb->free_blocks > 0) {
 		ilock(inode[i]);
 		k = balloc(maindisk);

@@ -293,7 +293,6 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 		}
 		target_entry = (dir_entry_t)buf->data;
 		for (j = 0; j < existing_entry; j++) {
-		    printf("target_entry->inode_num: %ld\n", target_entry->inode_num);
 			if (target_entry->inode_num == inodenum) {
 				is_found = 1;
 				break;
@@ -307,10 +306,8 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 		}
 	}
 	if (is_found == 0) {
-	    printf("idelete - not found.\n");
 		return -1;
 	}
-	printf("idelete - mid.\n");
 	/* Only one entry in this directory, remove last data block */
 	if (ino->size == 1) {
 		brelse(buf);

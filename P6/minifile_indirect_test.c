@@ -45,10 +45,12 @@ inode_test(int *arg)
 	get_filename("/root/lihao/abc.txt");
 	get_filename("abcd.txt");
 	printf("%s\n", get_path("/root/lihao.txt"));
-	printf("%s\n", get_filename("abcd/lihao/liab.t"));
+	printf("%s\n", get_filename("abcd/"));
 	printf("%s\n", get_path("abcd/lihao/liab.t"));
+	printf("%s\n", get_path("/lihao/lihaosky/"));
+	printf("%s\n", get_path("lihao/lihaosky/"));
+	printf("%s\n", get_path("abcd.txt/"));
 	printf("%s\n", get_path("abcd.txt"));
-
     printf("In inode system test.\n");
     /* Format super block */
     fs_format(mainsb);

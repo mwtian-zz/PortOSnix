@@ -241,15 +241,22 @@ char*
 get_path(char* filepath) {
 	char* path;
 	char* filename;
+	char* path_buf;
 	
-	filename = get_filename(filepath);
-	if (strcmp(filename, filepath) == 0) {
+	path_buf = malloc(strlen(filepath) + 1);
+	strcpy(path_buf, filepath);
+	if (path_buf[strlen(path_buf) - 1] == '/') {
+		path_buf[strlen(path_buf) - 1] = '\0';
+	}
+	filename = get_filename(path_buf);
+	if (strcmp(filename, path_buf) == 0) {
 		free(filename);
 		return NULL;
 	}
-	path = malloc(strlen(filepath) - strlen(filename) + 1);
-	strncpy(path, filepath, (strlen(filepath) - strlen(filename)));
-	path[strlen(filepath) - strlen(filename)] = '\0';
+	path = malloc(strlen(path_buf) - strlen(filename) + 1);
+	strncpy(path, path_buf, (strlen(filepath) - strlen(filename)));
+	path[strlen(path_buf) - strlen(filename)] = '\0';
 	free(filename);
+	free(path_buf);
 	return path;
 }

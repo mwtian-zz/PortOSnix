@@ -252,7 +252,12 @@ int minifile_unlink(char *filename)
 		return -1;
 	}
 	parent = get_path(filename);
-	parent_inum = namei(parent);
+	if (parent == NULL) {
+		parent_inum = minithread_wd();
+	} else {
+		parent_inum = namei(parent);
+	}
+	free(parent);
 	if (parent_inum == 0) {
 		free(parent);
 		return -1;
@@ -260,14 +265,12 @@ int minifile_unlink(char *filename)
 	iget(maindisk, inum, &inode);
 	if (inode->type != MINIFILE) {
 		iput(inode);
-		free(parent);
 		return -1;
 	}
 	iget(maindisk, parent_inum, &parent_inode);
 	if (parent_inode->type != MINIDIRECTORY) {
 		iput(inode);
 		iput(parent_inode);
-		free(parent);
 		return -1;
 	}
 	ilock(inode);

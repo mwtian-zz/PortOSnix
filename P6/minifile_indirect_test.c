@@ -102,12 +102,16 @@ inode_test(int *arg)
     while (mainsb->free_blocks > 0) {
 		ilock(inode[i]);
 		k = balloc(maindisk);
-		//printf("Adding block %ld\n", k);
+		printf("Adding block %ld\n", k);
 		iadd_block(inode[i], k);
 		inode[i]->size_blocks++;
 		inode[i]->size += DISK_BLOCK_SIZE;
 		iupdate(inode[i]);
 		iunlock(inode[i]);
+	}
+	printf("Inode direct pointers: ");
+	for (j = 0; j < 11; j++) {
+		printf("%ld ", inode[i]->direct[j]);
 	}
 	iput(inode[i]);
 
@@ -122,11 +126,13 @@ inode_test(int *arg)
 
 	iget(maindisk, inode_num[i], &inode[i]);
 	printf("Removing data blocks one by one.\n");
-	while (irm_block(inode[i]) == 0)
-        ;
+	while (inode[i]->size_blocks > 0) {
+		irm_block(inode[i]);
+		inode[i]->size_blocks--;
+	}
 	printf("Inode direct pointers: ");
 	for (j = 0; j < 11; j++) {
-		printf("%ld ", inode[i]->direct[i]);
+		printf("%ld ", inode[i]->direct[j]);
 	}
     printf("\n");
     printf("Inode indirect pointers: ");

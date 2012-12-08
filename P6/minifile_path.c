@@ -204,10 +204,10 @@ get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size) {
 		existing_entry = (left_entry > ENTRY_NUM_PER_BLOCK ? ENTRY_NUM_PER_BLOCK : left_entry);
 		blocknum = blockmap(maindisk, ino, i);
 		if (blocknum == -1) {
-			break;
+			continue;
 		}
 		if (bread(disk, blocknum, &buf) != 0) {
-			break;
+			continue;
 		}
 		tmp_entry = (dir_entry_t)buf->data;
 		for (j = 0; j < existing_entry; j++) {

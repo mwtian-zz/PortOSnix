@@ -293,7 +293,8 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 		}
 		target_entry = (dir_entry_t)buf->data;
 		for (j = 0; j < existing_entry; j++) {
-			if (target_entry->inode_num == inodenum) {
+		    printf("target_entry->inode_num: %ld\n", target_entry->inode_num);
+			if (target_entry[j].inode_num == inodenum) {
 				is_found = 1;
 				break;
 			}
@@ -305,8 +306,10 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 		}
 	}
 	if (is_found == 0) {
+	    printf("idelete - not found.\n");
 		return -1;
 	}
+	printf("idelete - mid.\n");
 	/* Only one entry in this directory, remove last data block */
 	if (ino->size == 1) {
 		brelse(buf);
@@ -348,20 +351,20 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 }
 
 /* Add entry to directy, size is not incremented */
-int 
+int
 iadd_to_dir(mem_inode_t ino, char* filename, inodenum_t inodenum) {
 	struct dir_entry entry;
 	int entry_num;
 	blocknum_t blocknum;
 	buf_block_t buf;
 	int offset;
-	
+
 	if (ino == NULL || ino->type != MINIDIRECTORY || ino->status == TO_DELETE) {
 		return -1;
 	}
 	strcpy(entry.name, filename);
 	entry.inode_num = inodenum;
-	
+
 	entry_num = ino->size;
 	/* Need a new block */
 	if (entry_num % ENTRY_NUM_PER_BLOCK == 0) {
@@ -398,7 +401,7 @@ rm_single_indirect(mem_inode_t ino, int blocksize) {
 	}
 	memcpy((void*)&blocknum, (s_buf->data + 8 * offset), sizeof(blocknum_t));
 	printf("block number to remove is %ld\n", blocknum);
-	
+
 	if (offset == 0) {
 		printf("Need to remove indirect block %ld\n", s_buf->num);
 		bfree(s_buf->num);
@@ -427,7 +430,7 @@ rm_double_indirect(mem_inode_t ino, int blocksize) {
 		return -1;
 	}
 	memcpy((void*)&blocknum, (s_buf->data + 8 * soffset), sizeof(blocknum_t));
-	
+
 	if (soffset == 0) {
 		bfree(s_buf->num);
 		if (doffset == 0) {
@@ -480,7 +483,7 @@ rm_triple_indirect(mem_inode_t ino, int blocksize) {
     brelse(d_buf);
     brelse(t_buf);
 	bfree(blocknum);
-	
+
 	return 0;
 }
 

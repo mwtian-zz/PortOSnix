@@ -358,7 +358,7 @@ int minifile_rmdir(char *dirname)
 {
     inodenum_t inodenum, parent_inodenum;
 	mem_inode_t ino, parent_ino;
-    char* parent, *name;
+printf("in rmdir.\n");
 
 	/* Need further changes to handle parent and name */
 	if (strcmp(dirname, "/") == 0) {
@@ -366,26 +366,20 @@ int minifile_rmdir(char *dirname)
 		return -1;
 	}
 
-    parent = get_path(dirname);
-	name = get_filename(dirname);
-
-    if (parent == NULL) {
-		parent_inodenum = minithread_wd();
-	} else {
-		parent_inodenum = namei(parent);
-	}
-	if (parent_inodenum == 0) {
-		free(parent);
-		free(name);
+    inodenum = namei(dirname);
+	if (inodenum == 0) {
+	    printf("Not found\n");
 		return -1;
 	}
-	iget(maindisk, parent_inodenum, &parent_ino);
+	if (iget(maindisk, inodenum, &ino) != 0) {
+		return -1;
+	}
 
-    inodenum = namei(name);
-    if (0 == inodenum) {
-        return -1;
-    }
-    iget(maindisk, inodenum, &ino);
+	parent_inodenum = nameinode("..", ino);
+	if (iget(maindisk, parent_inodenum, &parent_ino) != 0) {
+		iput(ino);
+		return -1;
+	}
 
 	/* When want to create file in this dirctory by other process
 	 * they first grab lock and check if this directory is deleted
@@ -393,8 +387,8 @@ int minifile_rmdir(char *dirname)
 	 * If this functions grabs lock later, the directory is not empty then
 	 */
 	ilock(ino);
-	printf("got lock.\n");
-	if (ino->size > 0) {
+printf("got lock.\n");
+	if (ino->size > 2) {
 		iunlock(ino);
 		iput(parent_ino);
 		iput(ino);
@@ -406,15 +400,20 @@ int minifile_rmdir(char *dirname)
 
 	/* Remove this inodenum from parent inode */
 	ilock(parent_ino);
+	printf("parent: %ld\n", parent_inodenum);
+	printf("child: %ld\n", inodenum);
 	if (idelete_from_dir(parent_ino, inodenum) != 0) {
 		iunlock(parent_ino);
 		iput(parent_ino);
+		printf("delete fails.\n");
+
 		return -1;
 	}
 	parent_ino->size--; /* Should update inode to disk after this */
 	iupdate(parent_ino);
 	iunlock(parent_ino);
 	iput(ino);
+printf("returned.\n");
 
 	return 0;
 }
@@ -451,6 +450,7 @@ int minifile_cd(char *path)
 	cur_inodenum = minithread_wd();
 	cur_dir = minithread_wd_inode();
 	new_inodenum = namei(path);
+
 	/* Invalid path */
 	if (new_inodenum == 0) {
 		return -1;
@@ -600,3 +600,5 @@ minifile_cursor_shift(minifile_t file, int shift)
     file->block_cursor = file->byte_cursor / DISK_BLOCK_SIZE;
     file->byte_in_block = file->byte_cursor % DISK_BLOCK_SIZE;
 }
+
+

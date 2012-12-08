@@ -230,12 +230,57 @@ int minifile_write(minifile_t file, char *data, int len)
 
 int minifile_close(minifile_t file)
 {
-    return 0;
+	if (file == NULL) {
+		return -1;
+	}
+    iput(file->inode);
+	free(file);
+	return 0;
 }
 
 int minifile_unlink(char *filename)
 {
-    return 0;
+    char* parent;
+	mem_inode_t parent_inode, inode;
+	inodenum_t parent_inum, inum;
+	
+	if (filename == NULL) {
+		return -1;
+	}
+	inum = namei(filename);
+	if (inum == 0) {
+		return -1;
+	}
+	parent = get_path(filename);
+	parent_inum = namei(parent);
+	if (parent_inum == 0) {
+		free(parent);
+		return -1;
+	}
+	iget(maindisk, inum, &inode);
+	if (inode->type != MINIFILE) {
+		iput(inode);
+		free(parent);
+		return -1;
+	}
+	iget(maindisk, parent_inum, &parent_inode);
+	if (parent_inode->type != MINIDIRECTORY) {
+		iput(inode);
+		iput(parent_inode);
+		free(parent);
+		return -1;
+	}
+	ilock(inode);
+	inode->status = TO_DELETE;
+	iunlock(inode);
+	iput(inode);
+	ilock(parent_inode);
+	idelete_from_dir(parent_inode, inum);
+	parent_inode->size--;
+	iupdate(parent_inode);
+	iunlock(parent_inode);
+	iput(parent_inode);
+	return 0;
 }
 
 int minifile_mkdir(char *dirname)

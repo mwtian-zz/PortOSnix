@@ -358,7 +358,7 @@ int minifile_rmdir(char *dirname)
 {
     inodenum_t inodenum, parent_inodenum;
 	mem_inode_t ino, parent_ino;
-    char* parent, *name;
+    char* parent;
 
 	/* Need further changes to handle parent and name */
 	if (strcmp(dirname, "/") == 0) {
@@ -367,24 +367,21 @@ int minifile_rmdir(char *dirname)
 	}
 
     parent = get_path(dirname);
-	name = get_filename(dirname);
 
     if (parent == NULL) {
 		parent_inodenum = minithread_wd();
 	} else {
 		parent_inodenum = namei(parent);
 	}
-	if (parent_inodenum == 0) {
-		free(parent);
-		free(name);
+	free(parent);
+	
+	inodenum = namei(dirname);
+	if (parent_inodenum == 0 || inodenum == 0) {
 		return -1;
 	}
 	iget(maindisk, parent_inodenum, &parent_ino);
-
-    inodenum = namei(name);
-    if (0 == inodenum) {
-        return -1;
-    }
+	
+	printf("Inode to delete is %ld\n", inodenum);
     iget(maindisk, inodenum, &ino);
 
 	/* When want to create file in this dirctory by other process
@@ -393,8 +390,7 @@ int minifile_rmdir(char *dirname)
 	 * If this functions grabs lock later, the directory is not empty then
 	 */
 	ilock(ino);
-	printf("got lock.\n");
-	if (ino->size > 0) {
+	if (ino->type != MINIDIRECTORY || ino->size > 2) {
 		iunlock(ino);
 		iput(parent_ino);
 		iput(ino);

@@ -326,7 +326,7 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	if (blocknum == buf->num) {
 		src_entry = (dir_entry_t)buf->data;
 		src_entry += offset;
-		memcpy(target_entry, src_entry, sizeof(struct dir_entry));
+		memcpy(target_entry, src_entry, DIR_ENTRY_SIZE);
 		bwrite(buf);
 		return 0;
 	}
@@ -342,6 +342,7 @@ idelete_from_dir(mem_inode_t ino, inodenum_t inodenum) {
 	/* Only 1 entry in last block, so remove the block */
 	if (offset == 0) {
 		irm_block(ino);
+		ino->size_blocks--;
 	}
 	return 0;
 }

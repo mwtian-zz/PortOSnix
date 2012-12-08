@@ -13,8 +13,9 @@
 struct minifile {
     mem_inode_t inode;
     inodenum_t inode_num;
-    blocknum_t block_cursor;
-    size_t byte_cursor;
+    int block_cursor;
+    int byte_cursor;
+    int byte_in_block;
     char mode[3];
 };
 

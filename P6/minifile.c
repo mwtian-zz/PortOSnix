@@ -9,6 +9,8 @@
 #include "minifile_inode.h"
 #include "minithread.h"
 
+static void minifile_cursor_shift(minifile_t file, int shift);
+
 minifile_t minifile_creat(char *filename)
 {
     minifile_t file = NULL;
@@ -22,7 +24,7 @@ minifile_t minifile_creat(char *filename)
 
     inum = namei(filename);
     if (0 == inum) {
-        inum = ialloc(mainsb);
+        inum = ialloc(maindisk);
         iget(maindisk, inum, &inode);
         ilock(inode);
         izero(inode);
@@ -37,8 +39,9 @@ minifile_t minifile_creat(char *filename)
     file->inode_num = inum;
     file->block_cursor = 0;
     file->byte_cursor = 0;
+    file->byte_in_block = 0;
     file->mode[0] = 'w';
-
+    file->mode[1] = '\0';
     return file;
 }
 
@@ -73,14 +76,16 @@ minifile_t minifile_open(char *filename, char *mode)
 
     file->inode = inode;
     file->inode_num = inum;
+    file->mode[1] = '\0';
+    file->mode[2] = '\0';
+    file->block_cursor = 0;
+    file->byte_cursor = 0;
+    file->byte_in_block = 0;
     if ('+' == mode[1]) {
-        file->block_cursor = inode->size;
-        file->byte_cursor = inode->size_blocks;
-    } else {
-        file->block_cursor = 0;
-        file->byte_cursor = 0;
+        minifile_cursor_shift(file, inode->size);
+        file->mode[1] = '+';
     }
-    file->mode[0] = 'w';
+    file->mode[0] = mode[0];
 
     iunlock(inode);
 
@@ -89,7 +94,40 @@ minifile_t minifile_open(char *filename, char *mode)
 
 int minifile_read(minifile_t file, char *data, int maxlen)
 {
-    return 0;
+    int count = 0;
+    int left_byte = 0;
+    int disk_block = 0;
+    buf_block_t buf;
+    int step = 0;
+    if ("w" == file->mode || "a" == file->mode) {
+        return -1;
+    }
+
+    left_byte = file->inode->size - file->byte_cursor;
+    if (left_byte < maxlen) {
+        maxlen = left_byte;
+    }
+
+    while (maxlen > 0 && left_byte > 0) {
+        /* Get step size */
+        if (file->byte_in_block + maxlen - 1 > DISK_BLOCK_SIZE) {
+            step = DISK_BLOCK_SIZE - file->byte_in_block;
+        } else {
+            step = maxlen;
+        }
+        disk_block = blockmap(maindisk, file->inode, file->block_cursor);
+        /* Copy disk block */
+        if (bread(maindisk, disk_block, &buf) != 0)
+            return count;
+        memcpy(data, buf->data + file->byte_in_block, step);
+        brelse(buf);
+        /* Update upon success */
+        minifile_cursor_shift(file, step);
+        count += step;
+        maxlen -= step;
+    }
+
+    return count;
 }
 
 int minifile_write(minifile_t file, char *data, int len)
@@ -331,4 +369,12 @@ char* minifile_pwd(void)
 	free(path);
 
 	return pwd;
+}
+
+void
+minifile_cursor_shift(minifile_t file, int shift)
+{
+    file->byte_cursor += shift;
+    file->block_cursor = file->byte_cursor / DISK_BLOCK_SIZE;
+    file->byte_in_block = file->byte_cursor % DISK_BLOCK_SIZE;
 }

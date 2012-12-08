@@ -71,6 +71,7 @@ extern int iupdate(mem_inode_t ino);
 extern int iadd_block(mem_inode_t ino, blocknum_t blocknum_to_add); /* Add a data block to inode */
 extern int irm_block(mem_inode_t ino); /* Remove the last block of an inode, if any */
 extern int idelete_from_dir(mem_inode_t ino, inodenum_t inodenum); /* Delete inodenum from directory */
+extern int iadd_to_dir(mem_inode_t ino, char* filename, inodenum_t inodenum); /* Add entry to directy */
 
 /* Byte offset within inode to disk block number */
 extern blocknum_t bytemap(disk_t* disk, mem_inode_t ino, size_t byte_offset);

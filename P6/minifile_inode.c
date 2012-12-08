@@ -226,7 +226,7 @@ iadd_block(mem_inode_t ino, blocknum_t blocknum_to_add) {
 /* Remove the last block of an inode, if any */
 int
 irm_block(mem_inode_t ino) {
-	int blocksize;
+	blocknum_t blocksize;
 	blocknum_t blocknum;
 	buf_block_t buf;
 
@@ -234,12 +234,10 @@ irm_block(mem_inode_t ino) {
 		return 0;
 	}
 	blocksize = ino->size_blocks;
+	printf("blocksize: %ld\n", blocksize);
 	/* In direct block */
 	if (blocksize <= INODE_DIRECT_BLOCKS) {
 		blocknum = ino->direct[blocksize - 1];
-		if (bread(ino->disk, blocknum, &buf) != 0) {
-			return -1;
-		}
 		bfree(blocknum);
 		return 0;
 	}

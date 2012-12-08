@@ -49,6 +49,7 @@ inode_test(int *arg)
 
     i = 0;
 	inode_num[i] = ialloc(maindisk);
+	/*
 	iget(maindisk, inode_num[i], &inode[i]);
 	inode[i]->type = MINIFILE;
 	printf("Allocating all free blocks.\n");
@@ -89,8 +90,15 @@ inode_test(int *arg)
     printf("Inode indirect pointers: ");
     printf("Free block left: %ld.\n", mainsb->free_blocks);
     iput(inode[i]);
-
+    printf("Block bit map: ");
+    for (i = 0; i < mainsb->disk_num_blocks / 8; ++i) {
+        printf("%d ", mainsb->block_bitmap[i]);
+    }
+    printf("\n");
+    */
     printf("Allocating all free blocks.\n");
+    inode[i]->type = MINIFILE;
+    iget(maindisk, inode_num[i], &inode[i]);
     while (mainsb->free_blocks > 0) {
 		ilock(inode[i]);
 		k = balloc(maindisk);

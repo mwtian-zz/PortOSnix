@@ -500,7 +500,10 @@ minithread_initialize_filesystem()
 	if (iget(maindisk, mainsb->root_inum, &root_inode) != 0) {
 		return -1;
 	}
-
+	
+	minithread_set_wd(mainsb->root_inum);
+	minithread_set_wd_inode(root_inode);
+	
     return 0;
 }
 

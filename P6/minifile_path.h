@@ -20,4 +20,9 @@ extern inodenum_t nameinode(char* path, mem_inode_t ino);
 /* Get all the directory entries in directory inode, return NULL if no entries */
 extern dir_entry_t* get_directory_entry(disk_t* disk, mem_inode_t ino, int* entry_size);
 
+/* Get filename without absolute path */
+extern char* get_filename(char* path);
+/* Get path to file, return NULL if is working directory */
+extern char* get_path(char* filepath);
+
 #endif /* __MINIFILE_FS_H__ */

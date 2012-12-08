@@ -5,6 +5,7 @@
 #include "minifile_fs.h"
 #include "minifile_inode.h"
 #include "minifile_inodetable.h"
+#include "minifile_path.h"
 
 #include "minithread.h"
 #include "synch.h"
@@ -40,7 +41,14 @@ inode_test(int *arg)
     blocknum_t i, j;
     char text[DISK_BLOCK_SIZE];
 	blocknum_t k;
-
+	printf("here\n");
+	get_filename("/root/lihao/abc.txt");
+	get_filename("abcd.txt");
+	printf("%s\n", get_path("/root/lihao.txt"));
+	printf("%s\n", get_filename("abcd/lihao/liab.t"));
+	printf("%s\n", get_path("abcd/lihao/liab.t"));
+	printf("%s\n", get_path("abcd.txt"));
+	
     printf("In inode system test.\n");
     /* Format super block */
     fs_format(mainsb);

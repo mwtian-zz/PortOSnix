@@ -176,6 +176,9 @@ ret:
 void
 iput(mem_inode_t ino)
 {
+    if (NULL == ino)
+        return;
+
 	semaphore_P(itable_lock);
 	ino->ref_count--;
 	if (ino->ref_count == 0) {
@@ -235,7 +238,6 @@ int
 irm_block(mem_inode_t ino) {
 	blocknum_t blocksize;
 	blocknum_t blocknum;
-	buf_block_t buf;
 
 	if (ino->size <= 0 || ino->size_blocks <= 0) {
 		return 0;

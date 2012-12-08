@@ -84,6 +84,7 @@ static int minithread_initialize_scheduler();
 static int minithread_initialize_sys_threads();
 static int minithread_initialize_interrupts();
 static int minithread_initialize_sys_sems();
+static int minithread_initialize_diskio();
 static int minithread_initialize_filesystem();
 static void clock_handler(void* arg);
 static void network_handler(void* arg);
@@ -348,22 +349,27 @@ minithread_set_wd_inode(mem_inode_t ino) {
 void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg)
 {
-    if (minithread_initialize_scheduler() == -1) {
+    if (minithread_initialize_scheduler() != 0) {
         exit(-1);
     }
-    if (minithread_initialize_sys_sems() == -1) {
+    if (minithread_initialize_sys_sems() != 0) {
         exit(-1);
     }
-    if (minithread_initialize_filesystem() == -1) {
+    if (minithread_initialize_diskio() != 0) {
+        printf("Disk initialization failure.\n");
         exit(-1);
     }
-    if (minithread_initialize_interrupts() == -1) {
+    if (minithread_initialize_interrupts() != 0) {
         exit(-1);
     }
-    if (minithread_initialize_sys_threads() == -1) {
+    if (minithread_initialize_sys_threads() != 0) {
         exit(-1);
     }
     if (minithread_fork(mainproc, mainarg) == NULL) {
+        exit(-1);
+    }
+    if (minithread_initialize_filesystem() != 0) {
+        printf("File system initialization failure.\n");
         exit(-1);
     }
 
@@ -421,11 +427,15 @@ minithread_initialize_sys_sems()
 }
 
 static int
-minithread_initialize_filesystem()
+minithread_initialize_diskio()
 {
     /* Initialize disk. Parameters are set in the linked main program */
     maindisk = &(disk_table[0]);
-    disk_initialize(maindisk);
+    if (disk_initialize(maindisk) != 0)
+        return -1;
+
+    /* Super block */
+    mainsb = &(sb_table[0]);
 
     /* Initialize cache */
     minifile_buf_cache_init();
@@ -436,12 +446,7 @@ minithread_initialize_filesystem()
 		return -1;
 	}
 
-    /* Initialize file system */
-    mainsb = &(sb_table[0]);
-    if (use_existing_disk != 0)
-        fs_init(mainsb);
-
-	/* Initialize inode table */
+    /* Initialize inode table */
 	itable_init();
 
 	/* Create inode table lock */
@@ -449,6 +454,19 @@ minithread_initialize_filesystem()
 	if (itable_lock  == NULL) {
 		return -1;
 	}
+
+    return 0;
+}
+
+static int
+minithread_initialize_filesystem()
+{
+    /* Initialize file system */
+    if (use_existing_disk != 0) {
+        if (fs_init(mainsb) != 0) {
+            return -1;
+        }
+    }
 
 //
 //	/* Get root inode */
@@ -464,7 +482,9 @@ minithread_initialize_interrupts()
 {
     ticks = 0;
     expire = -1;
+
     set_interrupt_level(DISABLED);
+
     if (alarm_initialize() == -1)
         return -1;
     minithread_clock_init(clock_handler);
@@ -474,6 +494,7 @@ minithread_initialize_interrupts()
     minisocket_initialize();
     miniterm_initialize();
     install_disk_handler(disk_handler);
+
     set_interrupt_level(ENABLED);
 
     return 0;

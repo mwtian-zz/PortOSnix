@@ -69,7 +69,6 @@ static int discovery_id;
 void
 miniroute_initialize()
 {
-    network_get_my_address(hostaddr);
     discovery_alarm = -1;
 
     intrpt_buffer = queue_new();

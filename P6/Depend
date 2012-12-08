@@ -22,10 +22,6 @@ minifile.o: minifile.c defs.h minifile.h minifile_private.h \
  minifile_cache.h disk.h interrupts.h queue.h queue_private.h synch.h \
  minifile_fs.h bitmap.h minifile_inode.h minifile_path.h minithread.h \
  machineprimitives.h
-minifile_addblock_test.o: minifile_addblock_test.c defs.h disk.h \
- interrupts.h minifile_cache.h queue.h queue_private.h synch.h \
- minifile_fs.h bitmap.h minifile_inode.h minifile_inodetable.h \
- minithread.h machineprimitives.h
 minifile_cache.o: minifile_cache.c defs.h interrupts.h minifile.h \
  minifile_cache.h disk.h queue.h queue_private.h synch.h
 minifile_cache_test.o: minifile_cache_test.c defs.h disk.h interrupts.h \
@@ -33,14 +29,18 @@ minifile_cache_test.o: minifile_cache_test.c defs.h disk.h interrupts.h \
  machineprimitives.h minifile_fs.h bitmap.h minifile_inode.h
 minifile_diskutil.o: minifile_diskutil.c defs.h disk.h interrupts.h \
  minifile_cache.h queue.h queue_private.h synch.h minifile_diskutil.h \
- minifile_fs.h bitmap.h minifile_inode.h
-minifile_fs.o: minifile_fs.c minifile_fs.h bitmap.h disk.h defs.h \
+ minifile_fs.h bitmap.h minifile_inode.h minifile_path.h
+minifile_fs.o: minifile_fs.c defs.h minifile_fs.h bitmap.h disk.h \
  interrupts.h minifile_cache.h queue.h queue_private.h synch.h \
  minifile_inode.h minithread.h machineprimitives.h minithread_private.h \
  multilevel_queue.h
 minifile_fs_test.o: minifile_fs_test.c defs.h disk.h interrupts.h \
  minifile_cache.h queue.h queue_private.h synch.h minifile_fs.h bitmap.h \
  minifile_inode.h minithread.h machineprimitives.h
+minifile_indirect_test.o: minifile_indirect_test.c defs.h disk.h \
+ interrupts.h minifile_cache.h queue.h queue_private.h synch.h \
+ minifile_fs.h bitmap.h minifile_inode.h minifile_inodetable.h \
+ minifile_path.h minithread.h machineprimitives.h
 minifile_inode.o: minifile_inode.c minifile_fs.h bitmap.h disk.h defs.h \
  interrupts.h minifile_cache.h queue.h queue_private.h synch.h \
  minifile_inode.h minifile_inodetable.h minifile_path.h

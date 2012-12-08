@@ -1,4 +1,5 @@
 #include <string.h>
+#include "defs.h"
 
 #include "minifile_fs.h"
 #include "minifile_cache.h"
@@ -170,9 +171,15 @@ fs_init(mem_sblock_t sbp)
         return -1;
     }
 
-    semaphore_P(sbp->filesys_lock);
+    fs_lock(sbp);
     sblock_get(maindisk, sbp);
     sblock_put(sbp);
+    if (sblock_isvalid(sbp) != 1) {
+        sblock_print(sbp);
+        kprintf("File system is not recognized. ");
+        kprintf("Recommend running './mkfs <blocks>'.\n");
+        return -2;
+    }
 
     inode_bitmap_size = sbp->inode_bitmap_last - sbp->inode_bitmap_first + 1;
     sbp->inode_bitmap = malloc(inode_bitmap_size * DISK_BLOCK_SIZE);
@@ -199,7 +206,8 @@ fs_init(mem_sblock_t sbp)
     mainsb->free_blocks = bitmap_count_zero(mainsb->block_bitmap,
                                             mainsb->disk_num_blocks);
 
-    semaphore_V(sbp->filesys_lock);
+    fs_unlock(sbp);
+
     return 0;
 }
 

@@ -8,7 +8,7 @@
 
 /* Make a file system with parameters specified in disk.c */
 int
-minifile_remkfs()
+minifile_remkfs(int *arg)
 {
     mem_inode_t inode;
     buf_block_t buf;
@@ -17,6 +17,7 @@ minifile_remkfs()
 
     /* Initialize superblock and bit map*/
     fs_format(mainsb);
+    sblock_print(mainsb);
 
     /* Create root inode */
     iget(maindisk, mainsb->root_inum, &inode);
@@ -39,14 +40,15 @@ minifile_remkfs()
 
     iput(inode);
 
-    printf("minifile system established.\n");
+    printf("minifile system established on %s. ", disk_name);
+    printf("Hit ^C to quit minithread.\n");
 
     return 0;
 }
 
 /* Check the consistency of the file system on disk */
 int
-minifile_fsck(disk_t* disk)
+minifile_fsck(int *arg)
 {
     char *disk_block_map;
     char *used_block_map;
@@ -55,8 +57,8 @@ minifile_fsck(disk_t* disk)
     blocknum_t count = 0;
     blocknum_t blocknum;
 
-    disk_block_map = malloc(disk->layout.size * sizeof(*disk_block_map));
-    used_block_map = malloc(disk->layout.size * sizeof(*used_block_map));
+    disk_block_map = malloc(mainsb->disk_num_blocks * sizeof(*disk_block_map));
+    used_block_map = malloc(mainsb->disk_num_blocks * sizeof(*used_block_map));
 
     /* Copy over disk bitmap */
     for (i = 0; i < mainsb->disk_num_blocks; ++i) {

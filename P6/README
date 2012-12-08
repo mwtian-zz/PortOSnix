@@ -2,14 +2,6 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 
 CS4411 Project 6 - File System
 
-q3: buffer cache?
-
-
-
-Things to do (functions names can change):
-
-7. inodeToBlockNum(): inode number to block number (can be macro)
-
 --------------------------------------------------------------------------------
 Project Description
 http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3

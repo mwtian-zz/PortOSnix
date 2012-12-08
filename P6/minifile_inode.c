@@ -176,6 +176,9 @@ ret:
 void
 iput(mem_inode_t ino)
 {
+    if (NULL == ino)
+        return;
+
 	semaphore_P(itable_lock);
 	ino->ref_count--;
 	if (ino->ref_count == 0) {

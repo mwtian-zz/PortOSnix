@@ -384,7 +384,6 @@ int minifile_rmdir(char *dirname)
 	}
 	iget(maindisk, parent_inodenum, &parent_ino);
 
-	printf("Inode to delete is %ld\n", inodenum);
     iget(maindisk, inodenum, &ino);
 
 	/* When want to create file in this dirctory by other process

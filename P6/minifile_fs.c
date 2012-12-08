@@ -138,7 +138,7 @@ fs_format(mem_sblock_t sbp)
         bitmap_set(sbp->block_bitmap, i);
     }
     /* Set inode 0 to be occupied */
-    bitmap_set(sbp->inode_bitmap, 1);
+    bitmap_set(sbp->inode_bitmap, 0);
     /* Push updates to disk */
     for (i = sbp->inode_bitmap_first; i <= sbp->inode_bitmap_last; ++i) {
         bpush(i, (char*) sbp->inode_bitmap + (i - sbp->inode_bitmap_first)

@@ -357,25 +357,40 @@ int minifile_rmdir(char *dirname)
 {
     inodenum_t inodenum, parent_inodenum;
 	mem_inode_t ino, parent_ino;
+    char* parent, *name;
 
+	/* Need further changes to handle parent and name */
 	if (strcmp(dirname, "/") == 0) {
-		printf("Forbide you remove root!!!\n");
+		printf("Remove root: permission denied. \n");
 		return -1;
 	}
 
-	inodenum = namei(dirname);
-	if (inodenum == 0) {
-		return -1;
-	}
-	if (iget(maindisk, inodenum, &ino) != 0) {
-		return -1;
-	}
+    parent = get_path(dirname);
+	name = get_filename(dirname);
 
-	parent_inodenum = nameinode("..", ino);
-	if (iget(maindisk, parent_inodenum, &parent_ino) != 0) {
-		iput(ino);
+    if (parent == NULL) {
+		parent_inodenum = minithread_wd();
+	} else {
+		parent_inodenum = namei(parent);
+	}
+	if (parent_inodenum == 0) {
+		free(parent);
+		free(name);
 		return -1;
 	}
+	iget(maindisk, parent_inodenum, &parent_ino);
+
+    /* Do not create dir if duplicate path and name exists */
+    inodenum = namei(dirname);
+    if (0 != inodenum) {
+        return -1;
+    } else {
+        inodenum = ialloc(maindisk);
+        if (0 == inodenum) {
+            return -1;
+        }
+    }
+    iget(maindisk, inodenum, &ino);
 
 	/* When want to create file in this dirctory by other process
 	 * they first grab lock and check if this directory is deleted
@@ -383,6 +398,7 @@ int minifile_rmdir(char *dirname)
 	 * If this functions grabs lock later, the directory is not empty then
 	 */
 	ilock(ino);
+	printf("got lock.\n");
 	if (ino->size > 0) {
 		iunlock(ino);
 		iput(parent_ino);

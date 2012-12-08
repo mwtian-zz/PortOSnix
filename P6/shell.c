@@ -208,6 +208,10 @@ int shell(int *g)
         memset(arg2,'\0',BUFFER_SIZE);
         put_prompt();
         //gets(command);
+printf("ialloc: %d\n", i = ialloc(maindisk));
+printf("ifree: %d\n", i);
+ifree(i);
+
         miniterm_read(command, BUFFER_SIZE);
         //extract first three strings in command (delimited by spaces)
         sscanf(command,"%s %s %s",func,arg1,arg2);

@@ -304,7 +304,7 @@ int minifile_mkdir(char *dirname)
 	} else {
 		parent_inum = namei(parent);
 	}
-	
+
 	if (parent_inum == 0) {
 		free(parent);
 		free(name);
@@ -381,15 +381,9 @@ int minifile_rmdir(char *dirname)
 	}
 	iget(maindisk, parent_inodenum, &parent_ino);
 
-    /* Do not create dir if duplicate path and name exists */
-    inodenum = namei(dirname);
-    if (0 != inodenum) {
+    inodenum = namei(name);
+    if (0 == inodenum) {
         return -1;
-    } else {
-        inodenum = ialloc(maindisk);
-        if (0 == inodenum) {
-            return -1;
-        }
     }
     iget(maindisk, inodenum, &ino);
 

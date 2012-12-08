@@ -17,9 +17,9 @@ minifile_remkfs(int *arg)
 
     /* Initialize superblock and bit map*/
     fs_format(mainsb);
-    sblock_print(mainsb);
 
     /* Create root inode */
+    mainsb->root_inum = ialloc(maindisk);
     iget(maindisk, mainsb->root_inum, &inode);
     ilock(inode);
     inode->type = MINIDIRECTORY;
@@ -40,6 +40,7 @@ minifile_remkfs(int *arg)
 
     iput(inode);
 
+    sblock_print(mainsb);
     printf("minifile system established on %s. ", disk_name);
     printf("Hit ^C to quit minithread.\n");
 

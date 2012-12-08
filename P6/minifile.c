@@ -14,9 +14,14 @@ static void minifile_cursor_shift(minifile_t file, int shift);
 minifile_t minifile_creat(char *filename)
 {
     minifile_t file = NULL;
-    inodenum_t inum;
-    mem_inode_t inode;
-
+    inodenum_t inum, parent_inum;
+    mem_inode_t inode, parent_inode;
+	char* name, *parent;
+	
+	if (filename == NULL || strlen(filename) == 0 || filename[strlen(filename) - 1] == '/') {
+		return NULL;
+	}
+	
     file = malloc(sizeof(struct minifile));
     if (NULL == file) {
         return NULL;
@@ -24,7 +29,34 @@ minifile_t minifile_creat(char *filename)
 
     inum = namei(filename);
     if (0 == inum) {
+		parent = get_path(filename);
+		name = get_filename(filename);
+		if (parent == NULL) {
+			parent_inum = minithread_wd();
+		} else {
+			parent_inum = namei(parent);
+		}
+		if (parent_inum == 0) {
+			free(name);
+			free(parent);
+			free(file);
+			return NULL;
+		}
+		iget(maindisk, parent_inum, &parent_inode);
+		if (parent_inode->type != MINIDIRECTORY) {
+			iput(parent_inode);
+			free(name);
+			free(parent);
+			free(file);
+			return NULL;
+		}
         inum = ialloc(maindisk);
+		ilock(parent_inode);
+		iadd_to_dir(parent_inode, name, inum);
+		parent_inode->size++;
+		iupdate(parent_inode);
+		iunlock(parent_inode);
+		iput(parent_inode);
         iget(maindisk, inum, &inode);
         ilock(inode);
         izero(inode);
@@ -32,11 +64,11 @@ minifile_t minifile_creat(char *filename)
         inode->size = 0;
         iunlock(inode);
         iupdate(inode);
-        /*
-         * Put inode number and filename in directory minithread_wd();
-         */
     } else {
         iget(maindisk, inum, &inode);
+		ilock(inode);
+		iclear(inode);
+		iunlock(inode);
     }
 
     file->inode = inode;
@@ -201,10 +233,30 @@ int minifile_mkdir(char *dirname)
 {
     buf_block_t buf;
     blocknum_t blocknum;
-    inodenum_t inum;
-    mem_inode_t inode;
+    inodenum_t inum, parent_inum;
+    mem_inode_t inode, parent_inode;
     dir_entry_t dir;
-
+	char* parent, *name;
+	
+	if (dirname == NULL || strlen(dirname) == 0) {
+		return -1;
+	}
+	
+	parent = get_path(dirname);
+	name = get_filename(dirname);
+	
+	if (parent == NULL) {
+		parent_inum = minithread_wd();
+	} else {
+		parent_inum = namei(parent);
+	}
+	if (parent_inum == 0) {
+		free(parent);
+		free(name);
+		return -1;
+	}
+	iget(maindisk, parent_inum, &parent_inode);
+	
     /* Do not create dir if duplicate path and name exists */
     inum = namei(dirname);
     if (0 != inum) {
@@ -217,16 +269,11 @@ int minifile_mkdir(char *dirname)
     }
 
     iget(maindisk, inum, &inode);
-
     /* Create root inode */
     ilock(inode);
     inode->type = MINIDIRECTORY;
     inode->size = 2;
     blocknum = balloc(maindisk);
-    iadd_block(inode, blocknum);
-    iupdate(inode);
-    iunlock(inode);
-
     /* Create root inode entries */
     if (bread(maindisk, blocknum, &buf) != 0)
         return -1;
@@ -234,11 +281,20 @@ int minifile_mkdir(char *dirname)
     strcpy(dir[0].name, ".");
     dir[0].inode_num = inum;
     strcpy(dir[1].name, "..");
-    dir[1].inode_num = minithread_wd();
-    bwrite(buf);
+	dir[1].inode_num = parent_inum;
+	bwrite(buf);
+	iadd_block(inode, blocknum);
+	iupdate(inode);
+	iunlock(inode);
+	iput(inode);
+	ilock(parent_inode);
+	iadd_to_dir(parent_inode, name, inum);
+	parent_inode->size++;
+	iupdate(parent_inode);
+	iput(parent_inode);
 
-    iput(inode);
-
+	free(name);
+	free(parent);
 	return 0;
 }
 

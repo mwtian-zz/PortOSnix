@@ -226,7 +226,7 @@ int shell(int *g)
         } else if(strcmp(func,"pwd") == 0)
             printf("%s\n", minifile_pwd());
         else if(strcmp(func,"mkdir") == 0)
-            minifile_mkdir(arg1);
+            printf("return %d\n", minifile_mkdir(arg1));
         else if(strcmp(func,"rmdir") == 0)
             minifile_rmdir(arg1);
         else if(strcmp(func,"rm") == 0 || strcmp(func,"del") == 0)

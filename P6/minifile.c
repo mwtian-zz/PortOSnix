@@ -189,15 +189,16 @@ int minifile_write(minifile_t file, char *data, int len)
 
     while (len > 0) {
         blocknum = 0;
+        ilock(file->inode);
+
         /* Allocate block if needed */
-        if (file->block_cursor * DISK_BLOCK_SIZE < file->byte_cursor + 1) {
-            blocknum = balloc(maindisk);
+        if ((file->block_cursor * DISK_BLOCK_SIZE < file->byte_cursor + 1)
+                && (file->inode->size <= file->byte_cursor)) {
+            printf("Got block number: %ld\n", blocknum = balloc(maindisk));
             /* Update disk inode block list */
-            ilock(file->inode);
             if (iadd_block(file->inode, blocknum) == 0)
                 file->inode->size_blocks++;
-            iupdate(file->inode);
-            iunlock(file->inode);
+            //printf("block added to inode.\n");
         }
 
         /* Get step size */
@@ -207,20 +208,27 @@ int minifile_write(minifile_t file, char *data, int len)
             step = len;
         }
         /* Get disk block number from block cursor */
-        ilock(file->inode);
         disk_block = blockmap(maindisk, file->inode, file->block_cursor);
-        iunlock(file->inode);
         /* Copy disk block */
-        if (bread(maindisk, disk_block, &buf) != 0)
+        if (bread(maindisk, disk_block, &buf) != 0) {
+            iupdate(file->inode);
+            iunlock(file->inode);
             return -1;
+        }
         memcpy(buf->data + file->byte_in_block, data, step);
-        bwrite(buf);
+        if (bwrite(buf) != 0) {
+            iupdate(file->inode);
+            iunlock(file->inode);
+            return -1;
+        }
         /* Update upon success */
         minifile_cursor_shift(file, step);
         len -= step;
         /* Update disk inode size */
-        ilock(file->inode);
-        file->inode->size += step;
+        if (file->inode->size < file->byte_cursor) {
+            file->inode->size = file->byte_cursor;
+        }
+
         iupdate(file->inode);
         iunlock(file->inode);
     }

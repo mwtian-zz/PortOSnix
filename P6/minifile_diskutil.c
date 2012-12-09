@@ -94,6 +94,7 @@ minifile_fsck(int *arg)
                 //printf("with block num %ld\n", blocknum);
                 used_block_map[blocknum]++;
             }
+			iset_used_indirect(inode, used_block_map);
             iput(inode);
         }
     }

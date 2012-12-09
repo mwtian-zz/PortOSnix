@@ -29,6 +29,8 @@ static int rm_triple_indirect(mem_inode_t ino, int blocksize);
 static int single_offset(blocknum_t blocknum);
 static int double_offset(blocknum_t blocknum);
 static int triple_offset(blocknum_t blocknum);
+static int set_double_indirect(mem_inode_t ino, char* blockmap);
+static int set_triple_indirect(mem_inode_t ino, char* blockmap);
 static blocknum_t indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
 static blocknum_t double_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
 static blocknum_t triple_indirect(disk_t* disk, blocknum_t blocknum, size_t block_offset);
@@ -243,7 +245,6 @@ irm_block(mem_inode_t ino) {
 		return 0;
 	}
 	blocksize = ino->size_blocks;
-	printf("blocksize: %ld\n", blocksize);
 	/* In direct block */
 	if (blocksize <= INODE_DIRECT_BLOCKS) {
 		blocknum = ino->direct[blocksize - 1];
@@ -383,6 +384,83 @@ iadd_to_dir(mem_inode_t ino, char* filename, inodenum_t inodenum) {
 	offset = entry_num % ENTRY_NUM_PER_BLOCK;
 	memcpy(buf->data + offset * DIR_ENTRY_SIZE, (void*)&entry, DIR_ENTRY_SIZE);
 	bwrite(buf);
+	return 0;
+}
+
+int 
+iset_used_indirect(mem_inode_t ino, char* blockmap) {
+	int blocksize;
+	
+	blocksize = ino->size_blocks;
+	/* In direct block */
+	if (blocksize <= INODE_DIRECT_BLOCKS) {
+		return 0;
+	}
+	/* In indirect blocks */
+	if (blocksize <= (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS)) {
+		blockmap[ino->indirect]++;
+		return 0;
+	}
+	if (blocksize <= (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS)) {
+		return set_double_indirect(ino, blockmap);
+	}
+	if (blocksize <= (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS + INODE_TRIPLE_BLOCKS)) {
+		return set_triple_indirect(ino, blockmap);
+	}
+	return -1;
+}
+
+static int
+set_double_indirect(mem_inode_t ino, char* blockmap) {
+	int doffset, i;
+	blocknum_t blocknum;
+	buf_block_t buf;
+	
+	doffset = double_offset(ino->size_blocks - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1) + 1;
+	if (doffset >= INODE_INDIRECT_BLOCKS) {
+		doffset = INODE_INDIRECT_BLOCKS;
+	}
+	blockmap[ino->indirect]++;
+	blockmap[ino->double_indirect]++;
+	if (bread(maindisk, ino->double_indirect, &buf) != 0) {
+		return -1;
+	}
+	for (i = 0; i < doffset; i++) {
+		memcpy((void*)&blocknum, buf->data + 8 * i, sizeof(blocknum_t));
+		blockmap[blocknum]++;
+	}
+	brelse(buf);
+	return 0;
+}
+
+static int set_triple_indirect(mem_inode_t ino, char* blockmap) {
+	int doffset, toffset, i, j;
+	blocknum_t blocknum;
+	buf_block_t t_buf, d_buf;
+	
+	set_double_indirect(ino, blockmap);
+	toffset = triple_offset(ino->size_blocks - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS)) + 1;
+	blockmap[ino->triple_indirect]++;
+	
+	if (bread(maindisk, ino->triple_indirect, &t_buf) != 0) {
+		return -1;
+	}
+	for (i = 0; i < toffset; i++) {
+		memcpy((void*)&blocknum, t_buf + 8 * i, sizeof(blocknum_t));
+		if (bread(maindisk, blocknum, &d_buf) != 0) {
+			continue;
+		}
+		doffset = double_offset(ino->size_blocks - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS) - INODE_DOUBLE_BLOCKS * i) + 1;
+		if (doffset >= INODE_INDIRECT_BLOCKS) {
+			doffset = INODE_INDIRECT_BLOCKS;
+		}
+		for (j = 0; j < INODE_INDIRECT_BLOCKS; j++) {
+			memcpy((void*)&blocknum, d_buf->data + 8 * j, sizeof(blocknum_t));
+			blockmap[blocknum]++;
+		}
+		brelse(d_buf);
+	}
+	brelse(t_buf);
 	return 0;
 }
 

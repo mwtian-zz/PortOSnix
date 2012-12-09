@@ -37,6 +37,9 @@ minifile_fs.o: minifile_fs.c defs.h minifile_fs.h bitmap.h disk.h \
 minifile_fs_test.o: minifile_fs_test.c defs.h disk.h interrupts.h \
  minifile_cache.h queue.h queue_private.h synch.h minifile_fs.h bitmap.h \
  minifile_inode.h minithread.h machineprimitives.h
+minifile_fsck.o: minifile_fsck.c minithread.h machineprimitives.h defs.h \
+ minifile_fs.h bitmap.h disk.h interrupts.h minifile_cache.h queue.h \
+ queue_private.h synch.h minifile_inode.h minifile_diskutil.h
 minifile_indirect_test.o: minifile_indirect_test.c defs.h disk.h \
  interrupts.h minifile_cache.h queue.h queue_private.h synch.h \
  minifile_fs.h bitmap.h minifile_inode.h minifile_inodetable.h \
@@ -94,9 +97,9 @@ random.o: random.c
 read.o: read.c read.h read_private.h interrupts_private.h interrupts.h \
  defs.h minithread.h machineprimitives.h minifile_fs.h bitmap.h disk.h \
  minifile_cache.h queue.h queue_private.h synch.h minifile_inode.h
-shell.o: shell.c minithread.h machineprimitives.h defs.h minifile_fs.h \
- bitmap.h disk.h interrupts.h minifile_cache.h queue.h queue_private.h \
- synch.h minifile_inode.h minifile.h
+shell.o: shell.c minifile.h minithread.h machineprimitives.h defs.h \
+ minifile_fs.h bitmap.h disk.h interrupts.h minifile_cache.h queue.h \
+ queue_private.h synch.h minifile_inode.h read.h
 start.o: start.c defs.h
 synch.o: synch.c defs.h queue.h minithread.h machineprimitives.h \
  minifile_fs.h bitmap.h disk.h interrupts.h minifile_cache.h \

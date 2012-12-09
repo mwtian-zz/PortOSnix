@@ -2,6 +2,28 @@ Hao Li (hl824) , Mingwei Tian (mt643)
 
 CS4411 Project 6 - File System
 
+The project is done in GNU/Linux environment.
+
+Each 4kb block can hold 32 inodes.
+
+Each inode can have 11 direct, 1 single indirect, 1 double indirect and 1
+triple indirect pointers.
+
+A block cache is used for read/write operations. To preserve file system
+integrity, all read/write are blocking.
+
+Bitmaps are used to mark free inodes and blocks.
+
+Usage:
+1. make - Generates three targets: minithread, mkfs and fsck.
+2. ./mkfs <number of 4kb blocks> - Make virtual file system in file 'minidisk'.
+3. ./minithread - Run program.
+
+By default in 'disk.c', 'use_existing_disk' is set to 1, and 'disk_name' is
+set to 'minidisk'.
+
+./fsck can be used to check the integrity of the file system.
+
 --------------------------------------------------------------------------------
 Project Description
 http://www.cs.cornell.edu/courses/cs4410/2012fa/CS4411/projects/project3

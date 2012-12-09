@@ -19,6 +19,10 @@ OUTPUT_MAIN = minithread
 TARGET_MKFS = minifile_mkfs
 OUTPUT_MKFS = mkfs
 
+# Extra ultility: fsck
+TARGET_FSCK = minifile_fsck
+OUTPUT_FSCK = fsck
+
 OBJ = \
     alarm.o \
     alarm_queue.o \
@@ -52,7 +56,7 @@ OBJ = \
 
 .PHONY: all
 .DEFAULT: all
-all: minithread mkfs
+all: minithread mkfs fsck
 
 machineprimitives_x86_64_asm.o: machineprimitives_x86_64_asm.S
 	$(CC) -c machineprimitives_x86_64_asm.S -o machineprimitives_x86_64_asm.o
@@ -62,6 +66,9 @@ minithread: start.o end.o $(OBJ) $(SYSTEMOBJ) $(MAIN).o
 
 mkfs: start.o end.o $(OBJ) $(SYSTEMOBJ) $(TARGET_MKFS).o
 	$(CC) $(LFLAGS) $(LIB) start.o $(OBJ) end.o $(TARGET_MKFS).o $(LFLAGS) -o $(OUTPUT_MKFS)
+
+fsck: start.o end.o $(OBJ) $(SYSTEMOBJ) $(TARGET_FSCK).o
+	$(CC) $(LFLAGS) $(LIB) start.o $(OBJ) end.o $(TARGET_FSCK).o $(LFLAGS) -o $(OUTPUT_FSCK)
 
 clean:
 	rm -f *.o

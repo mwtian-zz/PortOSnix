@@ -53,47 +53,56 @@ minifile_fsck(int *arg)
 {
     char *disk_block_map;
     char *used_block_map;
+    int error_count = 0;
     mem_inode_t inode;
     blocknum_t i, j;
-    blocknum_t count = 0;
+    blocknum_t block_free_count = 0;
     blocknum_t blocknum;
+    printf("File system checking starts...\n");
 
     disk_block_map = malloc(mainsb->disk_num_blocks * sizeof(*disk_block_map));
     used_block_map = malloc(mainsb->disk_num_blocks * sizeof(*used_block_map));
 
+    printf("Loading free block map from disk...\n");
     /* Copy over disk bitmap */
     for (i = 0; i < mainsb->disk_num_blocks; ++i) {
         disk_block_map[i] = bitmap_get(mainsb->block_bitmap, i);
+        //printf("block %ld: %d\n", i , disk_block_map[i]);
         if (0 == disk_block_map[i])
-            count++;
+            block_free_count++;
     }
-    if (count != mainsb->free_blocks) {
+    if (block_free_count != mainsb->free_blocks) {
         printf("Inconsistent numer of free blocks: system - %ld, bitmap - %ld.",
-               mainsb->free_blocks, count);
-        mainsb->free_blocks = count;
+               mainsb->free_blocks, block_free_count);
+        mainsb->free_blocks = block_free_count;
         printf("    Fixed.\n");
     }
 
+    printf("Marking used blocks...\n");
     /* Set file system used blocks */
     for (i = 0; i <= mainsb->block_bitmap_last; ++i) {
         used_block_map[i]++;
     }
-
     /* Set file used blocks */
     for (i = 1; i < mainsb->total_inodes; ++i) {
         if (bitmap_get(mainsb->inode_bitmap, i) == 1) {
+            //printf("checking inode %ld\n", i);
             iget(maindisk, i, &inode);
             for (j = 0; j < inode->size_blocks; ++j) {
+                //printf("    logical block %ld ", j);
                 blocknum = blockmap(maindisk, inode, j);
+                //printf("with block num %ld\n", blocknum);
                 used_block_map[blocknum]++;
             }
             iput(inode);
         }
     }
 
+    printf("Comparing disk block map and actual used blocks...\n");
     /* Compare disk bitmap with counted block usage */
     for (i = 0; i < mainsb->disk_num_blocks; ++i) {
         if (disk_block_map[i] != used_block_map[i]) {
+            error_count++;
             printf("Inconsistency at block %ld.", i);
             if (disk_block_map[i] == 1 || used_block_map[i] == 0) {
                 printf("    Free block marked as used on disk \
@@ -110,6 +119,8 @@ minifile_fsck(int *arg)
             }
         }
     }
+    printf("Number of inconsistent blocks found: %d\n", error_count);
+    printf("File system check finishes. Hit ^C to quit minithread.\n");
 
     return 0;
 }

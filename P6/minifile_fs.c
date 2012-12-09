@@ -233,6 +233,7 @@ balloc(disk_t* disk)
     /* Get super block */
     fs_lock(mainsb);
     if (mainsb->free_blocks <= 0) {
+        fs_unlock(mainsb);
         return -1;
     }
 

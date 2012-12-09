@@ -104,17 +104,17 @@ minifile_fsck(int *arg)
         if (disk_block_map[i] != used_block_map[i]) {
             error_count++;
             printf("Inconsistency at block %ld.", i);
-            if (disk_block_map[i] == 1 || used_block_map[i] == 0) {
+            if (disk_block_map[i] == 1 && used_block_map[i] == 0) {
                 printf("    Free block marked as used on disk \
-                       - fixed by freeing the block in bitmap.");
+                       - fixed by freeing the block in bitmap.\n");
                 bfree(i);
-            } else if (disk_block_map[i] == 0 || used_block_map[i] == 1) {
+            } else if (disk_block_map[i] == 0 && used_block_map[i] == 1) {
                 printf("    Used block marked as free on disk \
-                       - fixed by setting the block to used in bitmap.");
+                       - fixed by setting the block to used in bitmap.\n");
                 bset(i);
             } else {
                 printf("    Unable to fix inconsistency: for block %ld - \
-                       on disk count %d, actual used count %d",
+                       on disk count %d, actual used count %d\n",
                        i, disk_block_map[i], used_block_map[i]);
             }
         }

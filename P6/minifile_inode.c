@@ -76,7 +76,7 @@ iclear(mem_inode_t ino)
 		blocknum = blockmap(ino->disk, ino, i);    /* A little inefficient to do this... */
 		if (blocknum == -1) {
 			printf("Error on mapping block number!\n");
-			/* What to do here? */
+			break;
 		}
         bfree(blocknum);
 	}

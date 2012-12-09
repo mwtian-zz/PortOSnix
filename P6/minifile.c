@@ -112,6 +112,7 @@ minifile_t minifile_open(char *filename, char *mode)
         /* Empty the content if 'w' or 'w+' */
         if ('w' == mode[0]) {
             iclear(inode);
+            printf("inode size: %ld", inode->size);
         }
         iunlock(inode);
     }
@@ -191,16 +192,24 @@ int minifile_write(minifile_t file, char *data, int len)
         blocknum = 0;
         ilock(file->inode);
 
+        /* Do not write over at end of file */
+        if (file->byte_cursor > file->inode->size) {
+            minifile_cursor_shift(file, file->inode->size - file->byte_cursor);
+        }
+        //printf("len: %d\n", len);
         /* Allocate block if needed */
         if ((file->block_cursor * DISK_BLOCK_SIZE < file->byte_cursor + 1)
                 && (file->inode->size <= file->byte_cursor)) {
-            printf("Got block number: %ld\n", blocknum = balloc(maindisk));
+            if ((blocknum = balloc(maindisk)) == -1) {
+                goto write_err;
+            }
+            //printf("blocknum: %ld\n", blocknum);
+            //printf("file size: %ld\n", file->inode->size);
             /* Update disk inode block list */
             if (iadd_block(file->inode, blocknum) == 0)
                 file->inode->size_blocks++;
             //printf("block added to inode.\n");
         }
-
         /* Get step size */
         if (file->byte_in_block + len - 1 > DISK_BLOCK_SIZE) {
             step = DISK_BLOCK_SIZE - file->byte_in_block;
@@ -211,15 +220,11 @@ int minifile_write(minifile_t file, char *data, int len)
         disk_block = blockmap(maindisk, file->inode, file->block_cursor);
         /* Copy disk block */
         if (bread(maindisk, disk_block, &buf) != 0) {
-            iupdate(file->inode);
-            iunlock(file->inode);
-            return -1;
+            goto write_err;
         }
         memcpy(buf->data + file->byte_in_block, data, step);
         if (bwrite(buf) != 0) {
-            iupdate(file->inode);
-            iunlock(file->inode);
-            return -1;
+            goto write_err;
         }
         /* Update upon success */
         minifile_cursor_shift(file, step);
@@ -234,6 +239,11 @@ int minifile_write(minifile_t file, char *data, int len)
     }
 
     return 0;
+
+write_err:
+    iupdate(file->inode);
+    iunlock(file->inode);
+    return -1;
 }
 
 int minifile_close(minifile_t file)

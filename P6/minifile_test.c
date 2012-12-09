@@ -13,7 +13,7 @@ char file_open[] = "oepnfiletest";
 char file_read[] = "readfiletest";
 
 char buf[BUFFER_SIZE];
-int num_threads = 20;
+int num_threads = 10;
 semaphore_t barrier_sem;
 
 int
@@ -44,14 +44,14 @@ read_test(int *arg)
 }
 
 int
-open_test(int *arg)
+open_write_test(int *arg)
 {
     minifile_t file = minifile_open(file_open, "w");
-    printf("open-test writing.\n");
-    minifile_write(file,buf,BUFFER_SIZE);
+    printf("open_write_test writing.\n");
+    minifile_write(file, buf, BUFFER_SIZE);
     minifile_close(file);
     semaphore_V(barrier_sem);
-    printf("open-test finishes.\n");
+    printf("open_write_test finishes.\n");
     return 0;
 }
 
@@ -75,7 +75,7 @@ file_test(int *arg)
     minifile_write(file,buf,BUFFER_SIZE);
     minifile_close(file);
 
-    printf("Forking read-test.\n");
+    printf("Forking read_test.\n");
     for (i = 0; i < num_threads; ++i) {
         minithread_fork(read_test, NULL);
     }
@@ -83,15 +83,14 @@ file_test(int *arg)
         semaphore_P(barrier_sem);
     }
 
-    /*
-    printf("Forking open-test.\n");
+    printf("Forking open_write_test.\n");
     for (i = 0; i < num_threads; ++i) {
-        minithread_fork(open_test, NULL);
+        minithread_fork(open_write_test, NULL);
     }
+
     for (i = 0; i < num_threads; ++i) {
         semaphore_P(barrier_sem);
     }
-    */
     minifile_fsck(NULL);
 
     return 0;

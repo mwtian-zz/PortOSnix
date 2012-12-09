@@ -12,7 +12,7 @@ LFLAGS = -lrt -lpthread
 # dropping the ".c": so to use "sieve.c", change to "MAIN = sieve".
 #
 # Note that you must write your own test programs.
-MAIN = minifile_test
+MAIN = shell
 OUTPUT_MAIN = minithread
 
 # Extra ultility: mkfs

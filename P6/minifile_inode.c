@@ -387,10 +387,10 @@ iadd_to_dir(mem_inode_t ino, char* filename, inodenum_t inodenum) {
 	return 0;
 }
 
-int 
+int
 iset_used_indirect(mem_inode_t ino, char* blockmap) {
 	int blocksize;
-	
+
 	blocksize = ino->size_blocks;
 	/* In direct block */
 	if (blocksize <= INODE_DIRECT_BLOCKS) {
@@ -415,7 +415,7 @@ set_double_indirect(mem_inode_t ino, char* blockmap) {
 	int doffset, i;
 	blocknum_t blocknum;
 	buf_block_t buf;
-	
+
 	doffset = double_offset(ino->size_blocks - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS) - 1) + 1;
 	if (doffset >= INODE_INDIRECT_BLOCKS) {
 		doffset = INODE_INDIRECT_BLOCKS;
@@ -437,11 +437,11 @@ static int set_triple_indirect(mem_inode_t ino, char* blockmap) {
 	int doffset, toffset, i, j;
 	blocknum_t blocknum;
 	buf_block_t t_buf, d_buf;
-	
+
 	set_double_indirect(ino, blockmap);
 	toffset = triple_offset(ino->size_blocks - 1 - (INODE_DIRECT_BLOCKS + INODE_INDIRECT_BLOCKS + INODE_DOUBLE_BLOCKS)) + 1;
 	blockmap[ino->triple_indirect]++;
-	
+
 	if (bread(maindisk, ino->triple_indirect, &t_buf) != 0) {
 		return -1;
 	}
@@ -476,10 +476,10 @@ rm_single_indirect(mem_inode_t ino, int blocksize) {
 		return -1;
 	}
 	memcpy((void*)&blocknum, (s_buf->data + 8 * offset), sizeof(blocknum_t));
-	printf("block number to remove is %ld\n", blocknum);
+	//printf("block number to remove is %ld\n", blocknum);
 
 	if (offset == 0) {
-		printf("Need to remove indirect block %ld\n", s_buf->num);
+		//printf("Need to remove indirect block %ld\n", s_buf->num);
 		bfree(s_buf->num);
 	}
 	brelse(s_buf);

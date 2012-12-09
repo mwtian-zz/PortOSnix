@@ -539,9 +539,8 @@ char **minifile_ls(char *path)
 	entries = malloc((entries_size + 1) * sizeof(char*));
 
 	for (i = 0; i < entries_size; i++) {
-	    printf("dir name: %s\n", dir_entries[i]->name);
-	    printf("dir inum: %ld\n", dir_entries[i]->inode_num);
-
+	    //printf("dir name: %s\n", dir_entries[i]->name);
+	    //printf("dir inum: %ld\n", dir_entries[i]->inode_num);
 		if (dir_entries[i] != NULL) {
 			entries[count] = malloc(strlen(dir_entries[i]->name) + 1);
 			strcpy(entries[count], dir_entries[i]->name);

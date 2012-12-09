@@ -101,7 +101,9 @@ minifile_fsck(int *arg)
 
     printf("Comparing disk block map and actual used blocks...\n");
     /* Compare disk bitmap with counted block usage */
-    for (i = 0; i < mainsb->disk_num_blocks; ++i) {
+    for (i = mainsb->block_bitmap_last + 1; i < mainsb->disk_num_blocks; ++i) {
+        //printf("block disk %d; ", disk_block_map[i]);
+        //printf("block used %d\n", used_block_map[i]);
         if (disk_block_map[i] != used_block_map[i]) {
             error_count++;
             printf("Inconsistency at block %ld.", i);

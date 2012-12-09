@@ -7,7 +7,8 @@ The project is done in GNU/Linux environment.
 Each 4kb block can hold 32 inodes.
 
 Each inode can have 11 direct, 1 single indirect, 1 double indirect and 1
-triple indirect pointers.
+triple indirect pointers. 
+There may still be issues in indirect block management.
 
 A block cache is used for read/write operations. To preserve file system
 integrity, all read/write are blocking.

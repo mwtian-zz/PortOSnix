@@ -64,6 +64,8 @@ minifile_t minifile_creat(char *filename)
         inode->size = 0;
         iunlock(inode);
         iupdate(inode);
+		free(parent);
+		free(name);
     } else {
         iget(maindisk, inum, &inode);
 		ilock(inode);
